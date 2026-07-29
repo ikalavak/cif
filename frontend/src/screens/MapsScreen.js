@@ -1,20 +1,21 @@
 import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { COLORS } from '../theme';
 
 export default function MapsScreen() {
   const { colors } = useTheme();
 
   return (
-    <ScrollView style={[styles.screen, { backgroundColor: colors.bg }]} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: colors.bg }]} edges={["top","bottom"]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
       {/* Header */}
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.pageTitle}>Campus Explorer</Text>
-          <Text style={styles.pageSubtitle}>Explore all University of East London campuses</Text>
+          <Text style={[styles.pageTitle, { color: colors.text }]}>Campus Explorer</Text>
+          <Text style={[styles.pageSubtitle, { color: colors.textMuted }]}>Explore all University of East London campuses</Text>
         </View>
         <TouchableOpacity style={[styles.iconButton, { backgroundColor: colors.card }]}>
           <Ionicons name="settings-sharp" size={18} color={colors.text} />
@@ -23,7 +24,7 @@ export default function MapsScreen() {
 
       <View style={[styles.campusList, { paddingHorizontal: 20, paddingBottom: 20 }]}>
         {/* Campus Card 1 */}
-        <View style={[styles.campusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.campusCard, { backgroundColor: colors.card, borderColor: colors.border }] }>
           <LinearGradient colors={['#db2777', '#4f46e5', '#2563eb']} style={styles.campusImage}>
             <Text style={styles.placeholderLogo}>CREATIVE INDUSTRIES FESTIVAL</Text>
           </LinearGradient>
@@ -52,21 +53,22 @@ export default function MapsScreen() {
           </View>
         </View>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: COLORS.bg },
-  pageTitle: { color: COLORS.text, fontSize: 26, fontWeight: 'bold', marginBottom: 4 },
-  pageSubtitle: { color: COLORS.textMuted, fontSize: 14 },
+  screen: { flex: 1 },
+  pageTitle: { fontSize: 26, fontWeight: 'bold', marginBottom: 4 },
+  pageSubtitle: { fontSize: 14 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 },
-  iconButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.card, justifyContent: 'center', alignItems: 'center' },
+  iconButton: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   campusList: { paddingHorizontal: 20, paddingBottom: 20 },
-  campusCard: { backgroundColor: COLORS.card, borderRadius: 20, marginBottom: 20, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border },
+  campusCard: { borderRadius: 20, marginBottom: 20, overflow: 'hidden', borderWidth: 1 },
   campusImage: { height: 160, justifyContent: 'center', alignItems: 'center' },
   placeholderLogo: { color: '#fff', fontSize: 24, fontWeight: '900', letterSpacing: 2, textAlign: 'center' },
   campusContent: { flexDirection: 'row', alignItems: 'center', padding: 16 },
-  campusTitle: { color: COLORS.text, fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
-  campusSub: { color: COLORS.textMuted, fontSize: 12 },
+  campusTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
+  campusSub: { fontSize: 12 },
 });

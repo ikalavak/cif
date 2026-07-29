@@ -23,6 +23,15 @@ export function ThemeProvider({ children }) {
 
   const colors = useMemo(() => (scheme === 'dark' ? DARK : LIGHT), [scheme]);
 
+  // Provide backwards-compatible aliases used across the app
+  const colorsWithAliases = useMemo(() => ({
+    ...colors,
+    // Some components expect `background` instead of `bg`
+    background: colors.bg,
+    // Keep legacy key for direct imports
+    bg: colors.bg,
+  }), [colors]);
+
   const toggleTheme = () => {
     setMode(prev => (prev === 'light' ? 'dark' : 'light'));
   };
@@ -31,7 +40,7 @@ export function ThemeProvider({ children }) {
     mode,
     setMode,
     scheme,
-    colors,
+    colors: colorsWithAliases,
     toggleTheme,
   };
 

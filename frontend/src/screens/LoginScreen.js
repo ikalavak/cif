@@ -5,7 +5,6 @@ import {
   View,
   TextInput,
   TouchableOpacity,
-  StatusBar,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -24,7 +23,7 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View style={[styles.rootContainer, { backgroundColor: colors.bg }]}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      {/* StatusBar handled at App root to keep consistent barStyle per theme */}
       
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 

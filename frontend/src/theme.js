@@ -19,4 +19,5 @@ export const DARK = {
 };
 
 // Backwards-compatible default
-export const COLORS = DARK;
+// Backwards-compatible default: prefer light sensible defaults for legacy imports
+export const COLORS = LIGHT;
