@@ -15,6 +15,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import EventsScreen from './src/screens/EventsScreen';
 import MapsScreen from './src/screens/MapsScreen';
 import FestivalProfileScreen from './src/screens/FestivalProfileScreen';
+import NotificationsScreen from './src/screens/NotificationsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -190,6 +191,9 @@ function AppInner() {
           {/* 1. Auth Flow */}
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="SignUp" component={SignUpScreen} />
+
+          {/* Notifications (navigated from Home) */}
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
 
           {/* 2. Main App Flow */}
           <Stack.Screen name="MainApp" component={MainTabs} />

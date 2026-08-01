@@ -6,7 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
 
-export default function HomeScreen() {
+export default function HomeScreen({ navigation }) {
   const { colors } = useTheme();
 
   return (
@@ -18,10 +18,14 @@ export default function HomeScreen() {
           <Text style={[styles.nameText, { color: colors.text }]}>user 👋</Text>
         </View>
         <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.iconButton}>
-              <Feather name="bell" size={18} color={colors.text} />
-              <View style={[styles.notificationDot, { backgroundColor: colors.error }]} />
-            </TouchableOpacity>
+          <TouchableOpacity style={styles.iconButton} onPress={() => {
+            const parent = navigation.getParent && navigation.getParent();
+            if (parent && parent.navigate) parent.navigate('Notifications');
+            else navigation.navigate('Notifications');
+          }}>
+            <Feather name="bell" size={18} color={colors.text} />
+            <View style={[styles.notificationDot, { backgroundColor: colors.error }]} />
+          </TouchableOpacity>
           <ThemeToggle />
         </View>
       </View>
