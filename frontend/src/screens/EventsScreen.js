@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import SafeScreen from '../components/SafeScreen';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -10,12 +10,7 @@ export default function EventsScreen() {
   const filters = ['All', 'Workshops', 'Talks', 'Exhibitions', 'Networking'];
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: colors.bg }]} edges={["top","bottom"]}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 20, paddingTop: 8 }}
-        keyboardShouldPersistTaps="handled"
-      >
+    <SafeScreen scroll style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={{ paddingBottom: 20, paddingTop: 8 }}>
       {/* Header */}
       <View style={styles.headerRow}>
         <View>
@@ -71,8 +66,7 @@ export default function EventsScreen() {
           </View>
         </View>
       </ScrollView>
-      </ScrollView>
-    </SafeAreaView>
+    </SafeScreen>
   );
 }
 

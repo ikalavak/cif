@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
 } from 'react-native';
+import SafeScreen from '../components/SafeScreen';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -21,12 +21,12 @@ export default function SignUpScreen({ navigation }) {
   const { colors } = useTheme();
 
   return (
-    <View style={[styles.rootContainer, { backgroundColor: colors.bg }]}> 
+    <SafeScreen scroll style={[styles.rootContainer, { backgroundColor: colors.bg }]} contentContainerStyle={styles.scrollContent}>
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        
           
           <View style={styles.header}>
             <Text style={styles.titleText}>Create Account</Text>
@@ -98,9 +98,8 @@ export default function SignUpScreen({ navigation }) {
             </View>
 
           </View>
-        </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeScreen>
   );
 }
 

@@ -14,6 +14,7 @@ import SignUpScreen from './src/screens/SignUpScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import EventsScreen from './src/screens/EventsScreen';
 import MapsScreen from './src/screens/MapsScreen';
+import FestivalProfileScreen from './src/screens/FestivalProfileScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -139,7 +140,7 @@ function MainTabs() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Events" component={EventsScreen} />
       <Tab.Screen name="Maps" component={MapsScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Profile" component={FestivalProfileScreen} />
     </Tab.Navigator>
   );
 }

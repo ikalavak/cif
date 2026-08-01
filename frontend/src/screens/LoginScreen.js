@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
 } from 'react-native';
+import SafeScreen from '../components/SafeScreen';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -22,18 +22,13 @@ export default function LoginScreen({ navigation }) {
   const { colors } = useTheme();
 
   return (
-    <View style={[styles.rootContainer, { backgroundColor: colors.bg }]}>
+    <SafeScreen scroll style={[styles.rootContainer, { backgroundColor: colors.bg }]} contentContainerStyle={styles.scrollContent}>
       {/* StatusBar handled at App root to keep consistent barStyle per theme */}
       
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent} 
-          bounces={false} 
-          showsVerticalScrollIndicator={false}
-        >
           {/* TOP HEADER SECTION */}
           <View style={styles.headerWrapper}>
             <LinearGradient
@@ -178,9 +173,8 @@ export default function LoginScreen({ navigation }) {
             </View>
 
           </View>
-        </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeScreen>
   );
 }
 

@@ -1,6 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import SafeScreen from '../components/SafeScreen';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -9,8 +9,7 @@ export default function MapsScreen() {
   const { colors } = useTheme();
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: colors.bg }]} edges={["top","bottom"]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+    <SafeScreen scroll style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={{ paddingBottom: 20 }}>
       {/* Header */}
       <View style={styles.headerRow}>
         <View>
@@ -53,8 +52,7 @@ export default function MapsScreen() {
           </View>
         </View>
       </View>
-      </ScrollView>
-    </SafeAreaView>
+    </SafeScreen>
   );
 }
 
