@@ -29,8 +29,8 @@ export default function SignUpScreen({ navigation }) {
         
           
           <View style={styles.header}>
-            <Text style={styles.titleText}>Create Account</Text>
-            <Text style={styles.subtitleText}>Join the Creative Industries Festival</Text>
+            <Text style={[styles.titleText, { color: colors.text }]}>Create Account</Text>
+            <Text style={[styles.subtitleText, { color: colors.textMuted }]}>Join the Creative Industries Festival</Text>
           </View>
 
           <View style={[styles.formContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -48,11 +48,11 @@ export default function SignUpScreen({ navigation }) {
 
             {/* Email Input */}
             <View style={styles.inputContainer}>
-              <Feather name="mail" size={20} color="#8b5cf6" style={styles.inputIcon} />
+              <Feather name="mail" size={20} color={colors.primary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Email address"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.textMuted}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -62,11 +62,11 @@ export default function SignUpScreen({ navigation }) {
 
             {/* Password Input */}
             <View style={styles.inputContainer}>
-              <Feather name="lock" size={20} color="#8b5cf6" style={styles.inputIcon} />
+              <Feather name="lock" size={20} color={colors.primary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Password"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.textMuted}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={true}
@@ -80,7 +80,7 @@ export default function SignUpScreen({ navigation }) {
               onPress={() => navigation.replace('MainApp')}
             >
               <LinearGradient
-                colors={[colors.primary, '#1877f2']}
+                colors={[colors.primary, colors.accent]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.primaryButton}
@@ -91,9 +91,9 @@ export default function SignUpScreen({ navigation }) {
 
             {/* Back to Login Link */}
             <View style={styles.footerRow}>
-              <Text style={styles.footerText}>Already have an account? </Text>
+              <Text style={[styles.footerText, { color: colors.textMuted }]}>Already have an account? </Text>
               <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                <Text style={styles.linkText}>Login</Text>
+                <Text style={[styles.linkText, { color: colors.accent2 }]}>Login</Text>
               </TouchableOpacity>
             </View>
 
@@ -106,7 +106,6 @@ export default function SignUpScreen({ navigation }) {
 const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
-    backgroundColor: '#000000',
   },
   scrollContent: {
     flexGrow: 1,
@@ -115,42 +114,38 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 40,
-    marginTop: 60,
+    marginTop: 24,
   },
   titleText: {
-    color: '#ffffff',
     fontSize: 32,
     fontWeight: 'bold',
     marginBottom: 8,
   },
   subtitleText: {
-    color: '#9ca3af',
     fontSize: 16,
   },
   formContainer: {
-    backgroundColor: '#15151c',
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#2a2a35',
+    
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#37314d',
+    
     borderRadius: 16,
     paddingHorizontal: 16,
     height: 56,
     marginBottom: 16,
-    backgroundColor: '#1c1c26',
+    
   },
   inputIcon: {
     marginRight: 12,
   },
   input: {
     flex: 1,
-    color: '#ffffff',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -161,7 +156,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   primaryButtonText: {
-    color: '#ffffff',
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -171,11 +165,9 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   footerText: {
-    color: '#9ca3af',
     fontSize: 14,
   },
   linkText: {
-    color: '#e850b5',
     fontSize: 14,
     fontWeight: 'bold',
   },

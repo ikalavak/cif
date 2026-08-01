@@ -100,7 +100,8 @@ function MainTabs() {
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
           backgroundColor: colors.card,
-          borderTopWidth: 0,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
           elevation: 8,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },

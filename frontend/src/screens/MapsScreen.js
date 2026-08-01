@@ -6,7 +6,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 
 export default function MapsScreen() {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
 
   return (
     <SafeScreen scroll style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={{ paddingBottom: 20 }}>
@@ -23,8 +23,12 @@ export default function MapsScreen() {
 
       <View style={[styles.campusList, { paddingHorizontal: 20, paddingBottom: 20 }]}>
         {/* Campus Card 1 */}
-        <View style={[styles.campusCard, { backgroundColor: colors.card, borderColor: colors.border }] }>
-          <LinearGradient colors={['#db2777', '#4f46e5', '#2563eb']} style={styles.campusImage}>
+        <View style={[
+          styles.campusCard,
+          { backgroundColor: colors.card, borderColor: colors.border },
+          scheme === 'light' ? styles.cardLightElev : styles.cardDarkElev,
+        ]}>
+          <LinearGradient colors={[colors.error, colors.primary, colors.accent]} style={styles.campusImage}>
             <Text style={styles.placeholderLogo}>CREATIVE INDUSTRIES FESTIVAL</Text>
           </LinearGradient>
           <View style={styles.campusContent}>
@@ -38,8 +42,12 @@ export default function MapsScreen() {
         </View>
 
         {/* Campus Card 2 */}
-        <View style={[styles.campusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <LinearGradient colors={['#ff0055', '#cc0044']} style={styles.campusImage}>
+        <View style={[
+          styles.campusCard,
+          { backgroundColor: colors.card, borderColor: colors.border },
+          scheme === 'light' ? styles.cardLightElev : styles.cardDarkElev,
+        ]}>
+          <LinearGradient colors={[colors.error, colors.accent2]} style={styles.campusImage}>
             <Text style={[styles.placeholderLogo, { fontSize: 48, fontWeight: '900' }]}>DC</Text>
           </LinearGradient>
           <View style={styles.campusContent}>
@@ -60,12 +68,21 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   pageTitle: { fontSize: 26, fontWeight: 'bold', marginBottom: 4 },
   pageSubtitle: { fontSize: 14 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
   iconButton: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   campusList: { paddingHorizontal: 20, paddingBottom: 20 },
   campusCard: { borderRadius: 20, marginBottom: 20, overflow: 'hidden', borderWidth: 1 },
+  cardLightElev: {
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  cardDarkElev: {
+    shadowColor: 'transparent',
+  },
   campusImage: { height: 160, justifyContent: 'center', alignItems: 'center' },
-  placeholderLogo: { color: '#fff', fontSize: 24, fontWeight: '900', letterSpacing: 2, textAlign: 'center' },
+  placeholderLogo: { fontSize: 24, fontWeight: '900', letterSpacing: 2, textAlign: 'center' },
   campusContent: { flexDirection: 'row', alignItems: 'center', padding: 16 },
   campusTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
   campusSub: { fontSize: 12 },

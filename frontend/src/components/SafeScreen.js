@@ -16,7 +16,7 @@ export default function SafeScreen({
     return (
       <SafeAreaView style={[{ flex: 1 }, style]} edges={edges} {...rest}>
         <ScrollView
-          contentContainerStyle={[{ paddingTop: insets.top, paddingBottom: insets.bottom }, contentContainerStyle]}
+          contentContainerStyle={[{ paddingBottom: insets.bottom }, contentContainerStyle]}
         >
           {children}
         </ScrollView>
@@ -25,8 +25,8 @@ export default function SafeScreen({
   }
 
   return (
-    <SafeAreaView style={[{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom }, style]} edges={edges} {...rest}>
-      <View style={{ flex: 1 }}>{children}</View>
+    <SafeAreaView style={[{ flex: 1 }, style]} edges={edges} {...rest}>
+      <View style={{ flex: 1, paddingBottom: insets.bottom }}>{children}</View>
     </SafeAreaView>
   );
 }

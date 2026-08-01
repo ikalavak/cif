@@ -45,6 +45,17 @@ export default function FestivalProfileScreen({ navigation }) {
     Alert.alert('Offline Cache', `Ticket ${offlineCached ? 'removed from' : 'saved to'} device.`);
   };
 
+  const handleLogout = () => {
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Logout', style: 'destructive', onPress: () => {
+          const parent = navigation.getParent && navigation.getParent();
+          if (parent && parent.replace) parent.replace('Login');
+          else navigation.replace('Login');
+        } },
+    ]);
+  };
+
   return (
     <SafeScreen scroll style={[styles.safeArea, { backgroundColor: colors.bg }]} contentContainerStyle={{ paddingBottom: 40, paddingTop: 12 }}>
       {/* Header: Avatar + Pass Type */}
@@ -77,7 +88,9 @@ export default function FestivalProfileScreen({ navigation }) {
           </View>
 
           <View style={styles.qrWrap}>
-            <QRCode value="CIF-VIP-12345" size={86} backgroundColor="transparent" color={colors.text} />
+            <View style={[styles.qrBox, { backgroundColor: colors.white, padding: 6, borderRadius: 8 }]}> 
+              <QRCode value="CIF-VIP-12345" size={74} backgroundColor={colors.white} color={colors.black} />
+            </View>
           </View>
         </View>
 
@@ -139,9 +152,14 @@ export default function FestivalProfileScreen({ navigation }) {
           <View style={[styles.offlineIndicatorRow, { borderColor: colors.border }]}> 
             <Text style={{ color: colors.text, fontWeight: '600' }}>Offline Status</Text>
             <View style={styles.offlineStatusRight}>
-              <View style={[styles.dot, { backgroundColor: offlineCached ? '#10b981' : '#ef4444' }]} />
+              <View style={[styles.dot, { backgroundColor: offlineCached ? colors.success : colors.error }]} />
               <Text style={{ color: colors.textMuted, marginLeft: 8 }}>{offlineCached ? 'Ticket cached locally' : 'Not cached'}</Text>
             </View>
+          </View>
+          <View style={{ marginTop: 14, marginHorizontal: 16 }}>
+            <TouchableOpacity onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: colors.error }] } activeOpacity={0.85}>
+              <Text style={{ color: colors.white, fontWeight: '700' }}>Logout</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -189,8 +207,8 @@ function SettingRow({ label, value, onValueChange, colors, useToggle = true, onP
       {useToggle ? (
         <Switch value={value} onValueChange={onValueChange} thumbColor={value ? colors.primary : undefined} />
       ) : (
-        <TouchableOpacity onPress={onPress} style={[styles.cacheBtn, { backgroundColor: colors.primary }]}> 
-          <Text style={{ color: '#fff', fontWeight: '700' }}>{value ? 'Remove' : 'Cache'}</Text>
+          <TouchableOpacity onPress={onPress} style={[styles.cacheBtn, { backgroundColor: colors.primary }]}> 
+          <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>{value ? 'Remove' : 'Cache'}</Text>
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -216,6 +234,7 @@ const styles = StyleSheet.create({
   ticketSub: { marginTop: 4 },
   ticketHolder: { marginTop: 8, fontWeight: '700' },
   qrWrap: { width: 96, height: 96, alignItems: 'center', justifyContent: 'center' },
+  qrBox: { alignItems: 'center', justifyContent: 'center' },
   ticketFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
   ticketFooterText: { fontSize: 12 },
 
@@ -237,4 +256,5 @@ const styles = StyleSheet.create({
   offlineIndicatorRow: { marginTop: 12, marginHorizontal: 16, padding: 12, borderWidth: 1, borderRadius: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   offlineStatusRight: { flexDirection: 'row', alignItems: 'center' },
   dot: { width: 10, height: 10, borderRadius: 6 },
+  logoutBtn: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, alignItems: 'center' },
 });

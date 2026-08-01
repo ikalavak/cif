@@ -4,7 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 
 export default function ThemeToggle() {
-  const { scheme, toggleTheme, mode, setMode } = useTheme();
+  const { colors, scheme, toggleTheme, mode, setMode } = useTheme();
 
   const handlePress = () => {
     // simple toggle between light/dark; if system, switch to opposite of system
@@ -14,12 +14,12 @@ export default function ThemeToggle() {
 
   return (
     <TouchableOpacity
-      style={[styles.wrap, { backgroundColor: scheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]}
+      style={[styles.wrap, { backgroundColor: scheme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', borderColor: colors.border }]}
       onPress={handlePress}
       activeOpacity={0.8}
     >
       <View style={styles.row}>
-        <Feather name={scheme === 'dark' ? 'moon' : 'sun'} size={18} color={scheme === 'dark' ? '#fff' : '#000'} />
+        <Feather name={scheme === 'dark' ? 'moon' : 'sun'} size={18} color={colors.text} />
       </View>
     </TouchableOpacity>
   );
@@ -35,5 +35,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   row: { flexDirection: 'row', alignItems: 'center' },
-  label: { color: '#fff', fontSize: 12, marginLeft: 6 },
+  label: { fontSize: 12, marginLeft: 6 },
 });
