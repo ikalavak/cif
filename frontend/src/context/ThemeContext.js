@@ -5,13 +5,13 @@ import { LIGHT, DARK } from '../theme';
 const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
-  const colorScheme = Appearance.getColorScheme() || 'light';
-  const [mode, setMode] = useState('system'); // 'light' | 'dark' | 'system'
+  const colorScheme = Appearance.getColorScheme() || 'dark';
+  const [mode, setMode] = useState('dark'); // 'light' | 'dark' | 'system'
   const [systemScheme, setSystemScheme] = useState(colorScheme);
 
   useEffect(() => {
     const sub = Appearance.addChangeListener(({ colorScheme: cs }) => {
-      setSystemScheme(cs || 'light');
+      setSystemScheme(cs || 'dark');
     });
     return () => sub.remove();
   }, []);
