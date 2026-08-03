@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import SafeScreen from '../components/SafeScreen';
 import QRCode from 'react-native-qrcode-svg';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 
 // Festival Profile Screen
@@ -73,8 +73,10 @@ export default function FestivalProfileScreen({ navigation }) {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.shareBtn} onPress={() => Alert.alert('Share', 'Share ticket')}>
-          <Feather name="share-2" size={18} color={colors.text} />
+        <TouchableOpacity
+          style={[styles.iconButton, { backgroundColor: colors.card }]}
+        >
+          <Ionicons name="settings-sharp" size={18} color={colors.text} />
         </TouchableOpacity>
       </View>
 
