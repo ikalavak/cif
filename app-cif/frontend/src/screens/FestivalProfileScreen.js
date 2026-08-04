@@ -3,10 +3,8 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   FlatList,
   TouchableOpacity,
-  Switch,
   Alert,
 } from 'react-native';
 import SafeScreen from '../components/SafeScreen';
@@ -17,10 +15,6 @@ import { useTheme } from '../context/ThemeContext';
 // Festival Profile Screen
 export default function FestivalProfileScreen({ navigation }) {
   const { colors } = useTheme();
-
-  // Simulated state: whether ticket is cached for offline use
-  const [offlineCached, setOfflineCached] = useState(false);
-  const [pushEnabled, setPushEnabled] = useState(true);
 
   const schedule = useMemo(
     () => [
@@ -38,23 +32,6 @@ export default function FestivalProfileScreen({ navigation }) {
     ],
     []
   );
-
-  const handleToggleOfflineCache = () => {
-    // In real app, this would cache ticket to AsyncStorage/filesystem
-    setOfflineCached(prev => !prev);
-    Alert.alert('Offline Cache', `Ticket ${offlineCached ? 'removed from' : 'saved to'} device.`);
-  };
-
-  const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: () => {
-          const parent = navigation.getParent && navigation.getParent();
-          if (parent && parent.replace) parent.replace('Login');
-          else navigation.replace('Login');
-        } },
-    ]);
-  };
 
   return (
     <SafeScreen scroll style={[styles.safeArea, { backgroundColor: colors.bg }]} contentContainerStyle={{ paddingBottom: 40, paddingTop: 12 }}>
@@ -75,6 +52,12 @@ export default function FestivalProfileScreen({ navigation }) {
 
         <TouchableOpacity
           style={[styles.iconButton, { backgroundColor: colors.card }]}
+          onPress={() => {
+            const parent = navigation.getParent && navigation.getParent();
+            if (parent && parent.navigate) parent.navigate('Settings');
+            else navigation.navigate('Settings');
+          }}
+          activeOpacity={0.8}
         >
           <Ionicons name="settings-sharp" size={18} color={colors.text} />
         </TouchableOpacity>
@@ -98,7 +81,7 @@ export default function FestivalProfileScreen({ navigation }) {
 
         <View style={styles.ticketFooter}>
           <Text style={[styles.ticketFooterText, { color: colors.textMuted }]}>Ticket ID: CIF-VIP-12345</Text>
-          <Text style={[styles.ticketFooterText, { color: colors.textMuted }]}>{offlineCached ? 'Cached Offline' : 'Online'}</Text>
+          <Text style={[styles.ticketFooterText, { color: colors.textMuted }]}>Online</Text>
         </View>
       </View>
 
@@ -130,41 +113,6 @@ export default function FestivalProfileScreen({ navigation }) {
           ))}
         </View>
       </View>
-
-      {/* Settings & Offline */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Settings</Text>
-        <View style={{ marginTop: 8 }}>
-          <SettingRow
-            label="Push Notifications"
-            value={pushEnabled}
-            onValueChange={val => setPushEnabled(val)}
-            colors={colors}
-          />
-
-          <SettingRow
-            label="Offline Mode (cache ticket)"
-            value={offlineCached}
-            onValueChange={handleToggleOfflineCache}
-            colors={colors}
-            useToggle={false}
-            onPress={handleToggleOfflineCache}
-          />
-
-          <View style={[styles.offlineIndicatorRow, { borderColor: colors.border }]}> 
-            <Text style={{ color: colors.text, fontWeight: '600' }}>Offline Status</Text>
-            <View style={styles.offlineStatusRight}>
-              <View style={[styles.dot, { backgroundColor: offlineCached ? colors.success : colors.error }]} />
-              <Text style={{ color: colors.textMuted, marginLeft: 8 }}>{offlineCached ? 'Ticket cached locally' : 'Not cached'}</Text>
-            </View>
-          </View>
-          <View style={{ marginTop: 14, marginHorizontal: 16 }}>
-            <TouchableOpacity onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: colors.error }] } activeOpacity={0.85}>
-              <Text style={{ color: colors.white, fontWeight: '700' }}>Logout</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
     </SafeScreen>
   );
 }
@@ -192,27 +140,6 @@ function SavedPortfolioCard({ item, colors }) {
       </View>
 
       <Feather name="chevron-right" size={18} color={colors.textMuted} />
-    </TouchableOpacity>
-  );
-}
-
-function SettingRow({ label, value, onValueChange, colors, useToggle = true, onPress }) {
-  return (
-    <TouchableOpacity
-      onPress={() => {
-        if (!useToggle && onPress) onPress();
-      }}
-      activeOpacity={useToggle ? 1 : 0.7}
-      style={[styles.settingRow, { borderColor: colors.border }]}
-    >
-      <Text style={{ color: colors.text }}>{label}</Text>
-      {useToggle ? (
-        <Switch value={value} onValueChange={onValueChange} thumbColor={value ? colors.primary : undefined} />
-      ) : (
-          <TouchableOpacity onPress={onPress} style={[styles.cacheBtn, { backgroundColor: colors.primary }]}> 
-          <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>{value ? 'Remove' : 'Cache'}</Text>
-        </TouchableOpacity>
-      )}
     </TouchableOpacity>
   );
 }
@@ -252,11 +179,4 @@ const styles = StyleSheet.create({
   portfolioCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, marginHorizontal: 16, marginTop: 10, borderRadius: 10, borderWidth: 1 },
   portfolioLeft: { flexDirection: 'row', alignItems: 'center' },
   portfolioAvatar: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-
-  settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: 1 },
-  cacheBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  offlineIndicatorRow: { marginTop: 12, marginHorizontal: 16, padding: 12, borderWidth: 1, borderRadius: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  offlineStatusRight: { flexDirection: 'row', alignItems: 'center' },
-  dot: { width: 10, height: 10, borderRadius: 6 },
-  logoutBtn: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, alignItems: 'center' },
 });
