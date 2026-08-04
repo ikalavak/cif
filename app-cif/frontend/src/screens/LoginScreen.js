@@ -12,6 +12,9 @@ import SafeScreen from '../components/SafeScreen';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { auth } from '../config/firebase'; // adjust path as needed
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { Alert, ActivityIndicator } from 'react-native';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -19,6 +22,40 @@ export default function LoginScreen({ navigation }) {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { colors } = useTheme();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLogin = async () => {
+  const emailtrimmed = email.trim();
+    // 1. Basic validation
+    if (!emailtrimmed || !password) {
+      Alert.alert("Error", "Please enter both email and password.");
+      return;
+    }
+
+    // 2. Start loading
+    setIsLoading(true);
+
+    try {
+      // 3. Attempt Firebase login
+      await signInWithEmailAndPassword(auth, emailtrimmed, password);
+      
+      // 4. Success! Navigate to the main app
+      navigation.replace('MainApp'); 
+      
+    } catch (error) {
+      // 5. Handle errors cleanly
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        Alert.alert("Login Failed", "Incorrect email or password.");
+      } else if (error.code === 'auth/invalid-email') {
+        Alert.alert("Error", "Please enter a valid email address.");
+      } else {
+        Alert.alert("Error", error.message);
+      }
+    } finally {
+      // 6. Stop loading whether it succeeded or failed
+      setIsLoading(false);
+    }
+  };
 
   return (
     // Removed the "scroll" prop here to enforce a fixed single-screen layout
@@ -110,7 +147,8 @@ export default function LoginScreen({ navigation }) {
 
             <TouchableOpacity 
               activeOpacity={0.8}
-              onPress={() => navigation.replace('MainApp')}
+              onPress={handleLogin}
+              disabled={isLoading}
             >
               <LinearGradient
                 colors={[colors.primary, colors.accent]}
@@ -118,11 +156,16 @@ export default function LoginScreen({ navigation }) {
                 end={{ x: 1, y: 0 }}
                 style={styles.loginButton}
               >
-                <Text style={styles.loginButtonText}>Login</Text>
-                <Feather name="arrow-right" size={20} color={colors.onPrimary} style={{ marginLeft: 8 }} />
+                {isLoading ? (
+                  <ActivityIndicator color={colors.onPrimary || '#ffffff'} />
+                ) : (
+                  <>
+                    <Text style={styles.loginButtonText}>Login</Text>
+                    <Feather name="arrow-right" size={20} color={colors.onPrimary} style={{ marginLeft: 8 }} />
+                  </>
+                )}
               </LinearGradient>
             </TouchableOpacity>
-
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
               <Text style={[styles.dividerText, { color: colors.textMuted }]}>OR</Text>
