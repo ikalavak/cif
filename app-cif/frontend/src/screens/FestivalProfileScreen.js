@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,15 +6,51 @@ import {
   FlatList,
   TouchableOpacity,
   Alert,
+  Image,
+  Platform,
 } from 'react-native';
 import SafeScreen from '../components/SafeScreen';
 import QRCode from 'react-native-qrcode-svg';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import * as ImagePicker from 'expo-image-picker';
 
 // Festival Profile Screen
 export default function FestivalProfileScreen({ navigation }) {
   const { colors } = useTheme();
+  const [photoUri, setPhotoUri] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      if (Platform.OS !== 'web') {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            'Permission required',
+            'Permission to access photos is required to upload a profile photo.'
+          );
+        }
+      }
+    })();
+  }, []);
+
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        const uri = result.assets && result.assets.length ? result.assets[0].uri : result.uri;
+        setPhotoUri(uri);
+      }
+    } catch (e) {
+      console.warn('Image pick error', e);
+    }
+  };
 
   const schedule = useMemo(
     () => [
@@ -38,9 +74,18 @@ export default function FestivalProfileScreen({ navigation }) {
       {/* Header: Avatar + Pass Type */}
       <View style={styles.headerRow}>
         <View style={styles.avatarWrap}>
-          <View style={[styles.avatarCircle, { backgroundColor: colors.card }]}> 
-            <Text style={[styles.avatarInitials, { color: colors.primary }]}>CI</Text>
-          </View>
+          <TouchableOpacity activeOpacity={0.8} onPress={pickImage}>
+            {photoUri ? (
+              <Image source={{ uri: photoUri }} style={styles.avatarImage} />
+            ) : (
+              <View style={[styles.avatarCircle, { backgroundColor: colors.card }]}>
+                <Text style={[styles.avatarInitials, { color: colors.primary }]}>CI</Text>
+              </View>
+            )}
+            <View style={[styles.cameraBadge, { backgroundColor: colors.primary }]}>
+              <Feather name="camera" size={12} color="#fff" />
+            </View>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.headerInfo}>
@@ -73,7 +118,7 @@ export default function FestivalProfileScreen({ navigation }) {
           </View>
 
           <View style={styles.qrWrap}>
-            <View style={[styles.qrBox, { backgroundColor: colors.white, padding: 6, borderRadius: 8 }]}> 
+            <View style={[styles.qrBox, { backgroundColor: colors.white, padding: 6, borderRadius: 8 }]}>
               <QRCode value="CIF-VIP-12345" size={74} backgroundColor={colors.white} color={colors.black} />
             </View>
           </View>
@@ -150,6 +195,8 @@ const styles = StyleSheet.create({
   avatarWrap: { marginRight: 12 },
   avatarCircle: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
   avatarInitials: { fontSize: 18, fontWeight: '800' },
+  avatarImage: { width: 64, height: 64, borderRadius: 32, resizeMode: 'cover' },
+  cameraBadge: { position: 'absolute', right: -6, bottom: -6, width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
   headerInfo: { flex: 1 },
   festivalName: { fontSize: 16, fontWeight: '800' },
   badge: { marginTop: 6, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 12, alignSelf: 'flex-start' },
@@ -179,4 +226,6 @@ const styles = StyleSheet.create({
   portfolioCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, marginHorizontal: 16, marginTop: 10, borderRadius: 10, borderWidth: 1 },
   portfolioLeft: { flexDirection: 'row', alignItems: 'center' },
   portfolioAvatar: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+
+  iconButton: { padding: 8, borderRadius: 8 },
 });
