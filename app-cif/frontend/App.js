@@ -11,6 +11,7 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 // --- IMPORT YOUR SCREENS ---
 import LoginScreen from './src/screens/LoginScreen'; 
 import SignUpScreen from './src/screens/SignUpScreen'; 
+import SplashScreen from './src/screens/SplashScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import EventsScreen from './src/screens/EventsScreen';
 import MapsScreen from './src/screens/MapsScreen';
@@ -186,9 +187,9 @@ function AppInner() {
       
       {/* Pass the merged theme into NavigationContainer */}
       <NavigationContainer theme={navigationTheme}>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Splash">
           
-          {/* 1. Auth Flow */}
+          <Stack.Screen name="Splash" component={SplashScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="SignUp" component={SignUpScreen} />
 
