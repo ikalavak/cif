@@ -66,7 +66,7 @@ export default function LoginScreen({ navigation }) {
             <View style={styles.inputContainer}>
               <Feather name="mail" size={20} color={colors.primary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: colors.text }]}
                 placeholder="Email address"
                 placeholderTextColor={colors.textMuted}
                 value={email}
@@ -79,7 +79,7 @@ export default function LoginScreen({ navigation }) {
             <View style={styles.inputContainer}>
               <Feather name="lock" size={20} color={colors.primary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: colors.text }]}
                 placeholder="Password"
                 placeholderTextColor={colors.textMuted}
                 value={password}
