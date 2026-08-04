@@ -45,9 +45,7 @@ export default function LoginScreen({ navigation }) {
               style={StyleSheet.absoluteFillObject}
             />
 
-            <TouchableOpacity style={[styles.settingsButton, { backgroundColor: colors.white + '26' }] }>
-              <Ionicons name="settings-sharp" size={18} color={colors.white + 'CC'} />
-            </TouchableOpacity>
+
 
             <View style={styles.titleContainer}>
               <Text style={[styles.titleText, { color: colors.text }]}>CREATIVE</Text>
@@ -192,17 +190,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 24,
     position: 'relative',
-  },
-  settingsButton: {
-    position: 'absolute',
-    top: 54,
-    right: 24,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
   },
   titleContainer: {
     alignItems: 'center',
