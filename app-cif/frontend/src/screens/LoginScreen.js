@@ -12,19 +12,77 @@ import SafeScreen from '../components/SafeScreen';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { auth } from '../config/firebase'; // adjust path as needed
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { Alert, ActivityIndicator } from 'react-native';
 
-// 1. Accept the navigation prop here
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { colors } = useTheme();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLogin = async () => {
+  const emailtrimmed = email.trim();
+    // 1. Basic validation
+    if (!emailtrimmed || !password) {
+      Alert.alert("Error", "Please enter both email and password.");
+      return;
+    }
+
+    // 2. Start loading
+    setIsLoading(true);
+
+    try {
+      // 3. Attempt Firebase login
+      await signInWithEmailAndPassword(auth, emailtrimmed, password);
+      
+      // 4. Success! Navigate to the main app
+      navigation.replace('MainApp'); 
+      
+    } catch (error) {
+      // 5. Handle errors cleanly
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        Alert.alert("Login Failed", "Incorrect email or password.");
+      } else if (error.code === 'auth/invalid-email') {
+        Alert.alert("Error", "Please enter a valid email address.");
+      } else {
+        Alert.alert("Error", error.message);
+      }
+    } finally {
+      // 6. Stop loading whether it succeeded or failed
+      setIsLoading(false);
+    }
+  };
+  const handleForgotPassword = async () => {
+    const emailtrimmed = email.trim(); // Uses the email state from your text input
+
+    if (!emailtrimmed) {
+      Alert.alert("Missing Email", "Please type your email address into the box first, then press Forgot Password.");
+      return;
+    }
+
+    try {
+      // Tells Firebase to send the reset email
+      await sendPasswordResetEmail(auth, emailtrimmed);
+      Alert.alert(
+        "Email Sent!", 
+        "Check your inbox. We sent you a link to reset your password."
+      );
+    } catch (error) {
+      if (error.code === 'auth/user-not-found') {
+        Alert.alert("Error", "No account found with this email address.");
+      } else {
+        Alert.alert("Error", error.message);
+      }
+    }
+  };
 
   return (
-    <SafeScreen scroll style={[styles.rootContainer, { backgroundColor: colors.bg }]} contentContainerStyle={styles.scrollContent}>
-      {/* StatusBar handled at App root to keep consistent barStyle per theme */}
-      
+    // Removed the "scroll" prop here to enforce a fixed single-screen layout
+    <SafeScreen style={[styles.rootContainer, { backgroundColor: colors.bg }]}>
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -45,8 +103,6 @@ export default function LoginScreen({ navigation }) {
               style={StyleSheet.absoluteFillObject}
             />
 
-
-
             <View style={styles.titleContainer}>
               <Text style={[styles.titleText, { color: colors.text }]}>CREATIVE</Text>
               <Text style={[styles.gradientTextFallback, { color: colors.accent2 }]}>INDUSTRIES</Text>
@@ -63,15 +119,14 @@ export default function LoginScreen({ navigation }) {
           </View>
 
           {/* BOTTOM LOGIN CARD */}
-            <View style={[styles.cardContainer, { backgroundColor: colors.card, borderColor: colors.border }] }>
+          <View style={[styles.cardContainer, { backgroundColor: colors.card, borderColor: colors.border }] }>
             <Text style={[styles.welcomeText, { color: colors.text }]}>Welcome Back</Text>
             <Text style={[styles.instructionText, { color: colors.textMuted }]}>Sign in to continue your experience</Text>
 
-            {/* Email Input */}
             <View style={styles.inputContainer}>
               <Feather name="mail" size={20} color={colors.primary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: colors.text }]}
                 placeholder="Email address"
                 placeholderTextColor={colors.textMuted}
                 value={email}
@@ -81,11 +136,10 @@ export default function LoginScreen({ navigation }) {
               />
             </View>
 
-            {/* Password Input */}
             <View style={styles.inputContainer}>
               <Feather name="lock" size={20} color={colors.primary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: colors.text }]}
                 placeholder="Password"
                 placeholderTextColor={colors.textMuted}
                 value={password}
@@ -97,7 +151,6 @@ export default function LoginScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            {/* Remember Me & Forgot Password */}
             <View style={styles.rowBetween}>
               <TouchableOpacity 
                 style={styles.rememberMeRow} 
@@ -107,38 +160,41 @@ export default function LoginScreen({ navigation }) {
                 <View style={[styles.checkbox, rememberMe && styles.checkboxChecked, { borderColor: colors.primary }] }>
                   {rememberMe && <Feather name="check" size={12} color={colors.onPrimary} />}
                 </View>
-                <Text style={styles.rememberMeText}>Remember me</Text>
+                <Text style={[styles.rememberMeText, { color: colors.text }]}>Remember me</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity>
-                <Text style={[styles.forgotPasswordText, { color: colors.accent2 }]}>Forgot Password?</Text>
-              </TouchableOpacity>
+             <TouchableOpacity onPress={handleForgotPassword} style={{ marginTop: 16, alignItems: 'center' }}>
+               <Text style={{ color: colors.primary, fontWeight: '600' }}> Forgot Password?</Text>
+             </TouchableOpacity>
             </View>
 
-            {/* 2. Wire up the Login Button */}
-              <TouchableOpacity 
-                activeOpacity={0.8}
-                onPress={() => navigation.replace('MainApp')}
-              >
+            <TouchableOpacity 
+              activeOpacity={0.8}
+              onPress={handleLogin}
+              disabled={isLoading}
+            >
               <LinearGradient
                 colors={[colors.primary, colors.accent]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.loginButton}
               >
-                <Text style={styles.loginButtonText}>Login</Text>
-                <Feather name="arrow-right" size={20} color={colors.onPrimary} style={{ marginLeft: 8 }} />
+                {isLoading ? (
+                  <ActivityIndicator color={colors.onPrimary || '#ffffff'} />
+                ) : (
+                  <>
+                    <Text style={styles.loginButtonText}>Login</Text>
+                    <Feather name="arrow-right" size={20} color={colors.onPrimary} style={{ marginLeft: 8 }} />
+                  </>
+                )}
               </LinearGradient>
             </TouchableOpacity>
-
-            {/* Divider */}
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
               <Text style={[styles.dividerText, { color: colors.textMuted }]}>OR</Text>
               <View style={styles.dividerLine} />
             </View>
 
-            {/* 3. Wire up Continue as Guest */}
             <TouchableOpacity 
               style={styles.guestButton} 
               activeOpacity={0.7}
@@ -149,7 +205,6 @@ export default function LoginScreen({ navigation }) {
               <Feather name="arrow-right" size={20} color={colors.primary} />
             </TouchableOpacity>
 
-            {/* 4. Wire up Create Account Link */}
             <View style={styles.createAccountRow}>
                 <Text style={[styles.noAccountText, { color: colors.textMuted }]}>Don't have an account? </Text>
               <TouchableOpacity 
@@ -161,7 +216,7 @@ export default function LoginScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            {/* Footer Logo */}
+            {/* Footer pushes itself to the bottom of the card dynamically */}
             <View style={styles.footer}>
               <Text style={[styles.footerText, { color: colors.textMuted }]}>POWERED BY</Text>
               <View style={styles.dcLogo}>
@@ -180,15 +235,12 @@ const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
   },
-  scrollContent: {
-    flexGrow: 1,
-  },
+  // Changed from height: 300 to flex: 0.35 to dynamically scale
   headerWrapper: {
-    height: 300,
+    flex: 0.35,
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 24,
     position: 'relative',
   },
   titleContainer: {
@@ -219,34 +271,33 @@ const styles = StyleSheet.create({
   dot: {
     fontSize: 10,
   },
+  // Changed to flex: 0.65 and tightened padding
   cardContainer: {
-    flex: 1,
+    flex: 0.65,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 30,
+    paddingTop: 20, 
+    paddingBottom: 16,
     width: '100%',
   },
   welcomeText: {
-    fontSize: 28,
+    fontSize: 26, // Slightly reduced
     fontWeight: 'bold',
     marginBottom: 4,
   },
   instructionText: {
     fontSize: 14,
-    marginBottom: 28,
+    marginBottom: 20, // Reduced from 28
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    
     borderRadius: 16,
     paddingHorizontal: 16,
-    height: 56,
-    marginBottom: 16,
-    
+    height: 50, // Reduced from 56
+    marginBottom: 12, // Reduced from 16
   },
   inputIcon: {
     marginRight: 12,
@@ -260,7 +311,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16, // Reduced from 24
     marginTop: 4,
   },
   rememberMeRow: {
@@ -272,14 +323,11 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 6,
     borderWidth: 1,
-    
     marginRight: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  checkboxChecked: {
-    
-  },
+  checkboxChecked: {},
   rememberMeText: {
     fontSize: 14,
     fontWeight: '500',
@@ -290,7 +338,7 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     flexDirection: 'row',
-    height: 56,
+    height: 50, // Reduced from 56
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
@@ -302,12 +350,11 @@ const styles = StyleSheet.create({
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 22,
+    marginVertical: 16, // Reduced from 22
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    
   },
   dividerText: {
     fontSize: 12,
@@ -316,13 +363,12 @@ const styles = StyleSheet.create({
   },
   guestButton: {
     flexDirection: 'row',
-    height: 56,
+    height: 50, // Reduced from 56
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'transparent',
     alignItems: 'center',
     paddingHorizontal: 16,
-    
   },
   guestButtonText: {
     flex: 1,
@@ -333,7 +379,7 @@ const styles = StyleSheet.create({
   createAccountRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 22,
+    marginTop: 12, // Reduced from 22
   },
   noAccountText: {
     fontSize: 14,
@@ -346,7 +392,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 32,
+    marginTop: 'auto', // Forces footer to the bottom of the card
     gap: 8,
   },
   footerText: {
@@ -355,7 +401,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   dcLogo: {
-    
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,

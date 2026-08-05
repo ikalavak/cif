@@ -1,10 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, Alert } from 'react-native';
 import SafeScreen from '../components/SafeScreen';
 import { useTheme } from '../context/ThemeContext';
+// 1. Added signOut to your imports
+import { auth } from '../config/firebase'; 
+import { deleteUser, signOut } from 'firebase/auth'; 
 
 export default function SettingsScreen({ navigation }) {
   const { colors } = useTheme();
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
   const [pushEnabled, setPushEnabled] = useState(true);
   const [offlineCached, setOfflineCached] = useState(false);
 
@@ -16,15 +24,58 @@ export default function SettingsScreen({ navigation }) {
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: () => {
-          const parent = navigation.getParent && navigation.getParent();
-          if (parent && parent.replace) parent.replace('Login');
-          else navigation.replace('Login');
-        } },
+      { 
+        text: 'Logout', 
+        style: 'destructive', 
+        onPress: async () => {
+          try {
+            // 2. Actually sign the user out of Firebase
+            await signOut(auth);
+            
+            const parent = navigation.getParent && navigation.getParent();
+            if (parent && parent.replace) parent.replace('Login');
+            else navigation.replace('Login');
+          } catch (error) {
+            Alert.alert('Logout Error', error.message);
+          }
+        } 
+      },
     ]);
   };
 
+  const handleDeleteAccount = async () => {
+    const user = auth.currentUser;
+
+    if (user) {
+      try {
+        await deleteUser(user);
+        navigation.replace('Login'); 
+      } catch (error) {
+        if (error.code === 'auth/requires-recent-login') {
+          Alert.alert(
+            "Security Requirement", 
+            "For your security, you must log out and log back in before deleting your account."
+          );
+        } else {
+          Alert.alert("Error", error.message);
+        }
+      }
+    }
+  };
+
+  const confirmDelete = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to permanently delete your account? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", onPress: handleDeleteAccount, style: "destructive" }
+      ]
+    );
+  };
+
   return (
+    // 3. Cleaned up the container styles here
     <SafeScreen scroll style={[styles.safeArea, { backgroundColor: colors.bg }]} contentContainerStyle={styles.container}>
       <View style={styles.headerRow}>
         <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
@@ -50,6 +101,7 @@ export default function SettingsScreen({ navigation }) {
 
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}> 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Account</Text>
+        
         <View style={styles.statusRow}>
           <Text style={{ color: colors.textMuted }}>Offline Status</Text>
           <View style={styles.statusRight}>
@@ -57,9 +109,16 @@ export default function SettingsScreen({ navigation }) {
             <Text style={{ color: colors.textMuted, marginLeft: 8 }}>{offlineCached ? 'Ticket cached locally' : 'Not cached'}</Text>
           </View>
         </View>
+
         <TouchableOpacity onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: colors.error }]} activeOpacity={0.85}>
           <Text style={{ color: colors.white, fontWeight: '700' }}>Logout</Text>
         </TouchableOpacity>
+
+        {/* 4. Moved the Delete Account button here and added the outline style */}
+        <TouchableOpacity onPress={confirmDelete} style={[styles.deleteBtn, { borderColor: colors.error }]} activeOpacity={0.85}>
+          <Text style={{ color: colors.error, fontWeight: '700' }}>Delete Account</Text>
+        </TouchableOpacity>
+
       </View>
     </SafeScreen>
   );
@@ -99,4 +158,14 @@ const styles = StyleSheet.create({
   statusRight: { flexDirection: 'row', alignItems: 'center' },
   dot: { width: 10, height: 10, borderRadius: 6 },
   logoutBtn: { marginTop: 12, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+  
+  // 5. Added the specific style for the delete button
+  deleteBtn: {
+    marginTop: 12,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    backgroundColor: 'transparent', // Keeps the inside transparent
+  },
 });

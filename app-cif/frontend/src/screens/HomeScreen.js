@@ -5,9 +5,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
+import { auth } from '../config/firebase';
 
 export default function HomeScreen({ navigation }) {
   const { colors } = useTheme();
+  
+  // Get the current user from Firebase and extract their name
+  const user = auth.currentUser;
+  const userName = user?.displayName || 'User';
 
   return (
     <SafeScreen scroll style={[styles.screen, { backgroundColor: colors.bg }]} contentContainerStyle={{ paddingBottom: 20 }}>
@@ -15,7 +20,7 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.headerRow}>
         <View>
           <Text style={[styles.greetingText, { color: colors.textMuted }]}>Good Morning,</Text>
-          <Text style={[styles.nameText, { color: colors.text }]}>user 👋</Text>
+          <Text style={[styles.nameText, { color: colors.text }]}>{userName} 👋</Text>        
         </View>
         <View style={styles.headerIcons}>
           <TouchableOpacity style={styles.iconButton} onPress={() => {
@@ -32,12 +37,12 @@ export default function HomeScreen({ navigation }) {
 
       {/* Search */}
       <View style={[styles.searchContainer, { backgroundColor: colors.input }] }>
-            <Feather name="search" size={20} color={colors.textMuted} style={styles.searchIcon} />
-            <TextInput
-              style={[styles.searchInput, { color: colors.text }]}
-              placeholder="Search events..."
-              placeholderTextColor={colors.textMuted}
-            />
+        <Feather name="search" size={20} color={colors.textMuted} style={styles.searchIcon} />
+        <TextInput
+          style={[styles.searchInput, { color: colors.text }]}
+          placeholder="Search events..."
+          placeholderTextColor={colors.textMuted}
+        />
         <TouchableOpacity>
           <Feather name="sliders" size={18} color={colors.primary} />
         </TouchableOpacity>
@@ -66,8 +71,8 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Featured Events</Text>
         <TouchableOpacity>
-                <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
-              </TouchableOpacity>
+          <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Horizontal Scroll Placeholder */}
