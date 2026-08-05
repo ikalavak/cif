@@ -9,10 +9,18 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setSession(user);
-      setLoading(false);
-    });
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (user) => {
+        console.log('Auth state changed:', user);
+        setSession(user);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Auth state change error:', error);
+        setLoading(false);
+      }
+    );
     return unsubscribe;
   }, []);
 
