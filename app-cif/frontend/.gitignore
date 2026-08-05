@@ -39,3 +39,14 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+# Windows OS Files
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+Desktop.ini

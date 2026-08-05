@@ -14,6 +14,9 @@ import QRCode from 'react-native-qrcode-svg';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import * as ImagePicker from 'expo-image-picker';
+import { auth } from '../config/firebase';
+
+ 
 
 // Festival Profile Screen
 export default function FestivalProfileScreen({ navigation }) {
@@ -68,6 +71,8 @@ export default function FestivalProfileScreen({ navigation }) {
     ],
     []
   );
+   const user = auth.currentUser;
+  const userName = user?.displayName || 'User';
 
   return (
     <SafeScreen scroll style={[styles.safeArea, { backgroundColor: colors.bg }]} contentContainerStyle={{ paddingBottom: 40, paddingTop: 12 }}>
@@ -89,7 +94,7 @@ export default function FestivalProfileScreen({ navigation }) {
         </View>
 
         <View style={styles.headerInfo}>
-          <Text style={[styles.festivalName, { color: colors.text }]}>Creative Industries Festival</Text>
+          <Text style={[styles.nameText, { color: colors.text }]}>{userName} </Text>  
           <View style={[styles.badge, { backgroundColor: colors.primary + '22' }]}>
             <Text style={[styles.badgeText, { color: colors.primary }]}>Pass Type: VIP</Text>
           </View>
