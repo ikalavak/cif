@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { auth } from '../config/firebase'; // adjust path as needed
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { Alert, ActivityIndicator } from 'react-native';
 
 export default function LoginScreen({ navigation }) {
@@ -54,6 +54,29 @@ export default function LoginScreen({ navigation }) {
     } finally {
       // 6. Stop loading whether it succeeded or failed
       setIsLoading(false);
+    }
+  };
+  const handleForgotPassword = async () => {
+    const emailtrimmed = email.trim(); // Uses the email state from your text input
+
+    if (!emailtrimmed) {
+      Alert.alert("Missing Email", "Please type your email address into the box first, then press Forgot Password.");
+      return;
+    }
+
+    try {
+      // Tells Firebase to send the reset email
+      await sendPasswordResetEmail(auth, emailtrimmed);
+      Alert.alert(
+        "Email Sent!", 
+        "Check your inbox. We sent you a link to reset your password."
+      );
+    } catch (error) {
+      if (error.code === 'auth/user-not-found') {
+        Alert.alert("Error", "No account found with this email address.");
+      } else {
+        Alert.alert("Error", error.message);
+      }
     }
   };
 
@@ -140,9 +163,9 @@ export default function LoginScreen({ navigation }) {
                 <Text style={[styles.rememberMeText, { color: colors.text }]}>Remember me</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity>
-                <Text style={[styles.forgotPasswordText, { color: colors.accent2 }]}>Forgot Password?</Text>
-              </TouchableOpacity>
+             <TouchableOpacity onPress={handleForgotPassword} style={{ marginTop: 16, alignItems: 'center' }}>
+               <Text style={{ color: colors.primary, fontWeight: '600' }}> Forgot Password?</Text>
+             </TouchableOpacity>
             </View>
 
             <TouchableOpacity 

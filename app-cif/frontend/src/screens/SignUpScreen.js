@@ -17,7 +17,7 @@ import { useTheme } from '../context/ThemeContext';
 
 // Import Firebase dependencies
 import { auth } from '../config/firebase'; // Adjust path if needed
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile} from 'firebase/auth';
 
 export default function SignUpScreen({ navigation }) {
   const [name, setName] = useState('');
@@ -43,14 +43,15 @@ export default function SignUpScreen({ navigation }) {
     setIsLoading(true);
 
     try {
-      // 3. Create the user in Firebase
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      // Note: Firebase auth only handles email/password. 
-      // You can save the 'name' to a Firestore database later if needed.
+      // Attach the name to their Firebase profile
+      await updateProfile(userCredential.user, {
+        displayName: name
+      });
 
-      // 4. Success! Navigate to the main app
-      navigation.replace('MainApp'); 
+      // Navigate to the main app
+      navigation.replace('MainApp');
       
     } catch (error) {
       // 5. Handle Firebase errors gracefully
