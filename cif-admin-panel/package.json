@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:build": "npm run build",
+    "check:security": "npm audit --omit=dev --audit-level=critical",
+    "check:all": "npm run check:build && npm run check:security"
   },
   "dependencies": {
     "firebase": "^10.14.1",

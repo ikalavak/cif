@@ -1,4 +1,9 @@
 {
+  "private": true,
+  "scripts": {
+    "setup:hooks": "git config core.hooksPath .githooks && chmod +x .githooks/pre-push scripts/local-quality-check.sh",
+    "check:all": "sh ./scripts/local-quality-check.sh"
+  },
   "dependencies": {
     "expo": "^57.0.8"
   }

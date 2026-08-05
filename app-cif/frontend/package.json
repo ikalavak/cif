@@ -27,7 +27,10 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "check:build": "expo export --platform web --output-dir /tmp/cif-frontend-export --clear",
+    "check:security": "npm audit --omit=dev --audit-level=critical",
+    "check:all": "npm run check:build && npm run check:security"
   },
   "private": true,
   "devDependencies": {

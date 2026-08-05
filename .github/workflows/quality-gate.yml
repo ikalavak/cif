@@ -1,0 +1,89 @@
+name: Quality Gate
+
+on:
+  push:
+    branches:
+      - development
+  pull_request:
+    branches:
+      - staging/testing
+      - uat
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  admin-panel:
+    name: Admin Panel Checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cif-admin-panel
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: cif-admin-panel/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run quality checks
+        run: npm run check:all
+
+  mobile-frontend:
+    name: Mobile Frontend Checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app-cif/frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app-cif/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run quality checks
+        run: npm run check:all
+
+  backend:
+    name: Backend Checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app-cif/backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app-cif/backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run quality checks
+        run: npm run check:all

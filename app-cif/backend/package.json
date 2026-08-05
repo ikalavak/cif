@@ -1,4 +1,10 @@
 {
+  "private": true,
+  "scripts": {
+    "check:build": "find src -name '*.js' -print0 | xargs -0 -n1 node --check",
+    "check:security": "npm audit --omit=dev --audit-level=critical",
+    "check:all": "npm run check:build && npm run check:security"
+  },
   "dependencies": {
     "express": "^5.2.1"
   }
