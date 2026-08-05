@@ -18,7 +18,11 @@ export default function Login() {
     try {
       await signIn(email, password);
     } catch (err) {
-      setError(err.message);
+      const message = err.code === 'auth/invalid-credential'
+        ? 'Invalid email or password. Check that the user exists in Firebase Auth and that the password is correct.'
+        : err.message || 'Login failed. Please try again.';
+      setError(message);
+      console.error('Login error:', err.code, err.message);
     }
     setSubmitting(false);
   };

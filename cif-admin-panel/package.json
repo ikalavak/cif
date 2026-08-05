@@ -1,5 +1,4 @@
 {
-<<<<<<< HEAD
   "name": "cif-admin-panel",
   "private": true,
   "version": "0.2.0",
@@ -10,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "firebase": "^10.13.0",
+    "firebase": "^10.14.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.0"
@@ -18,9 +17,5 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
     "vite": "^5.4.0"
-=======
-  "dependencies": {
-    "expo": "^57.0.8"
->>>>>>> baa595a79102dcf3582f0a4ab0247a65e4397ad5
   }
 }
