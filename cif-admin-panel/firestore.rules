@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Public (unauthenticated) users — your mobile app and website — can read
+    // published content. Any signed-in admin can create/edit/delete everything.
+    // Collections without a "published" concept (venues, categories, speakers,
+    // gallery, sponsors) are public-readable outright since they're supporting
+    // data, not gated content.
+
+    match /events/{id} {
+      allow read: if resource.data.published == true;
+      allow read, create, update, delete: if request.auth != null;
+    }
+
+    match /announcements/{id} {
+      allow read: if resource.data.published == true;
+      allow read, create, update, delete: if request.auth != null;
+    }
+
+    match /venues/{id} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    match /categories/{id} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    match /speakers/{id} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    match /gallery/{id} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    match /sponsors/{id} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // admin_users is an internal roster (not app-facing) — admins only.
+    match /admin_users/{id} {
+      allow read, create, update, delete: if request.auth != null;
+    }
+  }
+}
