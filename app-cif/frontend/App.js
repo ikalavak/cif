@@ -18,6 +18,9 @@ import MapsScreen from './src/screens/MapsScreen';
 import FestivalProfileScreen from './src/screens/FestivalProfileScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import ForumScreen from './src/screens/ForumScreen';
+import JobBoard from './src/screens/JobBoard';
+import PortfolioScreen from './src/screens/PortfolioScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -201,6 +204,9 @@ function AppInner() {
             component={SettingsScreen}
             options={{ headerShown: true, title: 'Settings', headerBackVisible: false }}
           />
+          <Stack.Screen name="ForumScreen" component={ForumScreen} />
+          <Stack.Screen name="JobBoard" component={JobBoard} />
+          <Stack.Screen name="PortfolioScreen" component={PortfolioScreen} />
 
           {/* 2. Main App Flow */}
           <Stack.Screen name="MainApp" component={MainTabs} />

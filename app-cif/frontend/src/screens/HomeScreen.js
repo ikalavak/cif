@@ -67,6 +67,30 @@ export default function HomeScreen({ navigation }) {
         <ActionBtn icon="image" color={colors.accent} label="Gallery" colors={colors} />
       </View>
 
+      <View style={styles.quickActionsRow}>
+        <ActionBtn
+          icon="message-circle"
+          color={colors.primary}
+          label="Forum"
+          colors={colors}
+          onPress={() => navigation.navigate('ForumScreen')}
+        />
+        <ActionBtn
+          icon="briefcase"
+          color={colors.accent}
+          label="Job Board"
+          colors={colors}
+          onPress={() => navigation.navigate('JobBoard')}
+        />
+        <ActionBtn
+          icon="user"
+          color={colors.success}
+          label="Portfolio"
+          colors={colors}
+          onPress={() => navigation.navigate('PortfolioScreen')}
+        />
+      </View>
+
       {/* Featured Events Header */}
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Featured Events</Text>
@@ -89,8 +113,8 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
-const ActionBtn = ({ icon, color, label, colors }) => (
-  <TouchableOpacity style={styles.actionBtn}>
+const ActionBtn = ({ icon, color, label, colors, onPress }) => (
+  <TouchableOpacity style={styles.actionBtn} onPress={onPress} activeOpacity={0.8}>
     <View style={[styles.actionIconBg, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <Feather name={icon} size={22} color={color} />
     </View>
@@ -113,7 +137,7 @@ const styles = StyleSheet.create({
   heroTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
   heroSubtitle: { fontSize: 14, marginBottom: 12 },
   heroDesc: { fontSize: 13, textAlign: 'center' },
-  quickActionsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 32 },
+  quickActionsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 20 },
   actionBtn: { alignItems: 'center', flex: 1 },
   actionIconBg: { width: 60, height: 60, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginBottom: 8, borderWidth: 1 },
   actionLabel: { fontSize: 12, fontWeight: '500' },
