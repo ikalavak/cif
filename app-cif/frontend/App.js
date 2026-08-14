@@ -21,7 +21,6 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import ForumScreen from './src/screens/ForumScreen';
 import JobBoard from './src/screens/JobBoard';
 import PortfolioScreen from './src/screens/PortfolioScreen';
-import ForgotPasswordScreen from "./src/screens/ForgotPasswordScreen"; 
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -208,7 +207,6 @@ function AppInner() {
           <Stack.Screen name="ForumScreen" component={ForumScreen} />
           <Stack.Screen name="JobBoard" component={JobBoard} />
           <Stack.Screen name="PortfolioScreen" component={PortfolioScreen} />
-          <Stack.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen}/>
 
           {/* 2. Main App Flow */}
           <Stack.Screen name="MainApp" component={MainTabs} />

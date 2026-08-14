@@ -78,9 +78,7 @@ export default function SettingsScreen({ navigation }) {
     // 3. Cleaned up the container styles here
     <SafeScreen scroll style={[styles.safeArea, { backgroundColor: colors.bg }]} contentContainerStyle={styles.container}>
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={[styles.title, { color: colors.text }]}>← Settings</Text>
-        </TouchableOpacity>
+        <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
       </View>
 
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}> 

@@ -59,7 +59,13 @@ export default function HomeScreen({ navigation }) {
         <Text style={[styles.heroDesc, { color: colors.text }]}>Stay tuned for exciting announcements.</Text>
       </View>
 
-      
+      {/* Quick Actions */}
+      <View style={styles.quickActionsRow}>
+        <ActionBtn icon="calendar" color={colors.primary} label="Events" colors={colors} />
+        <ActionBtn icon="map" color={colors.success} label="Maps" colors={colors} />
+        <ActionBtn icon="mic" color={colors.warning} label="Speakers" colors={colors} />
+        <ActionBtn icon="image" color={colors.accent} label="Gallery" colors={colors} />
+      </View>
 
       <View style={styles.quickActionsRow}>
         <ActionBtn
