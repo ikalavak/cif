@@ -163,9 +163,11 @@ export default function LoginScreen({ navigation }) {
                 <Text style={[styles.rememberMeText, { color: colors.text }]}>Remember me</Text>
               </TouchableOpacity>
               
-             <TouchableOpacity onPress={handleForgotPassword} style={{ marginTop: 16, alignItems: 'center' }}>
-               <Text style={{ color: colors.primary, fontWeight: '600' }}> Forgot Password?</Text>
-             </TouchableOpacity>
+             <TouchableOpacity onPress={() => navigation.navigate("ForgotPasswordScreen")} style={{ marginTop: 16, alignItems: "center" }}> 
+              <Text style={{ color: colors.primary, fontWeight: "600" }}> 
+                Forgot Password? 
+              </Text> 
+              </TouchableOpacity>
             </View>
 
             <TouchableOpacity 

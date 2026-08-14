@@ -36,7 +36,7 @@ function NotificationRow({ item, onPress }) {
   );
 }
 
-export default function NotificationsScreen() {
+export default function NotificationsScreen({ navigation }) {
   const { colors } = useTheme();
   const [filter, setFilter] = useState('All');
 
@@ -86,7 +86,9 @@ export default function NotificationsScreen() {
   return (
     <SafeScreen style={[styles.container, { backgroundColor: colors.bg }]}> 
       <View style={styles.headerRow}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Notifications</Text>
+        <TouchableOpacity onPress={() =>  navigation.goBack() }> 
+          <Text style={[styles.headerTitle, { color: colors.text }]}>← Notifications</Text> 
+        </TouchableOpacity> 
         <TouchableOpacity onPress={markAllAsRead}>
           <Text style={[styles.markAll, { color: colors.primary }]}>Mark all as read</Text>
         </TouchableOpacity>

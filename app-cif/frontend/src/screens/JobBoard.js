@@ -47,7 +47,7 @@ const listings = [
   },
 ];
 
-export default function JobBoard() {
+export default function JobBoard({ navigation }) {
   const { colors } = useTheme();
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
@@ -74,7 +74,9 @@ export default function JobBoard() {
 
   return (
     <SafeScreen scroll style={styles.page} contentContainerStyle={styles.pageContent}>
-      <Text style={styles.title}>Job Board</Text>
+      <TouchableOpacity onPress={() =>  navigation.goBack() }> 
+        <Text style={styles.title}>← Job Board</Text> 
+      </TouchableOpacity> 
       <Text style={styles.subtitle}>Find jobs and volunteering opportunities</Text>
 
       <View style={styles.filters}>
@@ -119,7 +121,7 @@ export default function JobBoard() {
 
           <TouchableOpacity style={styles.apply} onPress={() => setApply(job)}>
             <Text style={styles.applyText}>
-              {job.type === 'Job' ? 'Apply Now' : 'Apply to Volunteer'}
+              {job.type === 'Job' ? 'Im Interested in this Job' : 'I want to Volunteer'} 
             </Text>
           </TouchableOpacity>
         </View>
