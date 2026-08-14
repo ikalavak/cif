@@ -38,7 +38,7 @@ const portfolios = [
   },
 ];
 
-export default function PortfolioScreen() {
+export default function PortfolioScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const [search, setSearch] = useState('');
@@ -57,6 +57,9 @@ export default function PortfolioScreen() {
   return (
     <SafeScreen scroll style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Portfolios</Text>
+      <TouchableOpacity onPress={() =>  navigation.goBack() }> 
+          <Text style={styles.subtitle}>← Portfolios</Text>
+        </TouchableOpacity> 
       <Text style={styles.subtitle}>Discover people's skills and experience.</Text>
 
       <TextInput

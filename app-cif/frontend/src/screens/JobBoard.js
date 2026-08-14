@@ -47,7 +47,7 @@ const listings = [
   },
 ];
 
-export default function JobBoard() {
+export default function JobBoard({ navigation }) {
   const { colors } = useTheme();
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
@@ -74,7 +74,11 @@ export default function JobBoard() {
 
   return (
     <SafeScreen scroll style={styles.page} contentContainerStyle={styles.pageContent}>
-      <Text style={styles.title}>Job Board</Text>
+      <TouchableOpacity onPress={() =>  navigation.goBack() }> 
+
+        <Text style={styles.title}>← Job Board</Text> 
+
+      </TouchableOpacity> 
       <Text style={styles.subtitle}>Find jobs and volunteering opportunities</Text>
 
       <View style={styles.filters}>
@@ -119,54 +123,12 @@ export default function JobBoard() {
 
           <TouchableOpacity style={styles.apply} onPress={() => setApply(job)}>
             <Text style={styles.applyText}>
-              {job.type === 'Job' ? 'Apply Now' : 'Apply to Volunteer'}
+              {job.type === 'Job' ? 'Im Interested in this Job' : 'I want to Volunteer'} 
             </Text>
           </TouchableOpacity>
         </View>
       ))}
 
-      <Modal visible={Boolean(apply)} transparent animationType="fade" onRequestClose={() => setApply(null)}>
-        <View style={styles.modal}>
-          <View style={styles.form}>
-            <Text style={styles.formTitle}>Apply for {apply?.title}</Text>
-
-            <TextInput
-              placeholder="Full name"
-              placeholderTextColor={colors.textMuted}
-              style={styles.input}
-              value={fullName}
-              onChangeText={setFullName}
-            />
-
-            <TextInput
-              placeholder="Email"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-            />
-
-            <TextInput
-              placeholder="Why are you interested?"
-              placeholderTextColor={colors.textMuted}
-              multiline
-              style={[styles.input, styles.textArea]}
-              value={reason}
-              onChangeText={setReason}
-            />
-
-            <TouchableOpacity style={styles.apply} onPress={submitApplication}>
-              <Text style={styles.applyText}>Submit Application</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => setApply(null)} style={styles.close}>
-              <Text style={styles.closeText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </SafeScreen>
   );
 }

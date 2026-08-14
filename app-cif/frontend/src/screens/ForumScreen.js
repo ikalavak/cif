@@ -91,7 +91,11 @@ export default function ForumScreen({ navigation, route }) {
         <View style={styles.headerRow}>
           <View>
             <Text style={[styles.greetingText, { color: colors.textMuted }]}>Community</Text>
-            <Text style={[styles.nameText, { color: colors.text }]}>Forum Discussions</Text>
+            <TouchableOpacity onPress={() => navigation.goBack()}> 
+
+              <Text style={[styles.nameText, { color: colors.text }]}>← Forum Discussions</Text> 
+
+            </TouchableOpacity> 
           </View>
           <View style={styles.headerIcons}>
             <TouchableOpacity
