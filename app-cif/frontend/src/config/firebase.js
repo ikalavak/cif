@@ -1,5 +1,12 @@
-import { initializeApp } from 'firebase/app';
-import { initializeAuth } from 'firebase/auth';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { 
+  initializeAuth, 
+  getReactNativePersistence, 
+  browserLocalPersistence, 
+  getAuth 
+} from 'firebase/auth';
+import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -10,10 +17,21 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// 1. Initialize Firebase App (prevents duplicate app errors on fast refresh)
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize Firebase Authentication and export it.
-// Using the default web persistence avoids the unsupported React Native
-// persistence helper in the Expo web bundle.
-export const auth = initializeAuth(app);
+// 2. Determine persistence based on platform
+const persistence = Platform.OS === 'web'
+  ? browserLocalPersistence
+  : getReactNativePersistence(AsyncStorage);
+
+// 3. Initialize Firebase Authentication
+let auth;
+try {
+  auth = initializeAuth(app, { persistence });
+} catch (e) {
+  // Fallback for Fast Refresh / Hot Reloading
+  auth = getAuth(app);
+}
+
+export { app, auth };
