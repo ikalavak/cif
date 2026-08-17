@@ -3,7 +3,6 @@ import {
   StyleSheet,
   Text,
   View,
-  TextInput,
   TouchableOpacity,
   ScrollView,
 } from "react-native";
@@ -56,24 +55,6 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
           <ThemeToggle />
         </View>
-      </View>
-
-      {/* Search */}
-      <View style={[styles.searchContainer, { backgroundColor: colors.input }]}>
-        <Feather
-          name="search"
-          size={20}
-          color={colors.textMuted}
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search events..."
-          placeholderTextColor={colors.textMuted}
-        />
-        <TouchableOpacity>
-          <Feather name="sliders" size={18} color={colors.primary} />
-        </TouchableOpacity>
       </View>
 
       {/* Hero Card */}
@@ -214,17 +195,6 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
   },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 50,
-  },
-  searchIcon: { marginRight: 12 },
-  searchInput: { flex: 1, fontSize: 15 },
   heroCard: {
     marginHorizontal: 20,
     borderRadius: 20,
