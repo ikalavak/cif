@@ -112,6 +112,14 @@ export default function SettingsScreen({ navigation }) {
           </View>
         </View>
 
+        {/* Edit Profile button */}
+        <TouchableOpacity style={[ styles.editProfileButton, { backgroundColor: '#7B61FF' }]} 
+        onPress={() => navigation.navigate('EditProfileScreen')}>
+          <Text style={styles.editProfileButtonText}>
+            Edit Profile
+          </Text>
+        </TouchableOpacity>
+
         <TouchableOpacity onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: colors.error }]} activeOpacity={0.85}>
           <Text style={{ color: colors.white, fontWeight: '700' }}>Logout</Text>
         </TouchableOpacity>
@@ -159,6 +167,21 @@ const styles = StyleSheet.create({
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
   statusRight: { flexDirection: 'row', alignItems: 'center' },
   dot: { width: 10, height: 10, borderRadius: 6 },
+
+ editProfileButton: {
+  paddingVertical: 12,
+  borderRadius: 10,
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginTop: 12,
+},
+
+editProfileButtonText: {
+  color: '#FFFFFF',
+  fontSize: 16,
+  fontWeight: '700',
+},
+
   logoutBtn: { marginTop: 12, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
   
   // 5. Added the specific style for the delete button
