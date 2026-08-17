@@ -70,7 +70,7 @@ export default function SignUpScreen({ navigation }) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
       await updateProfile(userCredential.user, {
-        displayName: `${firstName.trim()} ${lastName.trim()}`,
+        displayName: firstName.trim(),
       });
       navigation.replace("MainApp");
     } catch (error) {
@@ -130,7 +130,7 @@ export default function SignUpScreen({ navigation }) {
 
       if (firstName.trim() || lastName.trim()) {
         await updateProfile(userCredential.user, {
-          displayName: `${firstName.trim()} ${lastName.trim()}`.trim(),
+          displayName: firstName.trim(),
         });
       }
 

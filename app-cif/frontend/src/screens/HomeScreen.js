@@ -19,8 +19,8 @@ export default function HomeScreen({ navigation }) {
       {/* Header */}
       <View style={styles.headerRow}>
         <View>
-          <Text style={[styles.greetingText, { color: colors.textMuted }]}>Good Morning,</Text>
-          <Text style={[styles.nameText, { color: colors.text }]}>{user?.firstName || 'User'} 👋</Text>        
+          <Text style={[styles.greetingText, { color: colors.textMuted }]}>Hi,</Text>
+          <Text style={[styles.nameText, { color: colors.text }]}>{userName} 👋</Text>        
         </View>
         <View style={styles.headerIcons}>
           <TouchableOpacity style={styles.iconButton} onPress={() => {
