@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import {
   StyleSheet,
-  Text,
+  Text, 
   View,
   TextInput,
   TouchableOpacity,
@@ -25,7 +25,7 @@ const SCHEDULE = {
       time: "11:00",
       title: "Creative Careers Lab",
       location: "UEL",
-      link: "https://www.eventbrite.co.uk/e/creative-careers-lab-tickets-1996657646770?aff=odcleoeventsincollection",
+      link: "https://www.eventbrite.co.uk/e/creative-careers-lab-tickets-199665764677",
     },
     {
       id: "w2",
@@ -39,7 +39,7 @@ const SCHEDULE = {
       time: "11:00",
       title: "MBA Fashion: Different Ideas, Different Identities",
       location: "",
-      link: "https://www.eventbrite.co.uk/e/creative-industries-research-festival-building-an-inclusive-creative-indu-tickets-1994949526737?aff=odcleoeventsincollection ",
+      link: "https://www.eventbrite.co.uk/e/different-ideas-different-identities-one-creative-future-tickets-199664578529",
     },
     {
       id: "w4",
@@ -410,10 +410,10 @@ export default function EventsScreen() {
           </Text>
         ) : (
           events.map((event) => (
-            <TouchableOpacity
+            <TouchableOpacity 
               key={event.id}
-              activeOpacity={event.link ? 0.7 : 1}
-              onPress={() => openLink(event.link)}
+              activeOpacity={1}
+              onPress={() => {}}
               style={[
                 styles.eventRow,
                 { backgroundColor: colors.card, borderColor: colors.border },

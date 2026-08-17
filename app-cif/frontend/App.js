@@ -21,6 +21,10 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import ForumScreen from './src/screens/ForumScreen';
 import JobBoard from './src/screens/JobBoard';
 import PortfolioScreen from './src/screens/PortfolioScreen';
+import HomeGuest from './src/screens/HomeGuest';
+import EventGuest from './src/screens/EventGuest';
+import ProfileGuest from './src/screens/ProfileGuest';
+import EditProfileScreen from './src/screens/EditProfileScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -152,6 +156,64 @@ function MainTabs() {
   );
 }
 
+function GuestTabs() {
+  const { colors } = useTheme();
+
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarShowLabel: true,
+        tabBarActiveTintColor: colors.primary || '#8B5CF6',
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: {
+          backgroundColor: colors.card,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+          elevation: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          height: Platform.OS === 'ios' ? 88 : 64,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarIcon: ({ focused, color }) => {
+          let iconName;
+          if (route.name === 'Home') iconName = 'home';
+          else if (route.name === 'Events') iconName = 'calendar';
+          else if (route.name === 'Maps') iconName = 'map';
+          else if (route.name === 'Profile') iconName = 'user';
+
+          return (
+            <View style={{
+              width: 44, 
+              height: 28, 
+              borderRadius: 14, 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              backgroundColor: focused ? 'rgba(139,92,246,0.15)' : 'transparent',
+            }}>
+              <Feather 
+                name={iconName} 
+                size={20} 
+                color={focused ? (colors.primary || '#8B5CF6') : color} 
+              />
+            </View>
+          );
+        },
+      })}
+    >
+      <Tab.Screen name="Home" component={HomeGuest} />
+      <Tab.Screen name="Events" component={EventGuest} />
+      <Tab.Screen name="Maps" component={MapsScreen} /> 
+      <Tab.Screen name="Profile" component={ProfileGuest} />
+    </Tab.Navigator>
+  );
+}
+
 // ==========================================
 // ROOT NAVIGATOR (The Journey)
 // ==========================================
@@ -207,9 +269,11 @@ function AppInner() {
           <Stack.Screen name="ForumScreen" component={ForumScreen} />
           <Stack.Screen name="JobBoard" component={JobBoard} />
           <Stack.Screen name="PortfolioScreen" component={PortfolioScreen} />
+          <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} /> 
 
           {/* 2. Main App Flow */}
           <Stack.Screen name="MainApp" component={MainTabs} />
+          <Stack.Screen name="GuestApp" component={GuestTabs} />
 
         </Stack.Navigator>
       </NavigationContainer>
