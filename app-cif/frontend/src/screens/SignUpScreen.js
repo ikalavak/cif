@@ -27,7 +27,7 @@ import {
 } from "firebase/auth";
 
 // Expo reCAPTCHA & OAuth Tools
-import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
+//import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
 import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
 
@@ -56,7 +56,13 @@ export default function SignUpScreen({ navigation }) {
   // 1. Email Sign-Up
   const handleEmailSignUp = async () => {
     const trimmedEmail = email.trim();
-    if (!firstName.trim() || !lastName.trim() || !trimmedEmail || !password || !confirmPassword) {
+    if (
+      !firstName.trim() ||
+      !lastName.trim() ||
+      !trimmedEmail ||
+      !password ||
+      !confirmPassword
+    ) {
       return Alert.alert("Error", "Please fill in all fields.");
     }
     if (password.length < 6) {
@@ -68,14 +74,21 @@ export default function SignUpScreen({ navigation }) {
 
     setIsLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        trimmedEmail,
+        password,
+      );
       await updateProfile(userCredential.user, {
         displayName: firstName.trim(),
       });
       navigation.replace("MainApp");
     } catch (error) {
       if (error.code === "auth/email-already-in-use") {
-        Alert.alert("Registration Failed", "That email address is already in use.");
+        Alert.alert(
+          "Registration Failed",
+          "That email address is already in use.",
+        );
       } else if (error.code === "auth/invalid-email") {
         Alert.alert("Error", "Please enter a valid email address.");
       } else if (error.code === "auth/weak-password") {
@@ -94,7 +107,7 @@ export default function SignUpScreen({ navigation }) {
     if (!formattedPhone.startsWith("+") || formattedPhone.length < 9) {
       return Alert.alert(
         "Invalid Phone Number",
-        "Please enter your full number with country code (e.g. +1 555 123 4567 or +44 7123 456789)."
+        "Please enter your full number with country code (e.g. +1 555 123 4567 or +44 7123 456789).",
       );
     }
 
@@ -103,10 +116,13 @@ export default function SignUpScreen({ navigation }) {
       const phoneProvider = new PhoneAuthProvider(auth);
       const verId = await phoneProvider.verifyPhoneNumber(
         formattedPhone,
-        recaptchaVerifier.current
+        recaptchaVerifier.current,
       );
       setVerificationId(verId);
-      Alert.alert("Code Sent", "Please check your SMS inbox for the 6-digit verification code.");
+      Alert.alert(
+        "Code Sent",
+        "Please check your SMS inbox for the 6-digit verification code.",
+      );
     } catch (error) {
       Alert.alert("Failed to Send SMS", error.message);
     } finally {
@@ -117,14 +133,17 @@ export default function SignUpScreen({ navigation }) {
   // 3. Verify OTP & Register
   const handleConfirmPhoneCode = async () => {
     if (!verificationCode.trim() || verificationCode.length !== 6) {
-      return Alert.alert("Invalid Code", "Please enter the complete 6-digit code.");
+      return Alert.alert(
+        "Invalid Code",
+        "Please enter the complete 6-digit code.",
+      );
     }
 
     setIsLoading(true);
     try {
       const credential = PhoneAuthProvider.credential(
         verificationId,
-        verificationCode.trim()
+        verificationCode.trim(),
       );
       const userCredential = await signInWithCredential(auth, credential);
 
@@ -154,13 +173,15 @@ export default function SignUpScreen({ navigation }) {
       const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
       const clientId = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=id_token&scope=openid%20profile%20email&redirect_uri=${encodeURIComponent(
-        redirectUri
+        redirectUri,
       )}&nonce=random_nonce`;
 
       const result = await AuthSession.startAsync({ authUrl });
       if (result.type === "success" && result.params.id_token) {
         setIsLoading(true);
-        const credential = GoogleAuthProvider.credential(result.params.id_token);
+        const credential = GoogleAuthProvider.credential(
+          result.params.id_token,
+        );
         await signInWithCredential(auth, credential);
         navigation.replace("MainApp");
       }
@@ -177,7 +198,7 @@ export default function SignUpScreen({ navigation }) {
       const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
       const clientId = "YOUR_AZURE_CLIENT_ID";
       const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&response_type=id_token+token&scope=openid%20profile%20email&redirect_uri=${encodeURIComponent(
-        redirectUri
+        redirectUri,
       )}&nonce=random_nonce`;
 
       const result = await AuthSession.startAsync({ authUrl });
@@ -205,7 +226,7 @@ export default function SignUpScreen({ navigation }) {
       contentContainerStyle={styles.scrollContent}
     >
       {/* Firebase reCAPTCHA Modal (Invisible) */}
-     {/* <FirebaseRecaptchaVerifierModal
+      {/* <FirebaseRecaptchaVerifierModal
         ref={recaptchaVerifier}
         firebaseConfig={auth.app.options}
         attemptInvisibleVerification={true}
@@ -216,7 +237,9 @@ export default function SignUpScreen({ navigation }) {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <View style={styles.header}>
-          <Text style={[styles.titleText, { color: colors.text }]}>Create Account</Text>
+          <Text style={[styles.titleText, { color: colors.text }]}>
+            Create Account
+          </Text>
           <Text style={[styles.subtitleText, { color: colors.textMuted }]}>
             Join the Creative Industries Festival
           </Text>
@@ -237,7 +260,10 @@ export default function SignUpScreen({ navigation }) {
             <Text
               style={[
                 styles.tabText,
-                { color: authMode === "email" ? colors.primary : colors.textMuted },
+                {
+                  color:
+                    authMode === "email" ? colors.primary : colors.textMuted,
+                },
               ]}
             >
               Email
@@ -256,7 +282,10 @@ export default function SignUpScreen({ navigation }) {
             <Text
               style={[
                 styles.tabText,
-                { color: authMode === "phone" ? colors.primary : colors.textMuted },
+                {
+                  color:
+                    authMode === "phone" ? colors.primary : colors.textMuted,
+                },
               ]}
             >
               Phone Number
@@ -273,7 +302,12 @@ export default function SignUpScreen({ navigation }) {
           {/* First & Last Name Inputs */}
           <View style={styles.nameRow}>
             <View style={[styles.inputContainer, styles.nameInput]}>
-              <Feather name="user" size={18} color={colors.primary} style={styles.inputIcon} />
+              <Feather
+                name="user"
+                size={18}
+                color={colors.primary}
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={[styles.input, { color: colors.text }]}
                 placeholder="First Name"
@@ -282,8 +316,19 @@ export default function SignUpScreen({ navigation }) {
                 onChangeText={setFirstName}
               />
             </View>
-            <View style={[styles.inputContainer, styles.nameInput, { marginLeft: 12 }]}>
-              <Feather name="user" size={18} color={colors.primary} style={styles.inputIcon} />
+            <View
+              style={[
+                styles.inputContainer,
+                styles.nameInput,
+                { marginLeft: 12 },
+              ]}
+            >
+              <Feather
+                name="user"
+                size={18}
+                color={colors.primary}
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={[styles.input, { color: colors.text }]}
                 placeholder="Last Name"
@@ -298,7 +343,12 @@ export default function SignUpScreen({ navigation }) {
             /* Email Sign-Up Form */
             <>
               <View style={styles.inputContainer}>
-                <Feather name="mail" size={18} color={colors.primary} style={styles.inputIcon} />
+                <Feather
+                  name="mail"
+                  size={18}
+                  color={colors.primary}
+                  style={styles.inputIcon}
+                />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   placeholder="Email address"
@@ -311,7 +361,12 @@ export default function SignUpScreen({ navigation }) {
               </View>
 
               <View style={styles.inputContainer}>
-                <Feather name="lock" size={18} color={colors.primary} style={styles.inputIcon} />
+                <Feather
+                  name="lock"
+                  size={18}
+                  color={colors.primary}
+                  style={styles.inputIcon}
+                />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   placeholder="Password (min 6 characters)"
@@ -320,7 +375,9 @@ export default function SignUpScreen({ navigation }) {
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                >
                   <Feather
                     name={showPassword ? "eye" : "eye-off"}
                     size={18}
@@ -330,7 +387,12 @@ export default function SignUpScreen({ navigation }) {
               </View>
 
               <View style={styles.inputContainer}>
-                <Feather name="lock" size={18} color={colors.primary} style={styles.inputIcon} />
+                <Feather
+                  name="lock"
+                  size={18}
+                  color={colors.primary}
+                  style={styles.inputIcon}
+                />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   placeholder="Confirm Password"
@@ -355,7 +417,9 @@ export default function SignUpScreen({ navigation }) {
                   {isLoading ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={styles.primaryButtonText}>Sign Up with Email</Text>
+                    <Text style={styles.primaryButtonText}>
+                      Sign Up with Email
+                    </Text>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
@@ -364,7 +428,12 @@ export default function SignUpScreen({ navigation }) {
             /* Phone Sign-Up Form */
             <>
               <View style={styles.inputContainer}>
-                <Feather name="phone" size={18} color={colors.primary} style={styles.inputIcon} />
+                <Feather
+                  name="phone"
+                  size={18}
+                  color={colors.primary}
+                  style={styles.inputIcon}
+                />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   placeholder="+1 555 123 4567"
@@ -398,7 +467,9 @@ export default function SignUpScreen({ navigation }) {
 
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={verificationId ? handleConfirmPhoneCode : handleSendPhoneCode}
+                onPress={
+                  verificationId ? handleConfirmPhoneCode : handleSendPhoneCode
+                }
                 disabled={isLoading}
               >
                 <LinearGradient
@@ -425,7 +496,13 @@ export default function SignUpScreen({ navigation }) {
                   }}
                   style={{ marginTop: 10, alignItems: "center" }}
                 >
-                  <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "600" }}>
+                  <Text
+                    style={{
+                      color: colors.primary,
+                      fontSize: 13,
+                      fontWeight: "600",
+                    }}
+                  >
                     Change phone number / Resend SMS
                   </Text>
                 </TouchableOpacity>
@@ -435,11 +512,15 @@ export default function SignUpScreen({ navigation }) {
 
           {/* Social Sign-Up Section */}
           <View style={styles.dividerRow}>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            <View
+              style={[styles.dividerLine, { backgroundColor: colors.border }]}
+            />
             <Text style={[styles.dividerText, { color: colors.textMuted }]}>
               OR SIGN UP WITH
             </Text>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            <View
+              style={[styles.dividerLine, { backgroundColor: colors.border }]}
+            />
           </View>
 
           <View style={styles.socialRow}>
@@ -449,7 +530,9 @@ export default function SignUpScreen({ navigation }) {
               disabled={isLoading}
             >
               <FontAwesome5 name="google" size={18} color="#EA4335" />
-              <Text style={[styles.socialButtonText, { color: colors.text }]}>Google</Text>
+              <Text style={[styles.socialButtonText, { color: colors.text }]}>
+                Google
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -458,7 +541,9 @@ export default function SignUpScreen({ navigation }) {
               disabled={isLoading}
             >
               <FontAwesome5 name="microsoft" size={18} color="#00A4EF" />
-              <Text style={[styles.socialButtonText, { color: colors.text }]}>Microsoft</Text>
+              <Text style={[styles.socialButtonText, { color: colors.text }]}>
+                Microsoft
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -468,7 +553,9 @@ export default function SignUpScreen({ navigation }) {
               Already have an account?{" "}
             </Text>
             <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-              <Text style={[styles.linkText, { color: colors.accent2 }]}>Login</Text>
+              <Text style={[styles.linkText, { color: colors.accent2 }]}>
+                Login
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
