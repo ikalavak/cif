@@ -39,7 +39,7 @@ const SCHEDULE = {
       time: "11:00",
       title: "MBA Fashion: Different Ideas, Different Identities",
       location: "",
-      link: "https://www.eventbrite.co.uk/e/different-ideas-different-identities-one-creative-future-tickets-199664578529",
+      link: "https://www.eventbrite.co.uk/e/creative-industries-research-festival-building-an-inclusive-creative-indu-tickets-1994949526737?aff=odcleoeventsincollection ",
     },
     {
       id: "w4",
