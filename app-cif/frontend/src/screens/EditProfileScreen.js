@@ -20,7 +20,6 @@ import {
   updateProfile,
   sendEmailVerification,
   updatePassword,
-  updateEmail,
   reload,
 } from 'firebase/auth';
 
@@ -31,7 +30,6 @@ export default function EditProfileScreen({ navigation }) {
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -87,15 +85,7 @@ export default function EditProfileScreen({ navigation }) {
       return;
     }
 
-    if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email address.');
-      return;
-    }
     
-    if (!email.includes('@')) {
-      Alert.alert('Error', 'Please enter a valid email address.');
-      return;
-    }
 
     if (!verificationSent && !user.emailVerified) {
       Alert.alert(
@@ -138,14 +128,7 @@ export default function EditProfileScreen({ navigation }) {
         displayName: `${firstName.trim()} ${lastName.trim()}`,
       });
 
-      // Update email if it has changed
-      const newEmail = email.trim();
       
-      if (newEmail && newEmail !== user.email) {
-        await updateEmail(user, newEmail);
-         // Send verification email to the new address
-         await sendEmailVerification(user);
-        }
 
       // Update password if entered
       if (password) {
@@ -263,33 +246,6 @@ export default function EditProfileScreen({ navigation }) {
           ]}
         />
 
-        {/* Email */}
-<Text
-  style={[
-    styles.label,
-    { color: colors.text },
-  ]}
->
-  Email Address
-</Text>
-
-<TextInput
-  value={email}
-  onChangeText={setEmail}
-  placeholder="Enter email address"
-  placeholderTextColor={colors.textMuted}
-  keyboardType="email-address"
-  autoCapitalize="none"
-  style={[
-    styles.input,
-    {
-      backgroundColor: colors.card,
-      color: colors.text,
-      borderColor: colors.border,
-    },
-  ]}
-/>
-
         {/* Password */}
         <Text
           style={[
@@ -297,7 +253,7 @@ export default function EditProfileScreen({ navigation }) {
             { color: colors.text },
           ]}
         >
-          New Password
+          Change Password
         </Text>
 
         <TextInput

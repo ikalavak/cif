@@ -205,11 +205,11 @@ export default function SignUpScreen({ navigation }) {
       contentContainerStyle={styles.scrollContent}
     >
       {/* Firebase reCAPTCHA Modal (Invisible) */}
-      <FirebaseRecaptchaVerifierModal
+     {/* <FirebaseRecaptchaVerifierModal
         ref={recaptchaVerifier}
         firebaseConfig={auth.app.options}
         attemptInvisibleVerification={true}
-      />
+      /> */}
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
