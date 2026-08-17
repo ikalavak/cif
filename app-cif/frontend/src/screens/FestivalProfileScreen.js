@@ -163,6 +163,12 @@ export default function FestivalProfileScreen({ navigation }) {
           ))}
         </View>
       </View>
+
+      {/* Edit Profile button */}
+      <TouchableOpacity style={styles.editProfileButton} onPress={() => navigation.navigate('EditProfileScreen')}>
+        <Text style={styles.editProfileButtonText}>Edit Profile</Text>
+      </TouchableOpacity>
+
     </SafeScreen>
   );
 }
@@ -233,4 +239,21 @@ const styles = StyleSheet.create({
   portfolioAvatar: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 
   iconButton: { padding: 8, borderRadius: 8 },
+    editProfileButton: {
+  backgroundColor: '#7B61FF',
+  paddingVertical: 14,
+  paddingHorizontal: 24,
+  borderRadius: 10,
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginHorizontal: 16,
+  marginTop: 16,
+  marginBottom: 24, // space before bottom nav
+},
+
+editProfileButtonText: {
+  color: '#FFFFFF',
+  fontSize: 16,
+  fontWeight: '700',
+},
 });

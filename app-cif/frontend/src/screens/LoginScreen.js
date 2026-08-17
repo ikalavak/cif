@@ -462,7 +462,7 @@ export default function LoginScreen({ navigation }) {
           <TouchableOpacity
             style={styles.guestButton}
             activeOpacity={0.7}
-            onPress={() => navigation.replace('MainApp')}
+            onPress={() => navigation.replace('GuestApp')} 
           >
             <Feather name="user" size={16} color={colors.primary} />
             <Text style={[styles.guestButtonText, { color: colors.text }]}>
