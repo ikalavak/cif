@@ -68,7 +68,7 @@ export default function MapsScreen() {
             { backgroundColor: '#E2E8F0' },
           ]}
         >
-          {['Uss', 'Docklands', 'Stratford'].map((tab) => {
+          {['Docklands', 'Stratford'].map((tab) => {
             const active = tab === activeScreen;
 
             return (
@@ -115,10 +115,7 @@ export default function MapsScreen() {
         {/* MAP */}
 {/* CAMPUS MAP */}
 <View style={styles.mapContainer}>
-  {activeScreen === 'Uss' ? (
-    // USS stays blank
-    <View />
-  ) : activeScreen === 'Docklands' ? (
+  {activeScreen === 'Docklands' ? (
     // Docklands map
     <Image
       source={docklandsMap}
@@ -189,77 +186,7 @@ export default function MapsScreen() {
 
       <View style={styles.campusList}>
 
-        {/* USS */}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => {
-            setActiveScreen('Uss');
-            setShowScreens(true);
-          }}
-        >
-          <View
-            style={[
-              styles.campusCard,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-              },
-              scheme === 'light'
-                ? styles.cardLightElev
-                : styles.cardDarkElev,
-            ]}
-          >
-            <LinearGradient
-              colors={[
-                colors.error,
-                colors.primary,
-                colors.accent,
-              ]}
-              style={styles.campusImage}
-            >
-              <Text style={styles.placeholderLogo}>
-                CREATIVE INDUSTRIES FESTIVAL
-              </Text>
-            </LinearGradient>
-
-            <View style={styles.campusContent}>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={[
-                    styles.campusTitle,
-                    { color: colors.text },
-                  ]}
-                >
-                  Uss
-                </Text>
-
-                <Text
-                  style={[
-                    styles.campusSub,
-                    { color: colors.textMuted },
-                  ]}
-                >
-                  University Square
-                </Text>
-
-                <Text
-                  style={[
-                    styles.campusSub,
-                    { color: colors.textMuted },
-                  ]}
-                >
-                  Stratford, E15 1NF
-                </Text>
-              </View>
-
-              <Feather
-                name="chevron-right"
-                size={20}
-                color={colors.text}
-              />
-            </View>
-          </View>
-        </TouchableOpacity>
+      
 
         {/* DOCKLANDS */}
         <TouchableOpacity
@@ -543,6 +470,6 @@ const styles = StyleSheet.create({
 
 mapImage: {
   width: '100%',
-  height: 500,
+  height: 550,
 },
 });

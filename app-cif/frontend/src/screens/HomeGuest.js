@@ -48,16 +48,16 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Hero Card */}
-      <View style={[styles.heroCard, { backgroundColor: colors.card, borderColor: colors.border }] }>
-        <LinearGradient
-          colors={['rgba(139,92,246,0.1)', 'transparent']}
-          style={StyleSheet.absoluteFillObject}
-        />
-        <Text style={[styles.heroTitle, { color: colors.text }]}>Creative Industries Festival</Text>
-        <Text style={[styles.heroSubtitle, { color: colors.textMuted }]}>Coming Soon</Text>
-        <Text style={[styles.heroDesc, { color: colors.text }]}>Stay tuned for exciting announcements.</Text>
-      </View>
+               {/* Hero Card */}
+        <View style={[styles.heroCard, { backgroundColor: colors.card, borderColor: colors.border }] }>
+          <LinearGradient
+            colors={['rgba(139,92,246,0.1)', 'transparent']}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <Text style={[styles.heroTitle, { color: colors.text }]}>Creative Industries Festival</Text>
+          <Text style={[styles.heroSubtitle, { color: colors.textMuted }]}>Coming Soon</Text>
+          <Text style={[styles.heroDesc, { color: colors.text }]}>Stay tuned for exciting announcements.</Text>
+        </View>  
 
       
 
