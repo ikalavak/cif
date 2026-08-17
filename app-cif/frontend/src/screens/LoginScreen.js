@@ -204,17 +204,17 @@ export default function LoginScreen({ navigation }) {
 
           <View style={styles.titleContainer}>
             <Text style={[styles.titleText, { color: colors.text }]}>CREATIVE</Text>
-            <Text style={[styles.gradientTextFallback, { color: colors.accent2 }]}>
+            <Text style={[styles.gradientTextFallback, { color: colors.text }]}>
               INDUSTRIES
             </Text>
             <Text style={[styles.titleText, { color: colors.text }]}>FESTIVAL</Text>
 
             <View style={styles.subtitleRow}>
-              <Text style={[styles.subtitleText, { color: colors.accent2 }]}>CREATE</Text>
+              <Text style={[styles.subtitleText, { color: colors.text }]}>CREATE</Text>
               <Text style={[styles.dot, { color: colors.white + '66' }]}>•</Text>
-              <Text style={[styles.subtitleText, { color: colors.accent2 }]}>CONNECT</Text>
+              <Text style={[styles.subtitleText, { color: colors.text }]}>CONNECT</Text>
               <Text style={[styles.dot, { color: colors.white + '66' }]}>•</Text>
-              <Text style={[styles.subtitleText, { color: colors.accent2 }]}>INSPIRE</Text>
+              <Text style={[styles.subtitleText, { color: colors.text }]}>INSPIRE</Text>
             </View>
           </View>
         </View>
