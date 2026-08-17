@@ -20,7 +20,7 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.headerRow}>
         <View>
           <Text style={[styles.greetingText, { color: colors.textMuted }]}>Good Morning,</Text>
-          <Text style={[styles.nameText, { color: colors.text }]}>{userName} 👋</Text>        
+          <Text style={[styles.nameText, { color: colors.text }]}>{user?.firstName || 'User'} 👋</Text>        
         </View>
         <View style={styles.headerIcons}>
           <TouchableOpacity style={styles.iconButton} onPress={() => {

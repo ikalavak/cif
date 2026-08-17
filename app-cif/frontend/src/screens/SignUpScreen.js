@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -26,7 +26,8 @@ import {
   OAuthProvider,
 } from "firebase/auth";
 
-// Expo OAuth Tools
+// Expo reCAPTCHA & OAuth Tools
+import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
 import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
 
@@ -37,18 +38,19 @@ export default function SignUpScreen({ navigation }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
 
-  // Email state
+  // Email form state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // Phone state
+  // Phone form state
   const [phoneNumber, setPhoneNumber] = useState("");
   const [verificationId, setVerificationId] = useState(null);
   const [verificationCode, setVerificationCode] = useState("");
 
   const [isLoading, setIsLoading] = useState(false);
+  const recaptchaVerifier = useRef(null);
   const { colors } = useTheme();
 
   // 1. Email Sign-Up
@@ -67,12 +69,9 @@ export default function SignUpScreen({ navigation }) {
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
-      
-      // Update display name with first & last name
       await updateProfile(userCredential.user, {
         displayName: `${firstName.trim()} ${lastName.trim()}`,
       });
-
       navigation.replace("MainApp");
     } catch (error) {
       if (error.code === "auth/email-already-in-use") {
@@ -89,15 +88,44 @@ export default function SignUpScreen({ navigation }) {
     }
   };
 
-  // 2. Phone OTP Verification
-  const handleConfirmPhoneCode = async () => {
-    if (!verificationCode.trim()) {
-      return Alert.alert("Error", "Please enter the 6-digit code.");
+  // 2. Send SMS Verification Code
+  const handleSendPhoneCode = async () => {
+    const formattedPhone = phoneNumber.trim();
+    if (!formattedPhone.startsWith("+") || formattedPhone.length < 9) {
+      return Alert.alert(
+        "Invalid Phone Number",
+        "Please enter your full number with country code (e.g. +1 555 123 4567 or +44 7123 456789)."
+      );
     }
 
     setIsLoading(true);
     try {
-      const credential = PhoneAuthProvider.credential(verificationId, verificationCode.trim());
+      const phoneProvider = new PhoneAuthProvider(auth);
+      const verId = await phoneProvider.verifyPhoneNumber(
+        formattedPhone,
+        recaptchaVerifier.current
+      );
+      setVerificationId(verId);
+      Alert.alert("Code Sent", "Please check your SMS inbox for the 6-digit verification code.");
+    } catch (error) {
+      Alert.alert("Failed to Send SMS", error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 3. Verify OTP & Register
+  const handleConfirmPhoneCode = async () => {
+    if (!verificationCode.trim() || verificationCode.length !== 6) {
+      return Alert.alert("Invalid Code", "Please enter the complete 6-digit code.");
+    }
+
+    setIsLoading(true);
+    try {
+      const credential = PhoneAuthProvider.credential(
+        verificationId,
+        verificationCode.trim()
+      );
       const userCredential = await signInWithCredential(auth, credential);
 
       if (firstName.trim() || lastName.trim()) {
@@ -108,13 +136,19 @@ export default function SignUpScreen({ navigation }) {
 
       navigation.replace("MainApp");
     } catch (error) {
-      Alert.alert("Verification Failed", error.message);
+      if (error.code === "auth/invalid-verification-code") {
+        Alert.alert("Error", "The 6-digit code entered is incorrect.");
+      } else if (error.code === "auth/code-expired") {
+        Alert.alert("Error", "Code has expired. Please request a new one.");
+      } else {
+        Alert.alert("Verification Error", error.message);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 3. Google Sign-Up / SSO
+  // 4. Google Sign-Up
   const handleGoogleSignUp = async () => {
     try {
       const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
@@ -137,7 +171,7 @@ export default function SignUpScreen({ navigation }) {
     }
   };
 
-  // 4. Microsoft Sign-Up / SSO
+  // 5. Microsoft Sign-Up
   const handleMicrosoftSignUp = async () => {
     try {
       const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
@@ -170,6 +204,13 @@ export default function SignUpScreen({ navigation }) {
       style={[styles.rootContainer, { backgroundColor: colors.bg }]}
       contentContainerStyle={styles.scrollContent}
     >
+      {/* Firebase reCAPTCHA Modal (Invisible) */}
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaVerifier}
+        firebaseConfig={auth.app.options}
+        attemptInvisibleVerification={true}
+      />
+
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -331,6 +372,7 @@ export default function SignUpScreen({ navigation }) {
                   value={phoneNumber}
                   onChangeText={setPhoneNumber}
                   keyboardType="phone-pad"
+                  editable={!verificationId}
                 />
               </View>
 
@@ -349,17 +391,14 @@ export default function SignUpScreen({ navigation }) {
                     value={verificationCode}
                     onChangeText={setVerificationCode}
                     keyboardType="number-pad"
+                    maxLength={6}
                   />
                 </View>
               )}
 
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={
-                  verificationId
-                    ? handleConfirmPhoneCode
-                    : () => Alert.alert("SMS", "Trigger verification SMS here.")
-                }
+                onPress={verificationId ? handleConfirmPhoneCode : handleSendPhoneCode}
                 disabled={isLoading}
               >
                 <LinearGradient
@@ -377,6 +416,20 @@ export default function SignUpScreen({ navigation }) {
                   )}
                 </LinearGradient>
               </TouchableOpacity>
+
+              {verificationId && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setVerificationId(null);
+                    setVerificationCode("");
+                  }}
+                  style={{ marginTop: 10, alignItems: "center" }}
+                >
+                  <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "600" }}>
+                    Change phone number / Resend SMS
+                  </Text>
+                </TouchableOpacity>
+              )}
             </>
           )}
 

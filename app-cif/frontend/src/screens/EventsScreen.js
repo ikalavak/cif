@@ -25,7 +25,7 @@ const SCHEDULE = {
       time: "11:00",
       title: "Creative Careers Lab",
       location: "UEL",
-      link: "https://www.eventbrite.co.uk/e/creative-careers-lab-tickets-199665764677",
+      link: "https://www.eventbrite.co.uk/e/creative-careers-lab-tickets-1996657646770?aff=odcleoeventsincollection",
     },
     {
       id: "w2",
