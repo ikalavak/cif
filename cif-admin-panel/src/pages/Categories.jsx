@@ -15,13 +15,13 @@ export default function Categories() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
-  // Form State Values matching festival documents
+  // Form State Values
   const [name, setName] = useState("");
   const [type, setType] = useState("music");
   const [color, setColor] = useState("#3b82f6");
   const [imageUrl, setImageUrl] = useState("");
 
-  // 1. Stream actual rows from Firestore
+  // 1. Live stream actual records from Firestore
   useEffect(() => {
     const q = query(collection(db, "categories"), orderBy("name", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -60,7 +60,7 @@ export default function Categories() {
     }
   };
 
-  // Filter client table lists using search bar
+  // Filter client table arrays
   const filteredCategories = categories.filter(
     (c) =>
       c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -68,7 +68,7 @@ export default function Categories() {
   );
 
   return (
-    <div>
+    <div style={{ background: "#fff", color: "#333" }}>
       <div
         className="page-header"
         style={{
@@ -81,8 +81,8 @@ export default function Categories() {
         <div>
           <h1>Festival Categories & Zones</h1>
           <p className="muted">
-            Manage the schedule classification tracks, technical zones, and
-            workshop types derived from the 2026 program.
+            Organize festival assets by genre, dining sections, tech exhibits,
+            and crowd activities.
           </p>
         </div>
         <button
@@ -105,22 +105,22 @@ export default function Categories() {
       <div style={{ marginBottom: 20 }}>
         <input
           type="text"
-          placeholder="Search scheduled genres or zone types..."
+          placeholder="Search categories..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="search-input"
           style={{
             width: "100%",
             padding: "12px",
-            background: "#1a1a1e",
-            border: "1px solid #2a2a32",
+            background: "#fff",
+            border: "1px solid #e5e7eb",
             borderRadius: 8,
-            color: "#fff",
+            color: "#333",
           }}
         />
       </div>
 
-      {/* Main Core Schedule Category Matrix */}
+      {/* Main Core Responsive Data Layout */}
       <table
         className="data-table"
         style={{ width: "100%", borderCollapse: "collapse" }}
@@ -129,15 +129,15 @@ export default function Categories() {
           <tr
             style={{
               textAlign: "left",
-              borderBottom: "1px solid #2a2a32",
-              color: "#9ca3af",
+              borderBottom: "2px solid #e5e7eb",
+              color: "#6b7280",
               fontSize: 12,
             }}
           >
             <th style={{ padding: 12 }}>PREVIEW</th>
-            <th style={{ padding: 12 }}>CATEGORY TRACK NAME</th>
+            <th style={{ padding: 12 }}>CATEGORY NAME</th>
             <th style={{ padding: 12 }}>CLASSIFICATION</th>
-            <th style={{ padding: 12 }}>MAP TARGET COLOUR</th>
+            <th style={{ padding: 12 }}>THEME COLOUR</th>
             <th style={{ padding: 12, textAlign: "right" }}>ACTIONS</th>
           </tr>
         </thead>
@@ -145,7 +145,7 @@ export default function Categories() {
           {filteredCategories.map((c) => (
             <tr
               key={c.id}
-              style={{ borderBottom: "1px solid #1a1a1e", color: "#e5e7eb" }}
+              style={{ borderBottom: "1px solid #e5e7eb", color: "#1f2937" }}
             >
               <td style={{ padding: 12 }}>
                 <img
@@ -156,7 +156,8 @@ export default function Categories() {
                     height: 44,
                     borderRadius: 6,
                     objectFit: "cover",
-                    background: "#2a2a32",
+                    background: "#f3f4f6",
+                    border: "1px solid #e5e7eb",
                   }}
                 />
               </td>
@@ -168,9 +169,12 @@ export default function Categories() {
                   style={{
                     textTransform: "uppercase",
                     fontSize: 11,
-                    background: "#2a2a32",
+                    fontWeight: "600",
+                    color: "#4b5563",
+                    background: "#f3f4f6",
                     padding: "4px 8px",
                     borderRadius: 4,
+                    border: "1px solid #e5e7eb",
                   }}
                 >
                   {c.type === "music"
@@ -191,9 +195,10 @@ export default function Categories() {
                       height: 12,
                       borderRadius: "50%",
                       background: c.color,
+                      border: "1px solid rgba(0,0,0,0.1)",
                     }}
                   ></span>
-                  <code style={{ color: "#9ca3af" }}>{c.color}</code>
+                  <code style={{ color: "#6b7280" }}>{c.color}</code>
                 </div>
               </td>
               <td style={{ padding: 12, textAlign: "right" }}>
@@ -205,6 +210,7 @@ export default function Categories() {
                     color: "#ef4444",
                     cursor: "pointer",
                     fontSize: 13,
+                    fontWeight: "500",
                   }}
                 >
                   Delete
@@ -217,16 +223,16 @@ export default function Categories() {
               <td
                 colSpan={5}
                 className="muted"
-                style={{ textAlign: "center", padding: 32 }}
+                style={{ textAlign: "center", padding: 32, color: "#6b7280" }}
               >
-                No schedule tracks detected. Use the Create window to add items.
+                No categories matched or found. Click create to add one!
               </td>
             </tr>
           )}
         </tbody>
       </table>
 
-      {/* Built-in Modal Popup tailored with context guidelines */}
+      {/* Built-in Custom Modal Popup - Styled Bright & Clean */}
       {isOpen && (
         <div
           style={{
@@ -235,7 +241,7 @@ export default function Categories() {
             left: 0,
             right: 0,
             bottom: 0,
-            background: "rgba(0,0,0,0.7)",
+            background: "rgba(0,0,0,0.4)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -244,18 +250,25 @@ export default function Categories() {
         >
           <div
             style={{
-              background: "#1a1a1e",
-              border: "1px solid #2a2a32",
+              background: "#fff",
+              border: "1px solid #e5e7eb",
               borderRadius: 12,
               padding: 24,
               width: "100%",
               maxWidth: 440,
-              color: "#fff",
+              color: "#1f2937",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
             }}
           >
-            <h3 style={{ margin: "0 0 4px 0" }}>Add Schedule Track</h3>
-            <p className="muted" style={{ fontSize: 12, margin: "0 0 20px 0" }}>
-              Assign new tracks based on the active event schedules.
+            <h3 style={{ margin: "0 0 4px 0", color: "#111827" }}>
+              Create Festival Category
+            </h3>
+            <p
+              className="muted"
+              style={{ fontSize: 12, margin: "0 0 20px 0", color: "#6b7280" }}
+            >
+              Provision new operational types live into the cluster database
+              rows.
             </p>
 
             <form
@@ -268,24 +281,25 @@ export default function Categories() {
                     display: "block",
                     fontSize: 12,
                     marginBottom: 6,
-                    color: "#9ca3af",
+                    color: "#4b5563",
+                    fontWeight: "500",
                   }}
                 >
-                  Track / Zone Name
+                  Category Name
                 </label>
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g., Fashion-Tech Installations, Creative Panel Talks"
+                  placeholder="e.g., VIP Cocktail Lounge, Techno Mainstage"
                   style={{
                     width: "100%",
                     padding: 10,
-                    background: "#121214",
-                    border: "1px solid #2a2a32",
+                    background: "#fff",
+                    border: "1px solid #d1d5db",
                     borderRadius: 6,
-                    color: "#fff",
+                    color: "#333",
                   }}
                 />
               </div>
@@ -296,10 +310,11 @@ export default function Categories() {
                     display: "block",
                     fontSize: 12,
                     marginBottom: 6,
-                    color: "#9ca3af",
+                    color: "#4b5563",
+                    fontWeight: "500",
                   }}
                 >
-                  Classification Track
+                  Classification Group
                 </label>
                 <select
                   value={type}
@@ -307,21 +322,23 @@ export default function Categories() {
                   style={{
                     width: "100%",
                     padding: 10,
-                    background: "#121214",
-                    border: "1px solid #2a2a32",
+                    background: "#fff",
+                    border: "1px solid #d1d5db",
                     borderRadius: 6,
-                    color: "#fff",
+                    color: "#333",
                   }}
                 >
                   <option value="music">
-                    🎵 Music (The Cypher / Performances)
+                    🎵 Music (Stages, Artists, Genres)
                   </option>
-                  <option value="food">🍔 Food (Café Area / Bars)</option>
+                  <option value="food">
+                    🍔 Food & Concessions (Trucks, Bars)
+                  </option>
                   <option value="tech">
-                    ⚡ Tech (Immersive Horror, Wearables, VR)
+                    ⚡ Tech Installations (RFID, Art Arena)
                   </option>
                   <option value="activities">
-                    🎪 Non-Tech Activities (Careers Labs, Creative Workshops)
+                    🎪 Non-Tech Activities (Workshops, Wellness)
                   </option>
                 </select>
               </div>
@@ -332,10 +349,11 @@ export default function Categories() {
                     display: "block",
                     fontSize: 12,
                     marginBottom: 6,
-                    color: "#9ca3af",
+                    color: "#4b5563",
+                    fontWeight: "500",
                   }}
                 >
-                  Theme Hex Colour (Map Marker)
+                  Map Marker Hex Code
                 </label>
                 <input
                   type="text"
@@ -345,10 +363,10 @@ export default function Categories() {
                   style={{
                     width: "100%",
                     padding: 10,
-                    background: "#121214",
-                    border: "1px solid #2a2a32",
+                    background: "#fff",
+                    border: "1px solid #d1d5db",
                     borderRadius: 6,
-                    color: "#fff",
+                    color: "#333",
                   }}
                 />
               </div>
@@ -359,23 +377,24 @@ export default function Categories() {
                     display: "block",
                     fontSize: 12,
                     marginBottom: 6,
-                    color: "#9ca3af",
+                    color: "#4b5563",
+                    fontWeight: "500",
                   }}
                 >
-                  Display Image URL
+                  Display Image Thumbnail URL
                 </label>
                 <input
                   type="text"
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="Paste image asset address link"
+                  placeholder="Paste any web image URL link"
                   style={{
                     width: "100%",
                     padding: 10,
-                    background: "#121214",
-                    border: "1px solid #2a2a32",
+                    background: "#fff",
+                    border: "1px solid #d1d5db",
                     borderRadius: 6,
-                    color: "#fff",
+                    color: "#333",
                   }}
                 />
               </div>
@@ -386,7 +405,7 @@ export default function Categories() {
                   justifyContent: "end",
                   gap: 10,
                   marginTop: 12,
-                  borderTop: "1px solid #2a2a32",
+                  borderTop: "1px solid #e5e7eb",
                   paddingTop: 16,
                 }}
               >
@@ -396,7 +415,7 @@ export default function Categories() {
                   style={{
                     background: "transparent",
                     border: "none",
-                    color: "#9ca3af",
+                    color: "#6b7280",
                     cursor: "pointer",
                     padding: "8px 12px",
                   }}

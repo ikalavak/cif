@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { 
-  collection, 
-  addDoc, 
-  onSnapshot, 
-  query, 
-  orderBy, 
-  deleteDoc, 
-  doc, 
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  deleteDoc,
+  doc,
   Timestamp,
-  serverTimestamp 
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../firebaseClient"; // Ensure this points to your firebase config
 
@@ -30,16 +30,20 @@ export default function EventsAdmin() {
   // 2. Real-time Listener: Keeps the table synced with Firestore
   useEffect(() => {
     const q = query(collection(db, "Events"), orderBy("createdAt", "desc"));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const liveData = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-      }));
-      setEvents(liveData);
-    }, (error) => {
-      console.error("Error fetching events:", error);
-    });
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const liveData = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+        }));
+        setEvents(liveData);
+      },
+      (error) => {
+        console.error("Error fetching events:", error);
+      },
+    );
 
     return () => unsubscribe();
   }, []);
@@ -104,10 +108,11 @@ export default function EventsAdmin() {
   };
 
   // Filter events based on search query
-  const filteredEvents = events.filter((ev) =>
-    ev.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    ev.venue?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    ev.category?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredEvents = events.filter(
+    (ev) =>
+      ev.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ev.venue?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ev.category?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -135,7 +140,9 @@ export default function EventsAdmin() {
 
       {/* New Event Form Card */}
       <form onSubmit={handleSave} style={styles.card}>
-        <h2 style={{ fontSize: 18, fontWeight: "bold", marginBottom: 16 }}>New Event</h2>
+        <h2 style={{ fontSize: 18, fontWeight: "bold", marginBottom: 16 }}>
+          New Event
+        </h2>
 
         {/* Title */}
         <div style={styles.formGroup}>
@@ -199,7 +206,14 @@ export default function EventsAdmin() {
 
         {/* Checkboxes Row */}
         <div style={{ display: "flex", gap: 24, margin: "16px 0" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              cursor: "pointer",
+            }}
+          >
             <input
               type="checkbox"
               checked={isPublished}
@@ -207,7 +221,14 @@ export default function EventsAdmin() {
             />
             Published
           </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              cursor: "pointer",
+            }}
+          >
             <input
               type="checkbox"
               checked={isFeatured}
@@ -258,9 +279,21 @@ export default function EventsAdmin() {
 
       {/* Events Table */}
       <div style={{ ...styles.card, marginTop: 24 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            textAlign: "left",
+          }}
+        >
           <thead>
-            <tr style={{ borderBottom: "2px solid #edf2f7", color: "#718096", fontSize: 12 }}>
+            <tr
+              style={{
+                borderBottom: "2px solid #edf2f7",
+                color: "#718096",
+                fontSize: 12,
+              }}
+            >
               <th style={styles.th}>TITLE</th>
               <th style={styles.th}>CATEGORY</th>
               <th style={styles.th}>VENUE</th>
@@ -274,18 +307,32 @@ export default function EventsAdmin() {
           <tbody>
             {filteredEvents.length === 0 ? (
               <tr>
-                <td colSpan="8" style={{ textAlign: "center", padding: "32px", color: "#a0aec0" }}>
+                <td
+                  colSpan="8"
+                  style={{
+                    textAlign: "center",
+                    padding: "32px",
+                    color: "#a0aec0",
+                  }}
+                >
                   No items yet.
                 </td>
               </tr>
             ) : (
               filteredEvents.map((ev) => (
-                <tr key={ev.id} style={{ borderBottom: "1px solid #edf2f7", fontSize: 14 }}>
-                  <td style={styles.td}><strong>{ev.title}</strong></td>
+                <tr
+                  key={ev.id}
+                  style={{ borderBottom: "1px solid #edf2f7", fontSize: 14 }}
+                >
+                  <td style={styles.td}>
+                    <strong>{ev.title}</strong>
+                  </td>
                   <td style={styles.td}>{ev.category || "—"}</td>
                   <td style={styles.td}>{ev.venue || "—"}</td>
                   <td style={styles.td}>
-                    {ev.startDate ? ev.startDate.toDate().toLocaleString() : "—"}
+                    {ev.startDate
+                      ? ev.startDate.toDate().toLocaleString()
+                      : "—"}
                   </td>
                   <td style={styles.td}>{ev.status}</td>
                   <td style={styles.td}>{ev.isPublished ? "Yes" : "No"}</td>
@@ -293,7 +340,12 @@ export default function EventsAdmin() {
                   <td style={styles.td}>
                     <button
                       onClick={() => handleDelete(ev.id)}
-                      style={{ color: "#e53e3e", border: "none", background: "none", cursor: "pointer" }}
+                      style={{
+                        color: "#e53e3e",
+                        border: "none",
+                        background: "none",
+                        cursor: "pointer",
+                      }}
                     >
                       Delete
                     </button>
