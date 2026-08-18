@@ -1,8 +1,10 @@
+// cif-admin-panel/src/App.jsx
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './AuthContext';
-import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 import Layout from './components/Layout';
+
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Events from './pages/Events';
@@ -18,13 +20,15 @@ export default function App() {
   return (
     <AuthProvider>
       <Routes>
+        {/* 1. Public Route */}
         <Route path="/login" element={<Login />} />
 
+        {/* 2. Protected Admin Area */}
         <Route
           element={
-            <ProtectedRoute>
+            <AdminRoute>
               <Layout />
-            </ProtectedRoute>
+            </AdminRoute>
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
@@ -36,10 +40,11 @@ export default function App() {
           <Route path="/sponsors" element={<Sponsors />} />
           <Route path="/announcements" element={<Announcements />} />
           <Route path="/users" element={<Users />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route index element={<Navigate to="/dashboard" replace />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* 3. Fallback Route: send unknown paths to /login to prevent redirect loops */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </AuthProvider>
   );
