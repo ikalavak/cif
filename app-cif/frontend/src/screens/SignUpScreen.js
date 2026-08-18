@@ -168,56 +168,199 @@ export default function SignUpScreen({ navigation }) {
   };
 
   // 4. Google Sign-Up
-  const handleGoogleSignUp = async () => {
-    try {
-      const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
-      const clientId = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=id_token&scope=openid%20profile%20email&redirect_uri=${encodeURIComponent(
-        redirectUri,
-      )}&nonce=random_nonce`;
+ const handleGoogleSignUp = async () => {
+  try {
+    setIsLoading(true);
 
-      const result = await AuthSession.startAsync({ authUrl });
-      if (result.type === "success" && result.params.id_token) {
-        setIsLoading(true);
-        const credential = GoogleAuthProvider.credential(
-          result.params.id_token,
-        );
-        await signInWithCredential(auth, credential);
-        navigation.replace("MainApp");
-      }
-    } catch (error) {
-      Alert.alert("Google Sign Up Error", error.message);
-    } finally {
+    // Your Google OAuth Web Client ID
+    const clientId =
+      "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+
+    // Redirect back to your Expo app
+    const redirectUri = AuthSession.makeRedirectUri({
+      scheme: "cifapp",
+      path: "oauth",
+    });
+
+    const discovery = {
+      authorizationEndpoint:
+        "https://accounts.google.com/o/oauth2/v2/auth",
+    };
+
+    const request = new AuthSession.AuthRequest({
+      clientId: clientId,
+      redirectUri: redirectUri,
+
+      responseType: AuthSession.ResponseType.IdToken,
+
+      scopes: [
+        "openid",
+        "profile",
+        "email",
+      ],
+
+      extraParams: {
+        nonce: Math.random()
+          .toString(36)
+          .substring(2),
+      },
+    });
+
+    const result = await request.promptAsync(
+      discovery
+    );
+
+    // User cancelled Google login
+    if (result.type !== "success") {
       setIsLoading(false);
+      return;
     }
-  };
+
+    const idToken = result.params?.id_token;
+
+    if (!idToken) {
+      throw new Error(
+        "Google did not return an ID token."
+      );
+    }
+
+    // Create Firebase Google credential
+    const credential =
+      GoogleAuthProvider.credential(
+        idToken
+      );
+
+    // Sign into Firebase
+    const userCredential =
+      await signInWithCredential(
+        auth,
+        credential
+      );
+
+    // Save Google display name if needed
+    if (
+      userCredential.user &&
+      !userCredential.user.displayName
+    ) {
+      const googleName =
+        userCredential.user.providerData?.[0]
+          ?.displayName;
+
+      if (googleName) {
+        await updateProfile(
+          userCredential.user,
+          {
+            displayName: googleName,
+          }
+        );
+      }
+    }
+
+    // Go to your application
+    navigation.replace("MainApp");
+
+  } catch (error) {
+    console.log(
+      "Google authentication error:",
+      error
+    );
+
+    Alert.alert(
+      "Google Sign Up Error",
+      error?.message ||
+        "Unable to sign up with Google."
+    );
+
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // 5. Microsoft Sign-Up
   const handleMicrosoftSignUp = async () => {
-    try {
-      const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
-      const clientId = "YOUR_AZURE_CLIENT_ID";
-      const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&response_type=id_token+token&scope=openid%20profile%20email&redirect_uri=${encodeURIComponent(
-        redirectUri,
-      )}&nonce=random_nonce`;
+  try {
+    setIsLoading(true);
 
-      const result = await AuthSession.startAsync({ authUrl });
-      if (result.type === "success" && result.params.id_token) {
-        setIsLoading(true);
-        const provider = new OAuthProvider("microsoft.com");
-        const credential = provider.credential({
-          idToken: result.params.id_token,
-          accessToken: result.params.access_token,
-        });
-        await signInWithCredential(auth, credential);
-        navigation.replace("MainApp");
-      }
-    } catch (error) {
-      Alert.alert("Microsoft Sign Up Error", error.message);
-    } finally {
+    const clientId =
+      "YOUR_MICROSOFT_APPLICATION_CLIENT_ID";
+
+    const redirectUri = AuthSession.makeRedirectUri({
+      scheme: "cifapp",
+      path: "oauth",
+    });
+
+    const discovery = {
+      authorizationEndpoint:
+        "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+    };
+
+    const request = new AuthSession.AuthRequest({
+      clientId: clientId,
+      redirectUri: redirectUri,
+      responseType: AuthSession.ResponseType.IdToken,
+      scopes: ["openid", "profile", "email"],
+      extraParams: {
+        nonce: Math.random().toString(36).substring(2),
+      },
+    });
+
+    const result = await request.promptAsync(discovery);
+
+    if (result.type !== "success") {
       setIsLoading(false);
+      return;
     }
-  };
+
+    const idToken = result.params?.id_token;
+
+    if (!idToken) {
+      throw new Error(
+        "Microsoft did not return an ID token."
+      );
+    }
+
+    // Create Firebase Microsoft credential
+    const provider = new OAuthProvider("microsoft.com");
+
+    const credential = provider.credential({
+      idToken: idToken,
+    });
+
+    // Sign the user into Firebase
+    const userCredential = await signInWithCredential(
+      auth,
+      credential
+    );
+
+    // Save the user's Microsoft name if available
+    if (
+      userCredential.user &&
+      !userCredential.user.displayName
+    ) {
+      const microsoftName =
+        userCredential.user.providerData?.[0]?.displayName;
+
+      if (microsoftName) {
+        await updateProfile(userCredential.user, {
+          displayName: microsoftName,
+        });
+      }
+    }
+
+    navigation.replace("MainApp");
+
+  } catch (error) {
+    console.log("Microsoft authentication error:", error);
+
+    Alert.alert(
+      "Microsoft Sign Up Error",
+      error?.message ||
+        "Unable to sign up with Microsoft."
+    );
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <SafeScreen

@@ -101,54 +101,135 @@ export default function LoginScreen({ navigation }) {
   };
 
   // 3. Google OAuth Login
-  const handleGoogleLogin = async () => {
-    try {
-      const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
-      const clientId = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=id_token&scope=openid%20profile%20email&redirect_uri=${encodeURIComponent(
-        redirectUri
-      )}&nonce=random_nonce`;
+ // Google OAuth Login
+const handleGoogleLogin = async () => {
+  try {
+    setIsLoading(true);
 
-      const result = await AuthSession.startAsync({ authUrl });
-      if (result.type === 'success' && result.params.id_token) {
-        setIsLoading(true);
-        const credential = GoogleAuthProvider.credential(result.params.id_token);
-        await signInWithCredential(auth, credential);
-        navigation.replace('MainApp');
-      }
-    } catch (error) {
-      Alert.alert('Google Sign-In Error', error.message);
-    } finally {
-      setIsLoading(false);
+    const clientId =
+      "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+
+    const redirectUri = AuthSession.makeRedirectUri({
+      scheme: "cifapp",
+      path: "oauth",
+    });
+
+    const discovery = {
+      authorizationEndpoint:
+        "https://accounts.google.com/o/oauth2/v2/auth",
+    };
+
+    const request = new AuthSession.AuthRequest({
+      clientId,
+      redirectUri,
+      responseType: AuthSession.ResponseType.IdToken,
+      scopes: ["openid", "profile", "email"],
+      extraParams: {
+        nonce: Math.random().toString(36).substring(2),
+      },
+    });
+
+    const result = await request.promptAsync(discovery);
+
+    if (result.type !== "success") {
+      return;
     }
-  };
+
+    const idToken = result.params?.id_token;
+
+    if (!idToken) {
+      throw new Error("Google did not return an ID token.");
+    }
+
+    // Create Firebase Google credential
+    const credential = GoogleAuthProvider.credential(idToken);
+
+    // Sign into Firebase
+    await signInWithCredential(auth, credential);
+
+    // Go to your app
+    navigation.replace("MainApp");
+
+  } catch (error) {
+    console.log("Google Sign-In Error:", error);
+
+    Alert.alert(
+      "Google Sign-In Error",
+      error?.message || "Unable to sign in with Google."
+    );
+  } finally {
+    setIsLoading(false);
+  }
+}; 
 
   // 4. Microsoft OAuth Login
-  const handleMicrosoftLogin = async () => {
-    try {
-      const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
-      const clientId = 'YOUR_AZURE_CLIENT_ID';
-      const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&response_type=id_token+token&scope=openid%20profile%20email&redirect_uri=${encodeURIComponent(
-        redirectUri
-      )}&nonce=random_nonce`;
+  // Microsoft OAuth Login
+const handleMicrosoftLogin = async () => {
+  try {
+    setIsLoading(true);
 
-      const result = await AuthSession.startAsync({ authUrl });
-      if (result.type === 'success' && result.params.id_token) {
-        setIsLoading(true);
-        const provider = new OAuthProvider('microsoft.com');
-        const credential = provider.credential({
-          idToken: result.params.id_token,
-          accessToken: result.params.access_token,
-        });
-        await signInWithCredential(auth, credential);
-        navigation.replace('MainApp');
-      }
-    } catch (error) {
-      Alert.alert('Microsoft Sign-In Error', error.message);
-    } finally {
-      setIsLoading(false);
+    const clientId =
+      "YOUR_MICROSOFT_APPLICATION_CLIENT_ID";
+
+    const redirectUri = AuthSession.makeRedirectUri({
+      scheme: "cifapp",
+      path: "oauth",
+    });
+
+    const discovery = {
+      authorizationEndpoint:
+        "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+    };
+
+    const request = new AuthSession.AuthRequest({
+      clientId,
+      redirectUri,
+      responseType: AuthSession.ResponseType.IdToken,
+      scopes: ["openid", "profile", "email"],
+      extraParams: {
+        nonce: Math.random().toString(36).substring(2),
+      },
+    });
+
+    const result = await request.promptAsync(discovery);
+
+    if (result.type !== "success") {
+      return;
     }
-  };
+
+    const idToken = result.params?.id_token;
+
+    if (!idToken) {
+      throw new Error(
+        "Microsoft did not return an ID token."
+      );
+    }
+
+    // Create Firebase Microsoft credential
+    const provider = new OAuthProvider("microsoft.com");
+
+    const credential = provider.credential({
+      idToken: idToken,
+    });
+
+    // Sign into Firebase
+    await signInWithCredential(auth, credential);
+
+    // Go to your app
+    navigation.replace("MainApp");
+
+  } catch (error) {
+    console.log("Microsoft Sign-In Error:", error);
+
+    Alert.alert(
+      "Microsoft Sign-In Error",
+      error?.message ||
+        "Unable to sign in with Microsoft."
+    );
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // 5. Password Reset Flow
   const handleForgotPassword = async () => {
