@@ -15,6 +15,7 @@ import Gallery from './pages/Gallery';
 import Sponsors from './pages/Sponsors';
 import Announcements from './pages/Announcements';
 import Users from './pages/Users';
+import NotificationsPage from './pages/NotificationsPage';
 
 export default function App() {
   return (
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="/announcements" element={<Announcements />} />
           <Route path="/users" element={<Users />} />
           <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
         </Route>
 
         {/* 3. Fallback Route: send unknown paths to /login to prevent redirect loops */}

@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Platform, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -7,10 +7,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 
 // --- IMPORT YOUR SCREENS ---
-import LoginScreen from './src/screens/LoginScreen'; 
-import SignUpScreen from './src/screens/SignUpScreen'; 
+import LoginScreen from './src/screens/LoginScreen';
+import SignUpScreen from './src/screens/SignUpScreen';
 import SplashScreen from './src/screens/SplashScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import EventsScreen from './src/screens/EventsScreen';
@@ -22,81 +23,69 @@ import ForumScreen from './src/screens/ForumScreen';
 import JobBoard from './src/screens/JobBoard';
 import PortfolioScreen from './src/screens/PortfolioScreen';
 import HomeGuest from './src/screens/HomeGuest';
-import EventGuest from './src/screens/EventGuest';
 import ProfileGuest from './src/screens/ProfileGuest';
 import EditProfileScreen from './src/screens/EditProfileScreen';
+
+const isExpoGo = Constants?.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+// Fully isolated push registration helper without expo-device
+async function registerForPushNotificationsAsync() {
+  const isPhysicalDevice = Constants?.isDevice ?? false;
+
+  if (isExpoGo || !isPhysicalDevice) {
+    console.log('[Push] Running in Expo Go / Simulator — push registration bypassed.');
+    return null;
+  }
+
+  try {
+    const Notifications = await import('expo-notifications');
+
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Default Channel',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#8B5CF6',
+      });
+    }
+
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') return null;
+
+    const projectId =
+      Constants?.expoConfig?.extra?.eas?.projectId ||
+      Constants?.easConfig?.projectId;
+
+    const tokenData = await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : undefined
+    );
+    return tokenData.data;
+  } catch (error) {
+    console.warn('[Push] Native module check skipped:', error.message);
+    return null;
+  }
+}
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 // ==========================================
-// PROFILE SCREEN
-// ==========================================
-function ProfileScreen({ navigation }) {
-  const { colors } = useTheme();
-
-  const handleLogout = () => {
-    const parentNav = navigation.getParent();
-    if (parentNav?.replace) {
-      parentNav.replace('Login');
-    } else {
-      navigation.replace('Login');
-    }
-  };
-
-  return (
-    <View style={[styles.profileContainer, { backgroundColor: colors.bg || colors.background }]}>
-      <Text style={[styles.profileTitle, { color: colors.text }]}>Profile</Text>
-      <Text style={[styles.profileSubtitle, { color: colors.textMuted }]}>
-        Tap below to logout and return to login.
-      </Text>
-      <TouchableOpacity
-        style={[styles.logoutButton, { backgroundColor: colors.primary || '#8B5CF6' }]}
-        onPress={handleLogout}
-        activeOpacity={0.8}
-      >
-        <Feather name="log-out" size={18} color="#fff" style={{ marginRight: 8 }} />
-        <Text style={styles.logoutButtonText}>Logout</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  profileContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  profileTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  profileSubtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-  },
-  logoutButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
-
-// ==========================================
-// THE TABS (Main App)
+// MAIN APP TABS
 // ==========================================
 function MainTabs() {
   const { colors } = useTheme();
@@ -130,18 +119,20 @@ function MainTabs() {
           else if (route.name === 'Profile') iconName = 'user';
 
           return (
-            <View style={{
-              width: 44, 
-              height: 28, 
-              borderRadius: 14, 
-              justifyContent: 'center', 
-              alignItems: 'center',
-              backgroundColor: focused ? 'rgba(139,92,246,0.15)' : 'transparent',
-            }}>
-              <Feather 
-                name={iconName} 
-                size={20} 
-                color={focused ? (colors.primary || '#8B5CF6') : color} 
+            <View
+              style={{
+                width: 44,
+                height: 28,
+                borderRadius: 14,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: focused ? 'rgba(139,92,246,0.15)' : 'transparent',
+              }}
+            >
+              <Feather
+                name={iconName}
+                size={20}
+                color={focused ? colors.primary || '#8B5CF6' : color}
               />
             </View>
           );
@@ -156,6 +147,9 @@ function MainTabs() {
   );
 }
 
+// ==========================================
+// GUEST APP TABS
+// ==========================================
 function GuestTabs() {
   const { colors } = useTheme();
 
@@ -188,18 +182,20 @@ function GuestTabs() {
           else if (route.name === 'Profile') iconName = 'user';
 
           return (
-            <View style={{
-              width: 44, 
-              height: 28, 
-              borderRadius: 14, 
-              justifyContent: 'center', 
-              alignItems: 'center',
-              backgroundColor: focused ? 'rgba(139,92,246,0.15)' : 'transparent',
-            }}>
-              <Feather 
-                name={iconName} 
-                size={20} 
-                color={focused ? (colors.primary || '#8B5CF6') : color} 
+            <View
+              style={{
+                width: 44,
+                height: 28,
+                borderRadius: 14,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: focused ? 'rgba(139,92,246,0.15)' : 'transparent',
+              }}
+            >
+              <Feather
+                name={iconName}
+                size={20}
+                color={focused ? colors.primary || '#8B5CF6' : color}
               />
             </View>
           );
@@ -207,15 +203,15 @@ function GuestTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeGuest} />
-      <Tab.Screen name="Events" component={EventGuest} />
-      <Tab.Screen name="Maps" component={MapsScreen} /> 
+      <Tab.Screen name="Events" component={EventsScreen} />
+      <Tab.Screen name="Maps" component={MapsScreen} />
       <Tab.Screen name="Profile" component={ProfileGuest} />
     </Tab.Navigator>
   );
 }
 
 // ==========================================
-// ROOT NAVIGATOR (The Journey)
+// ROOT APP COMPONENT
 // ==========================================
 export default function App() {
   return (
@@ -229,16 +225,59 @@ export default function App() {
 
 function AppInner() {
   const { colors, scheme } = useTheme();
+  const navigationRef = useRef(null);
 
-  // 1. Get the base theme to prevent the "Cannot read property 'regular'" font error
+  useEffect(() => {
+    registerForPushNotificationsAsync();
+
+    let notificationSub;
+    let responseSub;
+
+    // Attach listeners safely only when not in Expo Go and on physical device
+    const isPhysicalDevice = Constants?.isDevice ?? false;
+    if (!isExpoGo && isPhysicalDevice) {
+      import('expo-notifications').then((Notifications) => {
+        // 1. Foreground listener
+        notificationSub = Notifications.addNotificationReceivedListener((notification) => {
+          console.log('Foreground notification:', notification);
+        });
+
+        // 2. Notification response tap / deep-link routing
+        responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+          const data = response.notification.request.content.data;
+          const target = data?.screen || 'Home';
+          const tabScreens = ['Home', 'Events', 'Maps', 'Profile'];
+
+          if (tabScreens.includes(target)) {
+            navigationRef.current?.navigate('MainApp', {
+              screen: target,
+              params: data?.params || {},
+            });
+          } else {
+            try {
+              navigationRef.current?.navigate(target, data?.params || {});
+            } catch (e) {
+              console.warn(`Could not deep-link to "${target}":`, e);
+              navigationRef.current?.navigate('MainApp');
+            }
+          }
+        });
+      });
+    }
+
+    return () => {
+      notificationSub?.remove();
+      responseSub?.remove();
+    };
+  }, []);
+
   const baseTheme = scheme === 'dark' ? DarkTheme : DefaultTheme;
 
-  // 2. Merge your custom theme colors into the base theme
   const navigationTheme = {
     ...baseTheme,
     colors: {
       ...baseTheme.colors,
-      background: colors.bg || colors.background, 
+      background: colors.bg || colors.background,
       card: colors.card,
       text: colors.text,
       border: colors.border,
@@ -247,19 +286,16 @@ function AppInner() {
   };
 
   return (
-    // Replaced SafeAreaView with standard View to stretch edge-to-edge
     <View style={{ flex: 1, backgroundColor: colors.bg || colors.background }}>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-      
-      {/* Pass the merged theme into NavigationContainer */}
-      <NavigationContainer theme={navigationTheme}>
+
+      <NavigationContainer ref={navigationRef} theme={navigationTheme}>
         <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Splash">
-          
           <Stack.Screen name="Splash" component={SplashScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="SignUp" component={SignUpScreen} />
 
-          {/* Notifications (navigated from Home) */}
+          {/* App Stack Screens */}
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
           <Stack.Screen
             name="Settings"
@@ -269,12 +305,11 @@ function AppInner() {
           <Stack.Screen name="ForumScreen" component={ForumScreen} />
           <Stack.Screen name="JobBoard" component={JobBoard} />
           <Stack.Screen name="PortfolioScreen" component={PortfolioScreen} />
-          <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} /> 
+          <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} />
 
-          {/* 2. Main App Flow */}
+          {/* Tab Navigators */}
           <Stack.Screen name="MainApp" component={MainTabs} />
           <Stack.Screen name="GuestApp" component={GuestTabs} />
-
         </Stack.Navigator>
       </NavigationContainer>
     </View>

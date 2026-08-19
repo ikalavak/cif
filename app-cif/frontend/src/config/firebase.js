@@ -5,6 +5,7 @@ import {
   browserLocalPersistence, 
   getAuth 
 } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -34,4 +35,7 @@ try {
   auth = getAuth(app);
 }
 
-export { app, auth };
+// 4. Initialize Cloud Firestore
+const db = getFirestore(app);
+
+export { app, auth, db };
