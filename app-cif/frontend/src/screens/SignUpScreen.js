@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -26,12 +26,18 @@ import {
   OAuthProvider,
 } from "firebase/auth";
 
-// Expo reCAPTCHA & OAuth Tools
-//import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
-import * as WebBrowser from "expo-web-browser";
-import * as AuthSession from "expo-auth-session";
+// Expo Auth Tools
 
-WebBrowser.maybeCompleteAuthSession();
+import * as Google from "expo-auth-session/providers/google";
+import * as AuthSession from "expo-auth-session";
+import * as WebBrowser from "expo-web-browser";
+
+/*GoogleSignin.configure({
+  webClientId:
+    "574795894327-fsblatou4ahd0hqsp08htj4elhmi5acJ.apps.googleusercontent.com",
+  iosClientId:
+    "574795894327-oft2jj4plu80g5a1qfjduoojlsbgfn2v.apps.googleusercontent.com",
+});*/
 
 export default function SignUpScreen({ navigation }) {
   const [authMode, setAuthMode] = useState("email"); // "email" | "phone"
@@ -52,6 +58,54 @@ export default function SignUpScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(false);
   const recaptchaVerifier = useRef(null);
   const { colors } = useTheme();
+
+  /* --- Cross-Platform Google Auth Hook (iOS + Android + Web) ---
+ // const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+   // iosClientId: "574795894327-oft2jj4plu80g5a1qfjduoojlsbgfn2v.apps.googleusercontent.com",
+    //androidClientId: "YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com", // <-- Android Client ID
+    //webClientId: "574795894327-fsblatou4ahd0hqsp08htj4elhmi5acj.apps.googleusercontent.com",
+  //});
+
+  useEffect(() => {
+    if (googleResponse?.type === "success") {
+      const { id_token, authentication } = googleResponse.params;
+      const token = id_token || authentication?.idToken;
+
+      if (token) {
+        handleFirebaseGoogleAuth(token);
+      }
+    } else if (googleResponse?.type === "error") {
+      Alert.alert(
+        "Google Sign Up Error",
+        googleResponse.error?.message || "Google authentication failed."
+      );
+      setIsLoading(false);
+    }
+  }, [googleResponse]); */
+
+  const handleFirebaseGoogleAuth = async (idToken) => {
+    setIsLoading(true);
+    try {
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCredential = await signInWithCredential(auth, credential);
+
+      if (userCredential.user && !userCredential.user.displayName) {
+        const googleName = userCredential.user.providerData?.[0]?.displayName;
+        if (googleName) {
+          await updateProfile(userCredential.user, {
+            displayName: googleName,
+          });
+        }
+      }
+
+      navigation.replace("MainApp");
+    } catch (error) {
+      console.log("Google Firebase Auth error:", error);
+      Alert.alert("Google Sign Up Error", error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // 1. Email Sign-Up
   const handleEmailSignUp = async () => {
@@ -77,17 +131,17 @@ export default function SignUpScreen({ navigation }) {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         trimmedEmail,
-        password,
+        password
       );
       await updateProfile(userCredential.user, {
-        displayName: firstName.trim(),
+        displayName: `${firstName.trim()} ${lastName.trim()}`.trim(),
       });
       navigation.replace("MainApp");
     } catch (error) {
       if (error.code === "auth/email-already-in-use") {
         Alert.alert(
           "Registration Failed",
-          "That email address is already in use.",
+          "That email address is already in use."
         );
       } else if (error.code === "auth/invalid-email") {
         Alert.alert("Error", "Please enter a valid email address.");
@@ -107,7 +161,7 @@ export default function SignUpScreen({ navigation }) {
     if (!formattedPhone.startsWith("+") || formattedPhone.length < 9) {
       return Alert.alert(
         "Invalid Phone Number",
-        "Please enter your full number with country code (e.g. +1 555 123 4567 or +44 7123 456789).",
+        "Please enter your full number with country code (e.g. +1 555 123 4567 or +44 7123 456789)."
       );
     }
 
@@ -116,12 +170,12 @@ export default function SignUpScreen({ navigation }) {
       const phoneProvider = new PhoneAuthProvider(auth);
       const verId = await phoneProvider.verifyPhoneNumber(
         formattedPhone,
-        recaptchaVerifier.current,
+        recaptchaVerifier.current
       );
       setVerificationId(verId);
       Alert.alert(
         "Code Sent",
-        "Please check your SMS inbox for the 6-digit verification code.",
+        "Please check your SMS inbox for the 6-digit verification code."
       );
     } catch (error) {
       Alert.alert("Failed to Send SMS", error.message);
@@ -135,7 +189,7 @@ export default function SignUpScreen({ navigation }) {
     if (!verificationCode.trim() || verificationCode.length !== 6) {
       return Alert.alert(
         "Invalid Code",
-        "Please enter the complete 6-digit code.",
+        "Please enter the complete 6-digit code."
       );
     }
 
@@ -143,13 +197,13 @@ export default function SignUpScreen({ navigation }) {
     try {
       const credential = PhoneAuthProvider.credential(
         verificationId,
-        verificationCode.trim(),
+        verificationCode.trim()
       );
       const userCredential = await signInWithCredential(auth, credential);
 
       if (firstName.trim() || lastName.trim()) {
         await updateProfile(userCredential.user, {
-          displayName: firstName.trim(),
+          displayName: `${firstName.trim()} ${lastName.trim()}`.trim(),
         });
       }
 
@@ -167,110 +221,75 @@ export default function SignUpScreen({ navigation }) {
     }
   };
 
-  // 4. Google Sign-Up
- const handleGoogleSignUp = async () => {
+  // 4. Trigger Google Sign-Up
+  const handleGoogleSignUp = async () => {
+  if (isLoading) return;
+
+  setIsLoading(true);
+
   try {
-    setIsLoading(true);
-
-    // Your Google OAuth Web Client ID
-    const clientId =
-      "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
-
-    // Redirect back to your Expo app
-    const redirectUri = AuthSession.makeRedirectUri({
-      scheme: "cifapp",
-      path: "oauth",
+    await GoogleSignin.hasPlayServices({
+      showPlayServicesUpdateDialog: true,
     });
 
-    const discovery = {
-      authorizationEndpoint:
-        "https://accounts.google.com/o/oauth2/v2/auth",
-    };
+    const userInfo = await GoogleSignin.signIn();
 
-    const request = new AuthSession.AuthRequest({
-      clientId: clientId,
-      redirectUri: redirectUri,
-
-      responseType: AuthSession.ResponseType.IdToken,
-
-      scopes: [
-        "openid",
-        "profile",
-        "email",
-      ],
-
-      extraParams: {
-        nonce: Math.random()
-          .toString(36)
-          .substring(2),
-      },
-    });
-
-    const result = await request.promptAsync(
-      discovery
-    );
-
-    // User cancelled Google login
-    if (result.type !== "success") {
-      setIsLoading(false);
-      return;
-    }
-
-    const idToken = result.params?.id_token;
+    const idToken = userInfo?.data?.idToken;
 
     if (!idToken) {
-      throw new Error(
-        "Google did not return an ID token."
-      );
+      throw new Error("Google did not return an ID token.");
     }
 
-    // Create Firebase Google credential
-    const credential =
-      GoogleAuthProvider.credential(
-        idToken
-      );
+    const credential = GoogleAuthProvider.credential(idToken);
 
-    // Sign into Firebase
-    const userCredential =
-      await signInWithCredential(
-        auth,
-        credential
-      );
+    const userCredential = await signInWithCredential(
+      auth,
+      credential
+    );
 
-    // Save Google display name if needed
-    if (
-      userCredential.user &&
-      !userCredential.user.displayName
-    ) {
+    const user = userCredential.user;
+
+    if (user && !user.displayName) {
       const googleName =
-        userCredential.user.providerData?.[0]
-          ?.displayName;
+        userInfo?.data?.user?.name ||
+        user.providerData?.[0]?.displayName;
 
       if (googleName) {
-        await updateProfile(
-          userCredential.user,
-          {
-            displayName: googleName,
-          }
-        );
+        await updateProfile(user, {
+          displayName: googleName,
+        });
       }
     }
 
-    // Go to your application
     navigation.replace("MainApp");
-
   } catch (error) {
-    console.log(
-      "Google authentication error:",
-      error
-    );
+    console.log("Google Sign-In error:", error);
+
+    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+      // User closed the Google account picker.
+      return;
+    }
+
+    if (error.code === statusCodes.IN_PROGRESS) {
+      Alert.alert(
+        "Google Sign-In",
+        "Google Sign-In is already in progress."
+      );
+      return;
+    }
+
+    if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+      Alert.alert(
+        "Google Sign-In",
+        "Google Play Services is not available on this device."
+      );
+      return;
+    }
 
     Alert.alert(
       "Google Sign Up Error",
-      error?.message ||
-        "Unable to sign up with Google."
+      error?.message || "Unable to sign up with Google."
     );
-
   } finally {
     setIsLoading(false);
   }
@@ -278,89 +297,72 @@ export default function SignUpScreen({ navigation }) {
 
   // 5. Microsoft Sign-Up
   const handleMicrosoftSignUp = async () => {
-  try {
-    setIsLoading(true);
+    try {
+      setIsLoading(true);
 
-    const clientId =
-      "YOUR_MICROSOFT_APPLICATION_CLIENT_ID";
+      const clientId = "YOUR_MICROSOFT_APPLICATION_CLIENT_ID";
 
-    const redirectUri = AuthSession.makeRedirectUri({
-      scheme: "cifapp",
-      path: "oauth",
-    });
+      const redirectUri = AuthSession.makeRedirectUri({
+        scheme: "cifapp",
+        path: "oauth",
+      });
 
-    const discovery = {
-      authorizationEndpoint:
-        "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-    };
+      const discovery = {
+        authorizationEndpoint:
+          "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      };
 
-    const request = new AuthSession.AuthRequest({
-      clientId: clientId,
-      redirectUri: redirectUri,
-      responseType: AuthSession.ResponseType.IdToken,
-      scopes: ["openid", "profile", "email"],
-      extraParams: {
-        nonce: Math.random().toString(36).substring(2),
-      },
-    });
+      const request = new AuthSession.AuthRequest({
+        clientId: clientId,
+        redirectUri: redirectUri,
+        usePKCE: false,
+        responseType: AuthSession.ResponseType.IdToken,
+        scopes: ["openid", "profile", "email"],
+        extraParams: {
+          nonce: Math.random().toString(36).substring(2),
+        },
+      });
 
-    const result = await request.promptAsync(discovery);
+      const result = await request.promptAsync(discovery);
 
-    if (result.type !== "success") {
-      setIsLoading(false);
-      return;
-    }
-
-    const idToken = result.params?.id_token;
-
-    if (!idToken) {
-      throw new Error(
-        "Microsoft did not return an ID token."
-      );
-    }
-
-    // Create Firebase Microsoft credential
-    const provider = new OAuthProvider("microsoft.com");
-
-    const credential = provider.credential({
-      idToken: idToken,
-    });
-
-    // Sign the user into Firebase
-    const userCredential = await signInWithCredential(
-      auth,
-      credential
-    );
-
-    // Save the user's Microsoft name if available
-    if (
-      userCredential.user &&
-      !userCredential.user.displayName
-    ) {
-      const microsoftName =
-        userCredential.user.providerData?.[0]?.displayName;
-
-      if (microsoftName) {
-        await updateProfile(userCredential.user, {
-          displayName: microsoftName,
-        });
+      if (result.type !== "success") {
+        setIsLoading(false);
+        return;
       }
+
+      const idToken = result.params?.id_token;
+      if (!idToken) {
+        throw new Error("Microsoft did not return an ID token.");
+      }
+
+      const provider = new OAuthProvider("microsoft.com");
+      const credential = provider.credential({
+        idToken: idToken,
+      });
+
+      const userCredential = await signInWithCredential(auth, credential);
+
+      if (userCredential.user && !userCredential.user.displayName) {
+        const microsoftName =
+          userCredential.user.providerData?.[0]?.displayName;
+        if (microsoftName) {
+          await updateProfile(userCredential.user, {
+            displayName: microsoftName,
+          });
+        }
+      }
+
+      navigation.replace("MainApp");
+    } catch (error) {
+      console.log("Microsoft authentication error:", error);
+      Alert.alert(
+        "Microsoft Sign Up Error",
+        error?.message || "Unable to sign up with Microsoft."
+      );
+    } finally {
+      setIsLoading(false);
     }
-
-    navigation.replace("MainApp");
-
-  } catch (error) {
-    console.log("Microsoft authentication error:", error);
-
-    Alert.alert(
-      "Microsoft Sign Up Error",
-      error?.message ||
-        "Unable to sign up with Microsoft."
-    );
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   return (
     <SafeScreen
@@ -368,13 +370,6 @@ export default function SignUpScreen({ navigation }) {
       style={[styles.rootContainer, { backgroundColor: colors.bg }]}
       contentContainerStyle={styles.scrollContent}
     >
-      {/* Firebase reCAPTCHA Modal (Invisible) */}
-      {/* <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={auth.app.options}
-        attemptInvisibleVerification={true}
-      /> */}
-
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -668,7 +663,11 @@ export default function SignUpScreen({ navigation }) {
 
           <View style={styles.socialRow}>
             <TouchableOpacity
-              style={[styles.socialButton, { borderColor: colors.border }]}
+              style={[
+                styles.socialButton,
+                { borderColor: colors.border },
+                isLoading && { opacity: 0.7 },
+             ]}
               onPress={handleGoogleSignUp}
               disabled={isLoading}
             >

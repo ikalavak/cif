@@ -1,21 +1,18 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "Creative Industries Festival",
+    "slug": "cif-app",
     "scheme": "cifapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
-    },
-    "splash": {
-      "image": "./assets/splash.jpeg",
-      "resizeMode": "contain",
-      "backgroundColor": "#000000"
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cif.app"
     },
     "android": {
+      "package": "com.cif.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -28,7 +25,23 @@
     },
     "plugins": [
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.jpeg",
+          "resizeMode": "contain",
+          "backgroundColor": "#000000"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
     ]
   }
 }
