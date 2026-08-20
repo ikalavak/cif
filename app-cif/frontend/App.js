@@ -1,30 +1,41 @@
-import React from 'react';
-import { View, Platform, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Feather } from '@expo/vector-icons';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import React from "react";
+import {
+  View,
+  Platform,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+} from "react-native";
+import { StatusBar } from "expo-status-bar";
+import {
+  NavigationContainer,
+  DefaultTheme,
+  DarkTheme,
+} from "@react-navigation/native";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { Feather } from "@expo/vector-icons";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { ThemeProvider, useTheme } from "./src/context/ThemeContext";
 
 // --- IMPORT YOUR SCREENS ---
-import LoginScreen from './src/screens/LoginScreen'; 
-import SignUpScreen from './src/screens/SignUpScreen'; 
-import SplashScreen from './src/screens/SplashScreen';
-import HomeScreen from './src/screens/HomeScreen';
-import EventsScreen from './src/screens/EventsScreen';
-import MapsScreen from './src/screens/MapsScreen';
-import FestivalProfileScreen from './src/screens/FestivalProfileScreen';
-import NotificationsScreen from './src/screens/NotificationsScreen';
-import SettingsScreen from './src/screens/SettingsScreen';
-import ForumScreen from './src/screens/ForumScreen';
-import JobBoard from './src/screens/JobBoard';
-import PortfolioScreen from './src/screens/PortfolioScreen';
-import HomeGuest from './src/screens/HomeGuest';
-import EventGuest from './src/screens/EventGuest';
-import ProfileGuest from './src/screens/ProfileGuest';
-import EditProfileScreen from './src/screens/EditProfileScreen';
+import LoginScreen from "./src/screens/LoginScreen";
+import SignUpScreen from "./src/screens/SignUpScreen";
+import SplashScreen from "./src/screens/SplashScreen";
+import HomeScreen from "./src/screens/HomeScreen";
+import EventsScreen from "./src/screens/EventsScreen";
+import MapsScreen from "./src/screens/MapsScreen";
+import FestivalProfileScreen from "./src/screens/FestivalProfileScreen";
+import NotificationsScreen from "./src/screens/NotificationsScreen";
+import SettingsScreen from "./src/screens/SettingsScreen";
+import ForumScreen from "./src/screens/ForumScreen";
+import JobBoard from "./src/screens/JobBoard";
+import PortfolioScreen from "./src/screens/PortfolioScreen";
+import HomeGuest from "./src/screens/HomeGuest";
+import EventGuest from "./src/screens/EventGuest";
+import ProfileGuest from "./src/screens/ProfileGuest";
+import EditProfileScreen from "./src/screens/EditProfileScreen";
+import GalleryScreen from "./src/screens/GalleryScreen";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -38,24 +49,37 @@ function ProfileScreen({ navigation }) {
   const handleLogout = () => {
     const parentNav = navigation.getParent();
     if (parentNav?.replace) {
-      parentNav.replace('Login');
+      parentNav.replace("Login");
     } else {
-      navigation.replace('Login');
+      navigation.replace("Login");
     }
   };
 
   return (
-    <View style={[styles.profileContainer, { backgroundColor: colors.bg || colors.background }]}>
+    <View
+      style={[
+        styles.profileContainer,
+        { backgroundColor: colors.bg || colors.background },
+      ]}
+    >
       <Text style={[styles.profileTitle, { color: colors.text }]}>Profile</Text>
       <Text style={[styles.profileSubtitle, { color: colors.textMuted }]}>
         Tap below to logout and return to login.
       </Text>
       <TouchableOpacity
-        style={[styles.logoutButton, { backgroundColor: colors.primary || '#8B5CF6' }]}
+        style={[
+          styles.logoutButton,
+          { backgroundColor: colors.primary || "#8B5CF6" },
+        ]}
         onPress={handleLogout}
         activeOpacity={0.8}
       >
-        <Feather name="log-out" size={18} color="#fff" style={{ marginRight: 8 }} />
+        <Feather
+          name="log-out"
+          size={18}
+          color="#fff"
+          style={{ marginRight: 8 }}
+        />
         <Text style={styles.logoutButtonText}>Logout</Text>
       </TouchableOpacity>
     </View>
@@ -65,33 +89,33 @@ function ProfileScreen({ navigation }) {
 const styles = StyleSheet.create({
   profileContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 24,
   },
   profileTitle: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 10,
   },
   profileSubtitle: {
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 24,
     lineHeight: 22,
   },
   logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 16,
   },
   logoutButtonText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 });
 
@@ -106,42 +130,46 @@ function MainTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: colors.primary || '#8B5CF6',
+        tabBarActiveTintColor: colors.primary || "#8B5CF6",
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
           backgroundColor: colors.card,
           borderTopWidth: 1,
           borderTopColor: colors.border,
           elevation: 8,
-          shadowColor: '#000',
+          shadowColor: "#000",
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 4,
-          height: Platform.OS === 'ios' ? 88 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
+          height: Platform.OS === "ios" ? 88 : 64,
+          paddingBottom: Platform.OS === "ios" ? 28 : 10,
           paddingTop: 8,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
         tabBarIcon: ({ focused, color }) => {
           let iconName;
-          if (route.name === 'Home') iconName = 'home';
-          else if (route.name === 'Events') iconName = 'calendar';
-          else if (route.name === 'Maps') iconName = 'map';
-          else if (route.name === 'Profile') iconName = 'user';
+          if (route.name === "Home") iconName = "home";
+          else if (route.name === "Events") iconName = "calendar";
+          else if (route.name === "Maps") iconName = "map";
+          else if (route.name === "Profile") iconName = "user";
 
           return (
-            <View style={{
-              width: 44, 
-              height: 28, 
-              borderRadius: 14, 
-              justifyContent: 'center', 
-              alignItems: 'center',
-              backgroundColor: focused ? 'rgba(139,92,246,0.15)' : 'transparent',
-            }}>
-              <Feather 
-                name={iconName} 
-                size={20} 
-                color={focused ? (colors.primary || '#8B5CF6') : color} 
+            <View
+              style={{
+                width: 44,
+                height: 28,
+                borderRadius: 14,
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: focused
+                  ? "rgba(139,92,246,0.15)"
+                  : "transparent",
+              }}
+            >
+              <Feather
+                name={iconName}
+                size={20}
+                color={focused ? colors.primary || "#8B5CF6" : color}
               />
             </View>
           );
@@ -164,42 +192,46 @@ function GuestTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: colors.primary || '#8B5CF6',
+        tabBarActiveTintColor: colors.primary || "#8B5CF6",
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
           backgroundColor: colors.card,
           borderTopWidth: 1,
           borderTopColor: colors.border,
           elevation: 8,
-          shadowColor: '#000',
+          shadowColor: "#000",
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 4,
-          height: Platform.OS === 'ios' ? 88 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
+          height: Platform.OS === "ios" ? 88 : 64,
+          paddingBottom: Platform.OS === "ios" ? 28 : 10,
           paddingTop: 8,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
         tabBarIcon: ({ focused, color }) => {
           let iconName;
-          if (route.name === 'Home') iconName = 'home';
-          else if (route.name === 'Events') iconName = 'calendar';
-          else if (route.name === 'Maps') iconName = 'map';
-          else if (route.name === 'Profile') iconName = 'user';
+          if (route.name === "Home") iconName = "home";
+          else if (route.name === "Events") iconName = "calendar";
+          else if (route.name === "Maps") iconName = "map";
+          else if (route.name === "Profile") iconName = "user";
 
           return (
-            <View style={{
-              width: 44, 
-              height: 28, 
-              borderRadius: 14, 
-              justifyContent: 'center', 
-              alignItems: 'center',
-              backgroundColor: focused ? 'rgba(139,92,246,0.15)' : 'transparent',
-            }}>
-              <Feather 
-                name={iconName} 
-                size={20} 
-                color={focused ? (colors.primary || '#8B5CF6') : color} 
+            <View
+              style={{
+                width: 44,
+                height: 28,
+                borderRadius: 14,
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: focused
+                  ? "rgba(139,92,246,0.15)"
+                  : "transparent",
+              }}
+            >
+              <Feather
+                name={iconName}
+                size={20}
+                color={focused ? colors.primary || "#8B5CF6" : color}
               />
             </View>
           );
@@ -208,7 +240,7 @@ function GuestTabs() {
     >
       <Tab.Screen name="Home" component={HomeGuest} />
       <Tab.Screen name="Events" component={EventGuest} />
-      <Tab.Screen name="Maps" component={MapsScreen} /> 
+      <Tab.Screen name="Maps" component={MapsScreen} />
       <Tab.Screen name="Profile" component={ProfileGuest} />
     </Tab.Navigator>
   );
@@ -231,30 +263,32 @@ function AppInner() {
   const { colors, scheme } = useTheme();
 
   // 1. Get the base theme to prevent the "Cannot read property 'regular'" font error
-  const baseTheme = scheme === 'dark' ? DarkTheme : DefaultTheme;
+  const baseTheme = scheme === "dark" ? DarkTheme : DefaultTheme;
 
   // 2. Merge your custom theme colors into the base theme
   const navigationTheme = {
     ...baseTheme,
     colors: {
       ...baseTheme.colors,
-      background: colors.bg || colors.background, 
+      background: colors.bg || colors.background,
       card: colors.card,
       text: colors.text,
       border: colors.border,
-      primary: colors.primary || '#8B5CF6',
+      primary: colors.primary || "#8B5CF6",
     },
   };
 
   return (
     // Replaced SafeAreaView with standard View to stretch edge-to-edge
     <View style={{ flex: 1, backgroundColor: colors.bg || colors.background }}>
-      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-      
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+
       {/* Pass the merged theme into NavigationContainer */}
       <NavigationContainer theme={navigationTheme}>
-        <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Splash">
-          
+        <Stack.Navigator
+          screenOptions={{ headerShown: false }}
+          initialRouteName="Splash"
+        >
           <Stack.Screen name="Splash" component={SplashScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="SignUp" component={SignUpScreen} />
@@ -264,17 +298,24 @@ function AppInner() {
           <Stack.Screen
             name="Settings"
             component={SettingsScreen}
-            options={{ headerShown: true, title: 'Settings', headerBackVisible: false }}
+            options={{
+              headerShown: true,
+              title: "Settings",
+              headerBackVisible: false,
+            }}
           />
+          <Stack.Screen name="Gallery" component={GalleryScreen} />
           <Stack.Screen name="ForumScreen" component={ForumScreen} />
           <Stack.Screen name="JobBoard" component={JobBoard} />
           <Stack.Screen name="PortfolioScreen" component={PortfolioScreen} />
-          <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} /> 
+          <Stack.Screen
+            name="EditProfileScreen"
+            component={EditProfileScreen}
+          />
 
           {/* 2. Main App Flow */}
           <Stack.Screen name="MainApp" component={MainTabs} />
           <Stack.Screen name="GuestApp" component={GuestTabs} />
-
         </Stack.Navigator>
       </NavigationContainer>
     </View>
