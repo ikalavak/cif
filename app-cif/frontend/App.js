@@ -32,7 +32,6 @@ import ForumScreen from "./src/screens/ForumScreen";
 import JobBoard from "./src/screens/JobBoard";
 import PortfolioScreen from "./src/screens/PortfolioScreen";
 import HomeGuest from "./src/screens/HomeGuest";
-import EventGuest from "./src/screens/EventGuest";
 import ProfileGuest from "./src/screens/ProfileGuest";
 import EditProfileScreen from "./src/screens/EditProfileScreen";
 import GalleryScreen from "./src/screens/GalleryScreen";
@@ -359,7 +358,7 @@ function GuestTabs() {
     >
       <Tab.Screen name="Home" component={HomeGuest} />
 
-      <Tab.Screen name="Events" component={EventGuest} />
+      <Tab.Screen name="Events" component={EventsScreen} />
 
       <Tab.Screen name="Maps" component={MapsScreen} />
 
