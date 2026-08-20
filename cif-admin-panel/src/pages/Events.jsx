@@ -15,6 +15,7 @@ import { db } from "../firebaseClient"; // Ensure this points to your firebase c
 export default function EventsAdmin() {
   // 1. Form States (matching your screenshot fields)
   const [title, setTitle] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [category, setCategory] = useState("");
   const [venue, setVenue] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -28,8 +29,10 @@ export default function EventsAdmin() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // 2. Real-time Listener: Keeps the table synced with Firestore
+  // NOTE: collection is "events" (lowercase) to match what HomeScreen.js
+  // and the rest of the app read from.
   useEffect(() => {
-    const q = query(collection(db, "Events"), orderBy("createdAt", "desc"));
+    const q = query(collection(db, "events"), orderBy("created_at", "desc"));
 
     const unsubscribe = onSnapshot(
       q,
@@ -66,20 +69,24 @@ export default function EventsAdmin() {
         eventStartTimestamp = Timestamp.fromDate(new Date(startDate));
       }
 
-      // Add new document to /Events collection
-      await addDoc(collection(db, "Events"), {
+      // Add new document to /events collection
+      // Field names (start_date, published, featured, created_at) match
+      // what HomeScreen.js and firestore.rules expect elsewhere in the app.
+      await addDoc(collection(db, "events"), {
         title: title.trim(),
+        image_url: imageUrl.trim(),
         category: category.trim(),
         venue: venue.trim(),
-        startDate: eventStartTimestamp,
+        start_date: eventStartTimestamp,
         status: status,
-        isPublished: Boolean(isPublished),
-        isFeatured: Boolean(isFeatured),
-        createdAt: serverTimestamp(),
+        published: Boolean(isPublished),
+        featured: Boolean(isFeatured),
+        created_at: serverTimestamp(),
       });
 
       // Clear Form Fields on success
       setTitle("");
+      setImageUrl("");
       setCategory("");
       setVenue("");
       setStartDate("");
@@ -100,7 +107,7 @@ export default function EventsAdmin() {
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this event?")) {
       try {
-        await deleteDoc(doc(db, "Events", id));
+        await deleteDoc(doc(db, "events", id));
       } catch (error) {
         alert("Error deleting event: " + error.message);
       }
@@ -153,6 +160,18 @@ export default function EventsAdmin() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             style={styles.input}
+          />
+        </div>
+
+        {/* Image URL */}
+        <div style={styles.formGroup}>
+          <label style={styles.label}>Image URL</label>
+          <input
+            type="text"
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            style={styles.input}
+            placeholder="https://res.cloudinary.com/..."
           />
         </div>
 
@@ -259,6 +278,7 @@ export default function EventsAdmin() {
             type="button"
             onClick={() => {
               setTitle("");
+              setImageUrl("");
               setCategory("");
               setVenue("");
               setStartDate("");
@@ -330,13 +350,13 @@ export default function EventsAdmin() {
                   <td style={styles.td}>{ev.category || "—"}</td>
                   <td style={styles.td}>{ev.venue || "—"}</td>
                   <td style={styles.td}>
-                    {ev.startDate
-                      ? ev.startDate.toDate().toLocaleString()
+                    {ev.start_date
+                      ? ev.start_date.toDate().toLocaleString()
                       : "—"}
                   </td>
                   <td style={styles.td}>{ev.status}</td>
-                  <td style={styles.td}>{ev.isPublished ? "Yes" : "No"}</td>
-                  <td style={styles.td}>{ev.isFeatured ? "Yes" : "No"}</td>
+                  <td style={styles.td}>{ev.published ? "Yes" : "No"}</td>
+                  <td style={styles.td}>{ev.featured ? "Yes" : "No"}</td>
                   <td style={styles.td}>
                     <button
                       onClick={() => handleDelete(ev.id)}

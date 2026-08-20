@@ -1,27 +1,28 @@
-import React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
-import { useAuth } from '../AuthContext';
+import React from "react";
+import { NavLink, Outlet } from "react-router-dom";
+import { useAuth } from "../AuthContext";
 
 const NAV_GROUPS = [
   {
-    label: 'MAIN',
-    links: [{ to: '/dashboard', label: 'Dashboard' }],
+    label: "MAIN",
+    links: [{ to: "/dashboard", label: "Dashboard" }],
   },
   {
-    label: 'CONTENT MANAGEMENT',
+    label: "CONTENT MANAGEMENT",
     links: [
-      { to: '/events', label: 'Events' },
-      { to: '/venues', label: 'Venues' },
-      { to: '/categories', label: 'Categories' },
-      { to: '/speakers', label: 'Speakers' },
-      { to: '/gallery', label: 'Gallery' },
-      { to: '/sponsors', label: 'Sponsors' },
-      { to: '/announcements', label: 'Announcements' },
+      { to: "/events", label: "Events" },
+      { to: "/venues", label: "Venues" },
+      { to: "/categories", label: "Categories" },
+      { to: "/speakers", label: "Speakers" },
+      { to: "/gallery", label: "Gallery" },
+      { to: "/sponsors", label: "Sponsors" },
+      { to: "/announcements", label: "Announcements" },
+      { to: "/home-settings", label: "Home Settings" },
     ],
   },
   {
-    label: 'USER MANAGEMENT',
-    links: [{ to: '/users', label: 'Users' }],
+    label: "USER MANAGEMENT",
+    links: [{ to: "/users", label: "Users" }],
   },
 ];
 
@@ -44,7 +45,9 @@ export default function Layout() {
                 <NavLink
                   key={link.to}
                   to={link.to}
-                  className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+                  className={({ isActive }) =>
+                    isActive ? "nav-link active" : "nav-link"
+                  }
                 >
                   {link.label}
                 </NavLink>
@@ -55,7 +58,9 @@ export default function Layout() {
 
         <div className="sidebar-footer">
           <div className="user-email">{session?.email}</div>
-          <button className="btn-secondary" onClick={signOut}>Sign out</button>
+          <button className="btn-secondary" onClick={signOut}>
+            Sign out
+          </button>
         </div>
       </aside>
 
