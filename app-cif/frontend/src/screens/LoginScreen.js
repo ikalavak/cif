@@ -21,6 +21,8 @@ import { auth, db } from '../config/firebase';
 import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendEmailVerification,
+  signOut,
   PhoneAuthProvider,
   signInWithCredential,
   GoogleAuthProvider,
@@ -72,11 +74,17 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  // --- Google Auth Hook (iOS + Android + Web) ---
+  // --- Option A: Explicit Expo Auth Proxy Redirect URI ---
+  const redirectUri = AuthSession.makeRedirectUri({
+    native: 'https://auth.expo.io/@akshayreddy/cif-app',
+  });
+
+  // --- Google Auth Hook ---
   const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
     iosClientId: "574795894327-oft2jj4plu80g5a1qfjduoojlsbgfn2v.apps.googleusercontent.com",
     androidClientId: "574795894327-b3dbea5ut54l9quism282p9tus6lsfpg.apps.googleusercontent.com",
     webClientId: "574795894327-fsblatou4ahd0hqsp08htj4elhmi5acj.apps.googleusercontent.com",
+    redirectUri,
   });
 
   useEffect(() => {
@@ -113,7 +121,7 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  // 1. Email Login
+  // 1. Email Login (with Verification Enforcement)
   const handleLogin = async () => {
     const emailTrimmed = email.trim();
     if (!emailTrimmed || !password) {
@@ -124,7 +132,37 @@ export default function LoginScreen({ navigation }) {
     setIsLoading(true);
     try {
       const userCred = await signInWithEmailAndPassword(auth, emailTrimmed, password);
-      await syncUserToFirestore(userCred.user);
+      const user = userCred.user;
+
+      // Force refresh user data to check email verification status
+      await user.reload();
+
+      if (!user.emailVerified) {
+        await signOut(auth);
+
+        Alert.alert(
+          'Email Not Verified',
+          'Please verify your email address via the link sent to your inbox before logging in.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Resend Email',
+              onPress: async () => {
+                try {
+                  await sendEmailVerification(user);
+                  Alert.alert('Sent', 'A new verification link has been sent to your email.');
+                } catch (resendErr) {
+                  Alert.alert('Error', resendErr.message);
+                }
+              },
+            },
+          ]
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      await syncUserToFirestore(user);
       navigation.replace('MainApp');
     } catch (error) {
       if (
@@ -166,11 +204,16 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  // 3. Trigger Google OAuth Login
+  // 3. Trigger Google OAuth Login (with Proxy Project Name)
   const handleGoogleLogin = () => {
     if (googleRequest) {
       setIsLoading(true);
-      promptGoogleAsync().catch(() => setIsLoading(false));
+      promptGoogleAsync({
+        projectNameForProxy: '@akshayreddy/cif-app',
+      }).catch((err) => {
+        console.warn('Google prompt error:', err);
+        setIsLoading(false);
+      });
     }
   };
 
@@ -367,7 +410,6 @@ export default function LoginScreen({ navigation }) {
             </View>
 
             {authMode === 'email' ? (
-              /* Email Fields */
               <>
                 <View style={styles.inputContainer}>
                   <Feather name="mail" size={18} color={colors.primary} style={styles.inputIcon} />
@@ -456,13 +498,12 @@ export default function LoginScreen({ navigation }) {
                 </TouchableOpacity>
               </>
             ) : (
-              /* Phone Number Fields */
               <>
                 <View style={styles.inputContainer}>
                   <Feather name="phone" size={18} color={colors.primary} style={styles.inputIcon} />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
-                    placeholder="+1 555 123 4567"
+                    placeholder="+44 7123 456789"
                     placeholderTextColor={colors.textMuted}
                     value={phoneNumber}
                     onChangeText={setPhoneNumber}

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -15,29 +15,26 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Feather, FontAwesome5 } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 
-// Firebase Auth imports
-import { auth } from "../config/firebase";
+// Firebase Auth & Firestore imports
+import { auth, db } from "../config/firebase";
 import {
   createUserWithEmailAndPassword,
   updateProfile,
+  sendEmailVerification,
+  signOut,
   PhoneAuthProvider,
   signInWithCredential,
   GoogleAuthProvider,
   OAuthProvider,
 } from "firebase/auth";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 // Expo Auth Tools
-
 import * as Google from "expo-auth-session/providers/google";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 
-/*GoogleSignin.configure({
-  webClientId:
-    "574795894327-fsblatou4ahd0hqsp08htj4elhmi5acJ.apps.googleusercontent.com",
-  iosClientId:
-    "574795894327-oft2jj4plu80g5a1qfjduoojlsbgfn2v.apps.googleusercontent.com",
-});*/
+WebBrowser.maybeCompleteAuthSession();
 
 export default function SignUpScreen({ navigation }) {
   const [authMode, setAuthMode] = useState("email"); // "email" | "phone"
@@ -56,15 +53,48 @@ export default function SignUpScreen({ navigation }) {
   const [verificationCode, setVerificationCode] = useState("");
 
   const [isLoading, setIsLoading] = useState(false);
-  const recaptchaVerifier = useRef(null);
   const { colors } = useTheme();
 
-  /* --- Cross-Platform Google Auth Hook (iOS + Android + Web) ---
- // const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
-   // iosClientId: "574795894327-oft2jj4plu80g5a1qfjduoojlsbgfn2v.apps.googleusercontent.com",
-    //androidClientId: "YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com", // <-- Android Client ID
-    //webClientId: "574795894327-fsblatou4ahd0hqsp08htj4elhmi5acj.apps.googleusercontent.com",
-  //});
+  // Helper to persist user profile to Firestore
+  const syncUserToFirestore = async (user, additionalData = {}) => {
+    if (!user || !db) return;
+    try {
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          uid: user.uid,
+          email: user.email || additionalData.email || "",
+          displayName:
+            additionalData.displayName ||
+            user.displayName ||
+            "Festival Attendee",
+          phoneNumber: user.phoneNumber || additionalData.phoneNumber || null,
+          photoURL: user.photoURL || null,
+          role: "attendee",
+          ticketType: "General Admission",
+          bio: "",
+          interests: [],
+          createdAt: serverTimestamp(),
+          lastLoginAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn("Could not persist user to Firestore:", err.message);
+    }
+  };
+
+  // --- Google Auth Hook (Expo Auth Proxy) ---
+  const redirectUri = AuthSession.makeRedirectUri({
+    native: "https://auth.expo.io/@akshayreddy/cif-app",
+  });
+
+  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    iosClientId: "574795894327-oft2jj4plu80g5a1qfjduoojlsbgfn2v.apps.googleusercontent.com",
+    androidClientId: "574795894327-b3dbea5ut54l9quism282p9tus6lsfpg.apps.googleusercontent.com",
+    webClientId: "574795894327-fsblatou4ahd0hqsp08htj4elhmi5acj.apps.googleusercontent.com",
+    redirectUri,
+  });
 
   useEffect(() => {
     if (googleResponse?.type === "success") {
@@ -80,8 +110,10 @@ export default function SignUpScreen({ navigation }) {
         googleResponse.error?.message || "Google authentication failed."
       );
       setIsLoading(false);
+    } else if (googleResponse?.type === "cancel" || googleResponse?.type === "dismiss") {
+      setIsLoading(false);
     }
-  }, [googleResponse]); */
+  }, [googleResponse]);
 
   const handleFirebaseGoogleAuth = async (idToken) => {
     setIsLoading(true);
@@ -98,6 +130,7 @@ export default function SignUpScreen({ navigation }) {
         }
       }
 
+      await syncUserToFirestore(userCredential.user);
       navigation.replace("MainApp");
     } catch (error) {
       console.log("Google Firebase Auth error:", error);
@@ -107,9 +140,11 @@ export default function SignUpScreen({ navigation }) {
     }
   };
 
-  // 1. Email Sign-Up
+  // 1. Email Sign-Up (With Email Verification Enforcement)
   const handleEmailSignUp = async () => {
     const trimmedEmail = email.trim();
+    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+
     if (
       !firstName.trim() ||
       !lastName.trim() ||
@@ -128,21 +163,42 @@ export default function SignUpScreen({ navigation }) {
 
     setIsLoading(true);
     try {
+      // Create user account
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         trimmedEmail,
         password
       );
-      await updateProfile(userCredential.user, {
-        displayName: `${firstName.trim()} ${lastName.trim()}`.trim(),
+      const user = userCredential.user;
+
+      // Update Auth Profile
+      await updateProfile(user, { displayName: fullName });
+
+      // Send verification link to user's email
+      await sendEmailVerification(user);
+
+      // Create document in Firestore
+      await syncUserToFirestore(user, {
+        displayName: fullName,
+        email: trimmedEmail,
       });
-      navigation.replace("MainApp");
+
+      // Sign out to prevent unverified email access
+      await signOut(auth);
+
+      Alert.alert(
+        "Verify Your Email",
+        `We sent a verification link to ${trimmedEmail}. Please verify your email before logging in.`,
+        [
+          {
+            text: "Go to Login",
+            onPress: () => navigation.replace("Login"),
+          },
+        ]
+      );
     } catch (error) {
       if (error.code === "auth/email-already-in-use") {
-        Alert.alert(
-          "Registration Failed",
-          "That email address is already in use."
-        );
+        Alert.alert("Registration Failed", "That email address is already in use.");
       } else if (error.code === "auth/invalid-email") {
         Alert.alert("Error", "Please enter a valid email address.");
       } else if (error.code === "auth/weak-password") {
@@ -161,7 +217,7 @@ export default function SignUpScreen({ navigation }) {
     if (!formattedPhone.startsWith("+") || formattedPhone.length < 9) {
       return Alert.alert(
         "Invalid Phone Number",
-        "Please enter your full number with country code (e.g. +1 555 123 4567 or +44 7123 456789)."
+        "Please enter your full number with country code (e.g. +44 7123 456789 or +1 555 123 4567)."
       );
     }
 
@@ -170,7 +226,7 @@ export default function SignUpScreen({ navigation }) {
       const phoneProvider = new PhoneAuthProvider(auth);
       const verId = await phoneProvider.verifyPhoneNumber(
         formattedPhone,
-        recaptchaVerifier.current
+        null
       );
       setVerificationId(verId);
       Alert.alert(
@@ -187,13 +243,12 @@ export default function SignUpScreen({ navigation }) {
   // 3. Verify OTP & Register
   const handleConfirmPhoneCode = async () => {
     if (!verificationCode.trim() || verificationCode.length !== 6) {
-      return Alert.alert(
-        "Invalid Code",
-        "Please enter the complete 6-digit code."
-      );
+      return Alert.alert("Invalid Code", "Please enter the complete 6-digit code.");
     }
 
     setIsLoading(true);
+    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+
     try {
       const credential = PhoneAuthProvider.credential(
         verificationId,
@@ -201,11 +256,14 @@ export default function SignUpScreen({ navigation }) {
       );
       const userCredential = await signInWithCredential(auth, credential);
 
-      if (firstName.trim() || lastName.trim()) {
-        await updateProfile(userCredential.user, {
-          displayName: `${firstName.trim()} ${lastName.trim()}`.trim(),
-        });
+      if (fullName) {
+        await updateProfile(userCredential.user, { displayName: fullName });
       }
+
+      await syncUserToFirestore(userCredential.user, {
+        displayName: fullName,
+        phoneNumber: phoneNumber.trim(),
+      });
 
       navigation.replace("MainApp");
     } catch (error) {
@@ -222,78 +280,17 @@ export default function SignUpScreen({ navigation }) {
   };
 
   // 4. Trigger Google Sign-Up
-  const handleGoogleSignUp = async () => {
-  if (isLoading) return;
-
-  setIsLoading(true);
-
-  try {
-    await GoogleSignin.hasPlayServices({
-      showPlayServicesUpdateDialog: true,
-    });
-
-    const userInfo = await GoogleSignin.signIn();
-
-    const idToken = userInfo?.data?.idToken;
-
-    if (!idToken) {
-      throw new Error("Google did not return an ID token.");
+  const handleGoogleSignUp = () => {
+    if (googleRequest) {
+      setIsLoading(true);
+      promptGoogleAsync({
+        projectNameForProxy: "@akshayreddy/cif-app",
+      }).catch((err) => {
+        console.warn("Google prompt error:", err);
+        setIsLoading(false);
+      });
     }
-
-    const credential = GoogleAuthProvider.credential(idToken);
-
-    const userCredential = await signInWithCredential(
-      auth,
-      credential
-    );
-
-    const user = userCredential.user;
-
-    if (user && !user.displayName) {
-      const googleName =
-        userInfo?.data?.user?.name ||
-        user.providerData?.[0]?.displayName;
-
-      if (googleName) {
-        await updateProfile(user, {
-          displayName: googleName,
-        });
-      }
-    }
-
-    navigation.replace("MainApp");
-  } catch (error) {
-    console.log("Google Sign-In error:", error);
-
-    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-      // User closed the Google account picker.
-      return;
-    }
-
-    if (error.code === statusCodes.IN_PROGRESS) {
-      Alert.alert(
-        "Google Sign-In",
-        "Google Sign-In is already in progress."
-      );
-      return;
-    }
-
-    if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-      Alert.alert(
-        "Google Sign-In",
-        "Google Play Services is not available on this device."
-      );
-      return;
-    }
-
-    Alert.alert(
-      "Google Sign Up Error",
-      error?.message || "Unable to sign up with Google."
-    );
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   // 5. Microsoft Sign-Up
   const handleMicrosoftSignUp = async () => {
@@ -343,8 +340,7 @@ export default function SignUpScreen({ navigation }) {
       const userCredential = await signInWithCredential(auth, credential);
 
       if (userCredential.user && !userCredential.user.displayName) {
-        const microsoftName =
-          userCredential.user.providerData?.[0]?.displayName;
+        const microsoftName = userCredential.user.providerData?.[0]?.displayName;
         if (microsoftName) {
           await updateProfile(userCredential.user, {
             displayName: microsoftName,
@@ -352,6 +348,7 @@ export default function SignUpScreen({ navigation }) {
         }
       }
 
+      await syncUserToFirestore(userCredential.user);
       navigation.replace("MainApp");
     } catch (error) {
       console.log("Microsoft authentication error:", error);
@@ -399,8 +396,7 @@ export default function SignUpScreen({ navigation }) {
               style={[
                 styles.tabText,
                 {
-                  color:
-                    authMode === "email" ? colors.primary : colors.textMuted,
+                  color: authMode === "email" ? colors.primary : colors.textMuted,
                 },
               ]}
             >
@@ -421,8 +417,7 @@ export default function SignUpScreen({ navigation }) {
               style={[
                 styles.tabText,
                 {
-                  color:
-                    authMode === "phone" ? colors.primary : colors.textMuted,
+                  color: authMode === "phone" ? colors.primary : colors.textMuted,
                 },
               ]}
             >
@@ -513,9 +508,7 @@ export default function SignUpScreen({ navigation }) {
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                 />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                >
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                   <Feather
                     name={showPassword ? "eye" : "eye-off"}
                     size={18}
@@ -547,7 +540,7 @@ export default function SignUpScreen({ navigation }) {
                 disabled={isLoading}
               >
                 <LinearGradient
-                  colors={[colors.primary, colors.accent]}
+                  colors={[colors.primary, colors.accent || colors.primary]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.primaryButton}
@@ -574,7 +567,7 @@ export default function SignUpScreen({ navigation }) {
                 />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
-                  placeholder="+1 555 123 4567"
+                  placeholder="+44 7123 456789"
                   placeholderTextColor={colors.textMuted}
                   value={phoneNumber}
                   onChangeText={setPhoneNumber}
@@ -611,7 +604,7 @@ export default function SignUpScreen({ navigation }) {
                 disabled={isLoading}
               >
                 <LinearGradient
-                  colors={[colors.primary, colors.accent]}
+                  colors={[colors.primary, colors.accent || colors.primary]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.primaryButton}
@@ -666,10 +659,10 @@ export default function SignUpScreen({ navigation }) {
               style={[
                 styles.socialButton,
                 { borderColor: colors.border },
-                isLoading && { opacity: 0.7 },
-             ]}
+                (!googleRequest || isLoading) && { opacity: 0.7 },
+              ]}
               onPress={handleGoogleSignUp}
-              disabled={isLoading}
+              disabled={!googleRequest || isLoading}
             >
               <FontAwesome5 name="google" size={18} color="#EA4335" />
               <Text style={[styles.socialButtonText, { color: colors.text }]}>
@@ -695,7 +688,7 @@ export default function SignUpScreen({ navigation }) {
               Already have an account?{" "}
             </Text>
             <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-              <Text style={[styles.linkText, { color: colors.accent2 }]}>
+              <Text style={[styles.linkText, { color: colors.accent2 || colors.primary }]}>
                 Login
               </Text>
             </TouchableOpacity>

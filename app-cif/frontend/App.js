@@ -9,6 +9,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 
+// --- Firebase Auth & Firestore ---
+import { auth, db } from './src/config/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+
 // --- IMPORT YOUR SCREENS ---
 import LoginScreen from './src/screens/LoginScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
@@ -74,7 +79,22 @@ async function registerForPushNotificationsAsync() {
     const tokenData = await Notifications.getExpoPushTokenAsync(
       projectId ? { projectId } : undefined
     );
-    return tokenData.data;
+    const token = tokenData.data;
+
+    // Attach push token directly to the current user's record in Firestore
+    if (auth?.currentUser && token && db) {
+      await setDoc(
+        doc(db, 'users', auth.currentUser.uid),
+        {
+          expoPushToken: token,
+          platform: Platform.OS,
+          lastTokenUpdate: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+
+    return token;
   } catch (error) {
     console.warn('[Push] Native module check skipped:', error.message);
     return null;
@@ -227,22 +247,66 @@ function AppInner() {
   const { colors, scheme } = useTheme();
   const navigationRef = useRef(null);
 
+  // 1. Auth Sync: Automatically ensures all authenticated users exist in Firestore
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      if (user && db) {
+        try {
+          const userRef = doc(db, 'users', user.uid);
+          const docSnap = await getDoc(userRef);
+
+          if (!docSnap.exists()) {
+            await setDoc(
+              userRef,
+              {
+                uid: user.uid,
+                email: user.email || null,
+                displayName: user.displayName || 'Festival Attendee',
+                phoneNumber: user.phoneNumber || null,
+                photoURL: user.photoURL || null,
+                role: 'attendee',
+                ticketType: 'General Admission',
+                bio: '',
+                interests: [],
+                createdAt: serverTimestamp(),
+                lastLoginAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
+          } else {
+            await setDoc(
+              userRef,
+              {
+                lastLoginAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
+          }
+        } catch (err) {
+          console.warn('Auto auth-to-firestore sync notice:', err.message);
+        }
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, []);
+
+  // 2. Notifications & Push Registration
   useEffect(() => {
     registerForPushNotificationsAsync();
 
     let notificationSub;
     let responseSub;
 
-    // Attach listeners safely only when not in Expo Go and on physical device
     const isPhysicalDevice = Constants?.isDevice ?? false;
     if (!isExpoGo && isPhysicalDevice) {
       import('expo-notifications').then((Notifications) => {
-        // 1. Foreground listener
+        // Foreground notification received
         notificationSub = Notifications.addNotificationReceivedListener((notification) => {
-          console.log('Foreground notification:', notification);
+          console.log('Foreground notification received:', notification);
         });
 
-        // 2. Notification response tap / deep-link routing
+        // Notification tapped (Deep Linking)
         responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
           const data = response.notification.request.content.data;
           const target = data?.screen || 'Home';
