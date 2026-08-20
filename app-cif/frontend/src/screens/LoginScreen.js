@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,14 +9,15 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import SafeScreen from '../components/SafeScreen';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 
-// Direct Firebase Authentication imports
-import { auth } from '../config/firebase';
+// Direct Firebase Authentication & Firestore imports
+import { auth, db } from '../config/firebase';
 import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
@@ -25,9 +26,11 @@ import {
   GoogleAuthProvider,
   OAuthProvider,
 } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 // Expo OAuth Tools
 import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import * as AuthSession from 'expo-auth-session';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -49,6 +52,67 @@ export default function LoginScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(false);
   const { colors } = useTheme();
 
+  // Helper to sync/create user in Firestore
+  const syncUserToFirestore = async (user) => {
+    if (!user || !db) return;
+    try {
+      await setDoc(
+        doc(db, 'users', user.uid),
+        {
+          uid: user.uid,
+          email: user.email || '',
+          displayName: user.displayName || 'Festival Attendee',
+          photoURL: user.photoURL || null,
+          lastLoginAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn('Could not sync user to Firestore:', err.message);
+    }
+  };
+
+  // --- Google Auth Hook (iOS + Android + Web) ---
+  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    iosClientId: "574795894327-oft2jj4plu80g5a1qfjduoojlsbgfn2v.apps.googleusercontent.com",
+    androidClientId: "574795894327-b3dbea5ut54l9quism282p9tus6lsfpg.apps.googleusercontent.com",
+    webClientId: "574795894327-fsblatou4ahd0hqsp08htj4elhmi5acj.apps.googleusercontent.com",
+  });
+
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      const { id_token, authentication } = googleResponse.params;
+      const token = id_token || authentication?.idToken;
+
+      if (token) {
+        handleFirebaseGoogleLogin(token);
+      }
+    } else if (googleResponse?.type === 'error') {
+      setIsLoading(false);
+      Alert.alert(
+        'Google Sign-In Error',
+        googleResponse.error?.message || 'Unable to sign in with Google.'
+      );
+    } else if (googleResponse?.type === 'cancel' || googleResponse?.type === 'dismiss') {
+      setIsLoading(false);
+    }
+  }, [googleResponse]);
+
+  const handleFirebaseGoogleLogin = async (idToken) => {
+    setIsLoading(true);
+    try {
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCred = await signInWithCredential(auth, credential);
+      await syncUserToFirestore(userCred.user);
+      navigation.replace('MainApp');
+    } catch (error) {
+      console.log('Firebase Google Login Error:', error);
+      Alert.alert('Google Sign-In Error', error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // 1. Email Login
   const handleLogin = async () => {
     const emailTrimmed = email.trim();
@@ -59,7 +123,8 @@ export default function LoginScreen({ navigation }) {
 
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, emailTrimmed, password);
+      const userCred = await signInWithEmailAndPassword(auth, emailTrimmed, password);
+      await syncUserToFirestore(userCred.user);
       navigation.replace('MainApp');
     } catch (error) {
       if (
@@ -91,7 +156,8 @@ export default function LoginScreen({ navigation }) {
         verificationId,
         verificationCode.trim()
       );
-      await signInWithCredential(auth, credential);
+      const userCred = await signInWithCredential(auth, credential);
+      await syncUserToFirestore(userCred.user);
       navigation.replace('MainApp');
     } catch (error) {
       Alert.alert('Verification Failed', error.message);
@@ -100,136 +166,72 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  // 3. Google OAuth Login
- // Google OAuth Login
-const handleGoogleLogin = async () => {
-  try {
-    setIsLoading(true);
-
-    const clientId =
-      "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
-
-    const redirectUri = AuthSession.makeRedirectUri({
-      scheme: "cifapp",
-      path: "oauth",
-    });
-
-    const discovery = {
-      authorizationEndpoint:
-        "https://accounts.google.com/o/oauth2/v2/auth",
-    };
-
-    const request = new AuthSession.AuthRequest({
-      clientId,
-      redirectUri,
-      responseType: AuthSession.ResponseType.IdToken,
-      scopes: ["openid", "profile", "email"],
-      extraParams: {
-        nonce: Math.random().toString(36).substring(2),
-      },
-    });
-
-    const result = await request.promptAsync(discovery);
-
-    if (result.type !== "success") {
-      return;
+  // 3. Trigger Google OAuth Login
+  const handleGoogleLogin = () => {
+    if (googleRequest) {
+      setIsLoading(true);
+      promptGoogleAsync().catch(() => setIsLoading(false));
     }
-
-    const idToken = result.params?.id_token;
-
-    if (!idToken) {
-      throw new Error("Google did not return an ID token.");
-    }
-
-    // Create Firebase Google credential
-    const credential = GoogleAuthProvider.credential(idToken);
-
-    // Sign into Firebase
-    await signInWithCredential(auth, credential);
-
-    // Go to your app
-    navigation.replace("MainApp");
-
-  } catch (error) {
-    console.log("Google Sign-In Error:", error);
-
-    Alert.alert(
-      "Google Sign-In Error",
-      error?.message || "Unable to sign in with Google."
-    );
-  } finally {
-    setIsLoading(false);
-  }
-}; 
+  };
 
   // 4. Microsoft OAuth Login
-  // Microsoft OAuth Login
-const handleMicrosoftLogin = async () => {
-  try {
-    setIsLoading(true);
+  const handleMicrosoftLogin = async () => {
+    try {
+      setIsLoading(true);
 
-    const clientId =
-      "YOUR_MICROSOFT_APPLICATION_CLIENT_ID";
+      const clientId = "YOUR_MICROSOFT_APPLICATION_CLIENT_ID";
 
-    const redirectUri = AuthSession.makeRedirectUri({
-      scheme: "cifapp",
-      path: "oauth",
-    });
+      const redirectUri = AuthSession.makeRedirectUri({
+        scheme: "cifapp",
+        path: "oauth",
+      });
 
-    const discovery = {
-      authorizationEndpoint:
-        "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-    };
+      const discovery = {
+        authorizationEndpoint:
+          "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+      };
 
-    const request = new AuthSession.AuthRequest({
-      clientId,
-      redirectUri,
-      responseType: AuthSession.ResponseType.IdToken,
-      scopes: ["openid", "profile", "email"],
-      extraParams: {
-        nonce: Math.random().toString(36).substring(2),
-      },
-    });
+      const request = new AuthSession.AuthRequest({
+        clientId,
+        redirectUri,
+        usePKCE: false,
+        responseType: AuthSession.ResponseType.IdToken,
+        scopes: ["openid", "profile", "email"],
+        extraParams: {
+          nonce: Math.random().toString(36).substring(2),
+        },
+      });
 
-    const result = await request.promptAsync(discovery);
+      const result = await request.promptAsync(discovery);
 
-    if (result.type !== "success") {
-      return;
-    }
+      if (result.type !== "success") {
+        setIsLoading(false);
+        return;
+      }
 
-    const idToken = result.params?.id_token;
+      const idToken = result.params?.id_token;
+      if (!idToken) {
+        throw new Error("Microsoft did not return an ID token.");
+      }
 
-    if (!idToken) {
-      throw new Error(
-        "Microsoft did not return an ID token."
+      const provider = new OAuthProvider("microsoft.com");
+      const credential = provider.credential({
+        idToken: idToken,
+      });
+
+      const userCred = await signInWithCredential(auth, credential);
+      await syncUserToFirestore(userCred.user);
+      navigation.replace("MainApp");
+    } catch (error) {
+      console.log("Microsoft Sign-In Error:", error);
+      Alert.alert(
+        "Microsoft Sign-In Error",
+        error?.message || "Unable to sign in with Microsoft."
       );
+    } finally {
+      setIsLoading(false);
     }
-
-    // Create Firebase Microsoft credential
-    const provider = new OAuthProvider("microsoft.com");
-
-    const credential = provider.credential({
-      idToken: idToken,
-    });
-
-    // Sign into Firebase
-    await signInWithCredential(auth, credential);
-
-    // Go to your app
-    navigation.replace("MainApp");
-
-  } catch (error) {
-    console.log("Microsoft Sign-In Error:", error);
-
-    Alert.alert(
-      "Microsoft Sign-In Error",
-      error?.message ||
-        "Unable to sign in with Microsoft."
-    );
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   // 5. Password Reset Flow
   const handleForgotPassword = async () => {
@@ -263,329 +265,339 @@ const handleMicrosoftLogin = async () => {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {/* TOP HEADER SECTION */}
-        <View style={styles.headerWrapper}>
-          <LinearGradient
-            colors={[colors.primary, colors.card]}
-            start={{ x: 0.1, y: 0.1 }}
-            end={{ x: 0.9, y: 1.0 }}
-            style={StyleSheet.absoluteFillObject}
-          />
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+        >
+          {/* TOP HEADER SECTION */}
+          <View style={styles.headerWrapper}>
+            <LinearGradient
+              colors={[colors.primary, colors.card]}
+              start={{ x: 0.1, y: 0.1 }}
+              end={{ x: 0.9, y: 1.0 }}
+              style={StyleSheet.absoluteFillObject}
+            />
 
-          <LinearGradient
-            colors={[
-              'rgba(217, 38, 169, 0.4)',
-              'transparent',
-              'rgba(59, 130, 246, 0.35)',
-            ]}
-            start={{ x: 0, y: 0.3 }}
-            end={{ x: 1, y: 0.7 }}
-            style={StyleSheet.absoluteFillObject}
-          />
+            <LinearGradient
+              colors={[
+                'rgba(217, 38, 169, 0.4)',
+                'transparent',
+                'rgba(59, 130, 246, 0.35)',
+              ]}
+              start={{ x: 0, y: 0.3 }}
+              end={{ x: 1, y: 0.7 }}
+              style={StyleSheet.absoluteFillObject}
+            />
 
-          <View style={styles.titleContainer}>
-            <Text style={[styles.titleText, { color: colors.text }]}>CREATIVE</Text>
-            <Text style={[styles.gradientTextFallback, { color: colors.text }]}>
-              INDUSTRIES
-            </Text>
-            <Text style={[styles.titleText, { color: colors.text }]}>FESTIVAL</Text>
+            <View style={styles.titleContainer}>
+              <Text style={[styles.titleText, { color: colors.text }]}>CREATIVE</Text>
+              <Text style={[styles.gradientTextFallback, { color: colors.text }]}>
+                INDUSTRIES
+              </Text>
+              <Text style={[styles.titleText, { color: colors.text }]}>FESTIVAL</Text>
 
-            <View style={styles.subtitleRow}>
-              <Text style={[styles.subtitleText, { color: colors.text }]}>CREATE</Text>
-              <Text style={[styles.dot, { color: colors.white + '66' }]}>•</Text>
-              <Text style={[styles.subtitleText, { color: colors.text }]}>CONNECT</Text>
-              <Text style={[styles.dot, { color: colors.white + '66' }]}>•</Text>
-              <Text style={[styles.subtitleText, { color: colors.text }]}>INSPIRE</Text>
+              <View style={styles.subtitleRow}>
+                <Text style={[styles.subtitleText, { color: colors.text }]}>CREATE</Text>
+                <Text style={[styles.dot, { color: colors.white + '66' }]}>•</Text>
+                <Text style={[styles.subtitleText, { color: colors.text }]}>CONNECT</Text>
+                <Text style={[styles.dot, { color: colors.white + '66' }]}>•</Text>
+                <Text style={[styles.subtitleText, { color: colors.text }]}>INSPIRE</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* BOTTOM LOGIN CARD */}
-        <View
-          style={[
-            styles.cardContainer,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-        >
-          <Text style={[styles.welcomeText, { color: colors.text }]}>Welcome Back</Text>
-          <Text style={[styles.instructionText, { color: colors.textMuted }]}>
-            Sign in to continue your experience
-          </Text>
+          {/* BOTTOM LOGIN CARD */}
+          <View
+            style={[
+              styles.cardContainer,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.welcomeText, { color: colors.text }]}>Welcome Back</Text>
+            <Text style={[styles.instructionText, { color: colors.textMuted }]}>
+              Sign in to continue your experience
+            </Text>
 
-          {/* Tab Switcher: Email vs Phone */}
-          <View style={styles.tabContainer}>
-            <TouchableOpacity
-              style={[
-                styles.tabButton,
-                authMode === 'email' && {
-                  borderBottomColor: colors.primary,
-                  borderBottomWidth: 2,
-                },
-              ]}
-              onPress={() => setAuthMode('email')}
-            >
-              <Text
+            {/* Tab Switcher: Email vs Phone */}
+            <View style={styles.tabContainer}>
+              <TouchableOpacity
                 style={[
-                  styles.tabText,
-                  {
-                    color: authMode === 'email' ? colors.primary : colors.textMuted,
+                  styles.tabButton,
+                  authMode === 'email' && {
+                    borderBottomColor: colors.primary,
+                    borderBottomWidth: 2,
                   },
                 ]}
+                onPress={() => setAuthMode('email')}
               >
-                Email
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.tabButton,
-                authMode === 'phone' && {
-                  borderBottomColor: colors.primary,
-                  borderBottomWidth: 2,
-                },
-              ]}
-              onPress={() => setAuthMode('phone')}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  {
-                    color: authMode === 'phone' ? colors.primary : colors.textMuted,
-                  },
-                ]}
-              >
-                Phone Number
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {authMode === 'email' ? (
-            /* Email Fields */
-            <>
-              <View style={styles.inputContainer}>
-                <Feather name="mail" size={18} color={colors.primary} style={styles.inputIcon} />
-                <TextInput
-                  style={[styles.input, { color: colors.text }]}
-                  placeholder="Email address"
-                  placeholderTextColor={colors.textMuted}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Feather name="lock" size={18} color={colors.primary} style={styles.inputIcon} />
-                <TextInput
-                  style={[styles.input, { color: colors.text }]}
-                  placeholder="Password"
-                  placeholderTextColor={colors.textMuted}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Feather
-                    name={showPassword ? 'eye' : 'eye-off'}
-                    size={18}
-                    color={colors.textMuted}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.rowBetween}>
-                <TouchableOpacity
-                  style={styles.rememberMeRow}
-                  onPress={() => setRememberMe(!rememberMe)}
-                  activeOpacity={0.7}
+                <Text
+                  style={[
+                    styles.tabText,
+                    {
+                      color: authMode === 'email' ? colors.primary : colors.textMuted,
+                    },
+                  ]}
                 >
-                  <View
-                    style={[
-                      styles.checkbox,
-                      rememberMe && styles.checkboxChecked,
-                      { borderColor: colors.primary },
-                    ]}
-                  >
-                    {rememberMe && <Feather name="check" size={12} color={colors.onPrimary} />}
-                  </View>
-                  <Text style={[styles.rememberMeText, { color: colors.text }]}>
-                    Remember me
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={handleForgotPassword}>
-                  <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>
-                    Forgot Password?
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                  Email
+                </Text>
+              </TouchableOpacity>
 
               <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleLogin}
-                disabled={isLoading}
+                style={[
+                  styles.tabButton,
+                  authMode === 'phone' && {
+                    borderBottomColor: colors.primary,
+                    borderBottomWidth: 2,
+                  },
+                ]}
+                onPress={() => setAuthMode('phone')}
               >
-                <LinearGradient
-                  colors={[colors.primary, colors.accent]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.loginButton}
+                <Text
+                  style={[
+                    styles.tabText,
+                    {
+                      color: authMode === 'phone' ? colors.primary : colors.textMuted,
+                    },
+                  ]}
                 >
-                  {isLoading ? (
-                    <ActivityIndicator color={colors.onPrimary || '#ffffff'} />
-                  ) : (
-                    <>
-                      <Text style={styles.loginButtonText}>Login</Text>
-                      <Feather
-                        name="arrow-right"
-                        size={18}
-                        color={colors.onPrimary}
-                        style={{ marginLeft: 8 }}
-                      />
-                    </>
-                  )}
-                </LinearGradient>
+                  Phone Number
+                </Text>
               </TouchableOpacity>
-            </>
-          ) : (
-            /* Phone Number Fields */
-            <>
-              <View style={styles.inputContainer}>
-                <Feather name="phone" size={18} color={colors.primary} style={styles.inputIcon} />
-                <TextInput
-                  style={[styles.input, { color: colors.text }]}
-                  placeholder="+1 555 123 4567"
-                  placeholderTextColor={colors.textMuted}
-                  value={phoneNumber}
-                  onChangeText={setPhoneNumber}
-                  keyboardType="phone-pad"
-                />
-              </View>
+            </View>
 
-              {verificationId && (
+            {authMode === 'email' ? (
+              /* Email Fields */
+              <>
                 <View style={styles.inputContainer}>
-                  <Feather
-                    name="check-circle"
-                    size={18}
-                    color={colors.primary}
-                    style={styles.inputIcon}
-                  />
+                  <Feather name="mail" size={18} color={colors.primary} style={styles.inputIcon} />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
-                    placeholder="Enter 6-digit SMS code"
+                    placeholder="Email address"
                     placeholderTextColor={colors.textMuted}
-                    value={verificationCode}
-                    onChangeText={setVerificationCode}
-                    keyboardType="number-pad"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
                   />
                 </View>
-              )}
+
+                <View style={styles.inputContainer}>
+                  <Feather name="lock" size={18} color={colors.primary} style={styles.inputIcon} />
+                  <TextInput
+                    style={[styles.input, { color: colors.text }]}
+                    placeholder="Password"
+                    placeholderTextColor={colors.textMuted}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                    <Feather
+                      name={showPassword ? 'eye' : 'eye-off'}
+                      size={18}
+                      color={colors.textMuted}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.rowBetween}>
+                  <TouchableOpacity
+                    style={styles.rememberMeRow}
+                    onPress={() => setRememberMe(!rememberMe)}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={[
+                        styles.checkbox,
+                        rememberMe && styles.checkboxChecked,
+                        { borderColor: colors.primary },
+                      ]}
+                    >
+                      {rememberMe && <Feather name="check" size={12} color={colors.onPrimary} />}
+                    </View>
+                    <Text style={[styles.rememberMeText, { color: colors.text }]}>
+                      Remember me
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity onPress={handleForgotPassword}>
+                    <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>
+                      Forgot Password?
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={handleLogin}
+                  disabled={isLoading}
+                >
+                  <LinearGradient
+                    colors={[colors.primary, colors.accent || colors.primary]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.loginButton}
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator color={colors.onPrimary || '#ffffff'} />
+                    ) : (
+                      <>
+                        <Text style={styles.loginButtonText}>Login</Text>
+                        <Feather
+                          name="arrow-right"
+                          size={18}
+                          color={colors.onPrimary || '#ffffff'}
+                          style={{ marginLeft: 8 }}
+                        />
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </>
+            ) : (
+              /* Phone Number Fields */
+              <>
+                <View style={styles.inputContainer}>
+                  <Feather name="phone" size={18} color={colors.primary} style={styles.inputIcon} />
+                  <TextInput
+                    style={[styles.input, { color: colors.text }]}
+                    placeholder="+1 555 123 4567"
+                    placeholderTextColor={colors.textMuted}
+                    value={phoneNumber}
+                    onChangeText={setPhoneNumber}
+                    keyboardType="phone-pad"
+                  />
+                </View>
+
+                {verificationId && (
+                  <View style={styles.inputContainer}>
+                    <Feather
+                      name="check-circle"
+                      size={18}
+                      color={colors.primary}
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={[styles.input, { color: colors.text }]}
+                      placeholder="Enter 6-digit SMS code"
+                      placeholderTextColor={colors.textMuted}
+                      value={verificationCode}
+                      onChangeText={setVerificationCode}
+                      keyboardType="number-pad"
+                    />
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={
+                    verificationId
+                      ? handleConfirmPhoneCode
+                      : () => Alert.alert('SMS', 'Verification code flow triggers here.')
+                  }
+                  disabled={isLoading}
+                >
+                  <LinearGradient
+                    colors={[colors.primary, colors.accent || colors.primary]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.loginButton}
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator color={colors.onPrimary || '#ffffff'} />
+                    ) : (
+                      <Text style={styles.loginButtonText}>
+                        {verificationId ? 'Verify & Login' : 'Send Code'}
+                      </Text>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {/* Social Divider */}
+            <View style={styles.dividerRow}>
+              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              <Text style={[styles.dividerText, { color: colors.textMuted }]}>
+                OR CONTINUE WITH
+              </Text>
+              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            </View>
+
+            {/* Google & Microsoft Buttons */}
+            <View style={styles.socialRow}>
+              <TouchableOpacity
+                style={[
+                  styles.socialButton,
+                  { borderColor: colors.border },
+                  (!googleRequest || isLoading) && { opacity: 0.7 },
+                ]}
+                onPress={handleGoogleLogin}
+                disabled={!googleRequest || isLoading}
+              >
+                <FontAwesome5 name="google" size={15} color="#EA4335" />
+                <Text style={[styles.socialButtonText, { color: colors.text }]}>Google</Text>
+              </TouchableOpacity>
 
               <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={
-                  verificationId
-                    ? handleConfirmPhoneCode
-                    : () => Alert.alert('SMS', 'Verification code flow triggers here.')
-                }
+                style={[styles.socialButton, { borderColor: colors.border }]}
+                onPress={handleMicrosoftLogin}
                 disabled={isLoading}
               >
-                <LinearGradient
-                  colors={[colors.primary, colors.accent]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.loginButton}
-                >
-                  {isLoading ? (
-                    <ActivityIndicator color={colors.onPrimary || '#ffffff'} />
-                  ) : (
-                    <Text style={styles.loginButtonText}>
-                      {verificationId ? 'Verify & Login' : 'Send Code'}
-                    </Text>
-                  )}
-                </LinearGradient>
+                <FontAwesome5 name="microsoft" size={15} color="#00A4EF" />
+                <Text style={[styles.socialButtonText, { color: colors.text }]}>Microsoft</Text>
               </TouchableOpacity>
-            </>
-          )}
+            </View>
 
-          {/* Social Divider */}
-          <View style={styles.dividerRow}>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-            <Text style={[styles.dividerText, { color: colors.textMuted }]}>
-              OR CONTINUE WITH
-            </Text>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-          </View>
-
-          {/* Google & Microsoft Buttons */}
-          <View style={styles.socialRow}>
+            {/* Continue as Guest */}
             <TouchableOpacity
-              style={[styles.socialButton, { borderColor: colors.border }]}
-              onPress={handleGoogleLogin}
-              disabled={isLoading}
+              style={styles.guestButton}
+              activeOpacity={0.7}
+              onPress={() => navigation.replace('GuestApp')} 
             >
-              <FontAwesome5 name="google" size={15} color="#EA4335" />
-              <Text style={[styles.socialButtonText, { color: colors.text }]}>Google</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.socialButton, { borderColor: colors.border }]}
-              onPress={handleMicrosoftLogin}
-              disabled={isLoading}
-            >
-              <FontAwesome5 name="microsoft" size={15} color="#00A4EF" />
-              <Text style={[styles.socialButtonText, { color: colors.text }]}>Microsoft</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Continue as Guest */}
-          <TouchableOpacity
-            style={styles.guestButton}
-            activeOpacity={0.7}
-            onPress={() => navigation.replace('GuestApp')} 
-          >
-            <Feather name="user" size={16} color={colors.primary} />
-            <Text style={[styles.guestButtonText, { color: colors.text }]}>
-              Continue as Guest
-            </Text>
-            <Feather name="arrow-right" size={16} color={colors.primary} />
-          </TouchableOpacity>
-
-          {/* Create Account Link */}
-          <View style={styles.createAccountRow}>
-            <Text style={[styles.noAccountText, { color: colors.textMuted }]}>
-              Don't have an account?{' '}
-            </Text>
-            <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center' }}
-              onPress={() => navigation.navigate('SignUp')}
-            >
-              <Text style={[styles.createAccountText, { color: colors.accent2 }]}>
-                Create Account{' '}
+              <Feather name="user" size={16} color={colors.primary} />
+              <Text style={[styles.guestButtonText, { color: colors.text }]}>
+                Continue as Guest
               </Text>
-              <Feather
-                name="chevron-right"
-                size={14}
-                color={colors.accent2}
-                style={{ marginTop: 1 }}
-              />
+              <Feather name="arrow-right" size={16} color={colors.primary} />
             </TouchableOpacity>
-          </View>
 
-          {/* Footer Branding */}
-          <View style={styles.footer}>
-            <Text style={[styles.footerText, { color: colors.textMuted }]}>POWERED BY</Text>
-            <View style={[styles.dcLogo, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.dcLogoText, { color: colors.onPrimary || '#ffffff' }]}>
-                DC
+            {/* Create Account Link */}
+            <View style={styles.createAccountRow}>
+              <Text style={[styles.noAccountText, { color: colors.textMuted }]}>
+                Don't have an account?{' '}
+              </Text>
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center' }}
+                onPress={() => navigation.navigate('SignUp')}
+              >
+                <Text style={[styles.createAccountText, { color: colors.accent2 || colors.primary }]}>
+                  Create Account{' '}
+                </Text>
+                <Feather
+                  name="chevron-right"
+                  size={14}
+                  color={colors.accent2 || colors.primary}
+                  style={{ marginTop: 1 }}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {/* Footer Branding */}
+            <View style={styles.footer}>
+              <Text style={[styles.footerText, { color: colors.textMuted }]}>POWERED BY</Text>
+              <View style={[styles.dcLogo, { backgroundColor: colors.primary }]}>
+                <Text style={[styles.dcLogoText, { color: colors.onPrimary || '#ffffff' }]}>
+                  DC
+                </Text>
+              </View>
+              <Text style={[styles.footerText, { color: colors.textMuted }]}>
+                DOCKLANDS CREATIVE
               </Text>
             </View>
-            <Text style={[styles.footerText, { color: colors.textMuted }]}>
-              DOCKLANDS CREATIVE
-            </Text>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeScreen>
   );
@@ -596,11 +608,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerWrapper: {
-    flex: 0.35,
+    minHeight: 200,
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    paddingVertical: 24,
   },
   titleContainer: {
     alignItems: 'center',
@@ -631,12 +644,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   cardContainer: {
-    flex: 0.65,
+    flex: 1,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     paddingHorizontal: 24,
     paddingTop: 16,
-    paddingBottom: 14,
+    paddingBottom: 24,
     width: '100%',
   },
   welcomeText: {
@@ -723,7 +736,7 @@ const styles = StyleSheet.create({
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 8,
+    marginVertical: 10,
   },
   dividerLine: {
     flex: 1,
@@ -771,7 +784,7 @@ const styles = StyleSheet.create({
   createAccountRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 6,
+    marginTop: 8,
   },
   noAccountText: {
     fontSize: 12,
@@ -784,7 +797,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 'auto',
+    marginTop: 16,
     gap: 8,
   },
   footerText: {

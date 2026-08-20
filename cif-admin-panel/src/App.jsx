@@ -16,6 +16,17 @@ import Sponsors from "./pages/Sponsors";
 import Announcements from "./pages/Announcements";
 import HomeSettings from "./pages/HomeSettings";
 import Users from "./pages/Users";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import Events from "./pages/Events";
+import Venues from "./pages/Venues";
+import Categories from "./pages/Categories";
+import Speakers from "./pages/Speakers";
+import Gallery from "./pages/Gallery";
+import Sponsors from "./pages/Sponsors";
+import Announcements from "./pages/Announcements";
+import Users from "./pages/Users";
+import NotificationsPage from "./pages/NotificationsPage";
 
 export default function App() {
   return (
@@ -43,6 +54,7 @@ export default function App() {
           <Route path="/users" element={<Users />} />
           <Route path="/home-settings" element={<HomeSettings />} />
           <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
         </Route>
 
         {/* 3. Fallback Route: send unknown paths to /login to prevent redirect loops */}
