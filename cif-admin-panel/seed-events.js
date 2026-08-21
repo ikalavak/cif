@@ -24,6 +24,8 @@ import {
   Timestamp,
   serverTimestamp,
 } from "firebase/firestore";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import readline from "readline";
 
 const firebaseConfig = {
   apiKey: process.env.VITE_FIREBASE_API_KEY,
@@ -43,6 +45,20 @@ if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+
+function prompt(question, hidden = false) {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
+}
 
 // Category inferred from each title's wording — not in the original source
 // document, so treat these as a reasonable starting guess, easy to correct
@@ -247,6 +263,20 @@ const RAW_EVENTS = [
 ];
 
 async function seed() {
+  console.log(
+    "This script needs to sign in as an admin before it can write to Firestore.\n",
+  );
+  const email = await prompt("Admin email: ");
+  const password = await prompt("Admin password: ");
+
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    console.log("✓ Signed in successfully.\n");
+  } catch (err) {
+    console.error("✗ Login failed:", err.message);
+    process.exit(1);
+  }
+
   console.log(`Seeding ${RAW_EVENTS.length} events...`);
   let count = 0;
 
