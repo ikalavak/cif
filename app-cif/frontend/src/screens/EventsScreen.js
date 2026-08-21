@@ -7,26 +7,38 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Alert,
 } from "react-native";
 import SafeScreen from "../components/SafeScreen";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
-import { db } from "../config/firebase";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { auth, db } from "../config/firebase";
+import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  where,
+  doc,
+  runTransaction,
+  deleteDoc,
+} from "firebase/firestore";
 
 const DAY_FORMAT = { weekday: "short", day: "numeric", month: "short" };
 const TIME_FORMAT = { hour: "2-digit", minute: "2-digit" };
 
-export default function EventsScreen() {
+export default function EventsScreen({ navigation }) {
   const { colors } = useTheme();
   const [events, setEvents] = useState([]);
+  const [myBookingIds, setMyBookingIds] = useState(new Set());
+  const [bookingInProgress, setBookingInProgress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [query_, setQuery] = useState("");
   const [activeDay, setActiveDay] = useState(null);
 
-  // Live fetch from the same "events" collection the admin panel manages.
-  // Firestore rules only expose published:true events to unauthenticated
-  // reads, so this list only ever shows what's actually meant to be public.
+  const user = auth.currentUser;
+
+  // Live events, published only (matches Firestore rules for public reads)
   useEffect(() => {
     const q = query(collection(db, "events"), orderBy("start_date", "asc"));
     const unsubscribe = onSnapshot(
@@ -43,12 +55,26 @@ export default function EventsScreen() {
     return unsubscribe;
   }, []);
 
-  // Group events by calendar day, in the order they first appear (already
-  // sorted by start_date from the query above).
+  // Live list of THIS user's own bookings, so the button state stays correct
+  // across devices/re-renders without extra reads per event.
+  useEffect(() => {
+    if (!user) {
+      setMyBookingIds(new Set());
+      return;
+    }
+    const q = query(
+      collection(db, "bookings"),
+      where("userId", "==", user.uid),
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setMyBookingIds(new Set(snapshot.docs.map((d) => d.data().eventId)));
+    });
+    return unsubscribe;
+  }, [user?.uid]);
+
   const { days, eventsByDay } = useMemo(() => {
     const grouped = {};
     const order = [];
-
     events.forEach((event) => {
       const date = event.start_date.toDate();
       const key = date.toDateString();
@@ -61,22 +87,76 @@ export default function EventsScreen() {
       }
       grouped[key].items.push(event);
     });
-
     return { days: order, eventsByDay: grouped };
   }, [events]);
 
-  // Default to the first available day once data loads
   useEffect(() => {
     if (!activeDay && days.length > 0) setActiveDay(days[0]);
   }, [days, activeDay]);
 
   const dayEvents = activeDay ? eventsByDay[activeDay]?.items || [] : [];
-
   const filteredEvents = query_
     ? dayEvents.filter((e) =>
         e.title?.toLowerCase().includes(query_.toLowerCase()),
       )
     : dayEvents;
+
+  const handleBook = async (event) => {
+    if (!user) {
+      Alert.alert("Sign in required", "Please log in to book events.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Log in", onPress: () => navigation?.navigate?.("Login") },
+      ]);
+      return;
+    }
+
+    const bookingId = `${event.id}_${user.uid}`;
+    const alreadyBooked = myBookingIds.has(event.id);
+    setBookingInProgress(event.id);
+
+    try {
+      if (alreadyBooked) {
+        // Cancel: delete booking, decrement count via transaction
+        await runTransaction(db, async (transaction) => {
+          const eventRef = doc(db, "events", event.id);
+          const eventSnap = await transaction.get(eventRef);
+          const currentCount = eventSnap.data().booked_count || 0;
+          transaction.update(eventRef, {
+            booked_count: Math.max(0, currentCount - 1),
+          });
+          transaction.delete(doc(db, "bookings", bookingId));
+        });
+      } else {
+        // Book: check capacity, create booking, increment count — all atomic
+        await runTransaction(db, async (transaction) => {
+          const eventRef = doc(db, "events", event.id);
+          const eventSnap = await transaction.get(eventRef);
+          const data = eventSnap.data();
+          const currentCount = data.booked_count || 0;
+
+          if (data.capacity != null && currentCount >= data.capacity) {
+            throw new Error("FULL");
+          }
+
+          transaction.set(doc(db, "bookings", bookingId), {
+            eventId: event.id,
+            userId: user.uid,
+            userEmail: user.email || null,
+            created_at: new Date(),
+          });
+          transaction.update(eventRef, { booked_count: currentCount + 1 });
+        });
+      }
+    } catch (err) {
+      if (err.message === "FULL") {
+        Alert.alert("Fully booked", "Sorry, this event has no spots left.");
+      } else {
+        Alert.alert("Something went wrong", err.message);
+      }
+    } finally {
+      setBookingInProgress(null);
+    }
+  };
 
   return (
     <SafeScreen
@@ -84,7 +164,6 @@ export default function EventsScreen() {
       style={[styles.screen, { backgroundColor: colors.bg }]}
       contentContainerStyle={{ paddingBottom: 20, paddingTop: 8 }}
     >
-      {/* Header */}
       <View style={styles.headerRow}>
         <View>
           <Text style={[styles.pageTitle, { color: colors.text }]}>Events</Text>
@@ -99,7 +178,6 @@ export default function EventsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Search */}
       <View style={[styles.searchContainer, { backgroundColor: colors.input }]}>
         <Feather
           name="search"
@@ -126,7 +204,6 @@ export default function EventsScreen() {
         </Text>
       ) : (
         <>
-          {/* Day selector */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -164,89 +241,163 @@ export default function EventsScreen() {
             })}
           </ScrollView>
 
-          {/* Event list for the selected day */}
           <View style={{ paddingHorizontal: 20, marginTop: 8 }}>
             {filteredEvents.length === 0 ? (
               <Text style={{ color: colors.textMuted, fontSize: 14 }}>
                 No events match your search.
               </Text>
             ) : (
-              filteredEvents.map((event) => (
-                <View
-                  key={event.id}
-                  style={[
-                    styles.eventRow,
-                    {
-                      backgroundColor: colors.card,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                >
-                  {event.image_url ? (
-                    <Image
-                      source={{ uri: event.image_url }}
-                      style={styles.thumb}
-                    />
-                  ) : (
+              filteredEvents.map((event) => {
+                const isBooked = myBookingIds.has(event.id);
+                const isFull =
+                  event.capacity != null &&
+                  (event.booked_count || 0) >= event.capacity &&
+                  !isBooked;
+                const isLoadingThis = bookingInProgress === event.id;
+
+                return (
+                  <View
+                    key={event.id}
+                    style={[
+                      styles.eventRow,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
                     <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 12,
+                      }}
+                    >
+                      {event.image_url ? (
+                        <Image
+                          source={{ uri: event.image_url }}
+                          style={styles.thumb}
+                        />
+                      ) : (
+                        <View
+                          style={[
+                            styles.timeBadge,
+                            { backgroundColor: colors.primary + "18" },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.timeText, { color: colors.primary }]}
+                          >
+                            {event.start_date
+                              .toDate()
+                              .toLocaleTimeString("en-GB", TIME_FORMAT)}
+                          </Text>
+                        </View>
+                      )}
+
+                      <View style={{ flex: 1 }}>
+                        {event.image_url && (
+                          <Text
+                            style={[
+                              styles.timeTextSmall,
+                              { color: colors.primary },
+                            ]}
+                          >
+                            {event.start_date
+                              .toDate()
+                              .toLocaleTimeString("en-GB", TIME_FORMAT)}
+                          </Text>
+                        )}
+                        <Text
+                          style={[styles.eventTitle, { color: colors.text }]}
+                          numberOfLines={2}
+                        >
+                          {event.title}
+                        </Text>
+                        {!!event.category && (
+                          <Text
+                            style={[styles.metaText, { color: colors.primary }]}
+                          >
+                            {event.category}
+                          </Text>
+                        )}
+                        {!!event.venue && (
+                          <View style={styles.metaRow}>
+                            <Feather
+                              name="map-pin"
+                              size={12}
+                              color={colors.textMuted}
+                            />
+                            <Text
+                              style={[
+                                styles.metaText,
+                                { color: colors.textMuted },
+                              ]}
+                            >
+                              {event.venue}
+                            </Text>
+                          </View>
+                        )}
+                        {event.capacity != null && (
+                          <Text
+                            style={[
+                              styles.metaText,
+                              { color: colors.textMuted, marginTop: 2 },
+                            ]}
+                          >
+                            {Math.max(
+                              0,
+                              event.capacity - (event.booked_count || 0),
+                            )}{" "}
+                            spots left
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={() => handleBook(event)}
+                      disabled={isLoadingThis || (isFull && !isBooked)}
                       style={[
-                        styles.timeBadge,
-                        { backgroundColor: colors.primary + "18" },
+                        styles.bookButton,
+                        {
+                          backgroundColor: isBooked
+                            ? "transparent"
+                            : isFull
+                              ? colors.border
+                              : colors.primary,
+                          borderColor: isBooked
+                            ? colors.primary
+                            : "transparent",
+                          borderWidth: isBooked ? 1 : 0,
+                          opacity: isLoadingThis ? 0.6 : 1,
+                        },
                       ]}
                     >
                       <Text
-                        style={[styles.timeText, { color: colors.primary }]}
-                      >
-                        {event.start_date
-                          .toDate()
-                          .toLocaleTimeString("en-GB", TIME_FORMAT)}
-                      </Text>
-                    </View>
-                  )}
-
-                  <View style={{ flex: 1 }}>
-                    {event.image_url && (
-                      <Text
                         style={[
-                          styles.timeTextSmall,
-                          { color: colors.primary },
+                          styles.bookButtonText,
+                          {
+                            color: isBooked
+                              ? colors.primary
+                              : isFull
+                                ? colors.textMuted
+                                : colors.onPrimary || "#fff",
+                          },
                         ]}
                       >
-                        {event.start_date
-                          .toDate()
-                          .toLocaleTimeString("en-GB", TIME_FORMAT)}
+                        {isLoadingThis
+                          ? "..."
+                          : isBooked
+                            ? "Booked — tap to cancel"
+                            : isFull
+                              ? "Fully booked"
+                              : "Book"}
                       </Text>
-                    )}
-                    <Text
-                      style={[styles.eventTitle, { color: colors.text }]}
-                      numberOfLines={2}
-                    >
-                      {event.title}
-                    </Text>
-                    {!!event.category && (
-                      <Text
-                        style={[styles.metaText, { color: colors.primary }]}
-                      >
-                        {event.category}
-                      </Text>
-                    )}
-                    {!!event.venue && (
-                      <View style={styles.metaRow}>
-                        <Feather
-                          name="map-pin"
-                          size={12}
-                          color={colors.textMuted}
-                        />
-                        <Text
-                          style={[styles.metaText, { color: colors.textMuted }]}
-                        >
-                          {event.venue}
-                        </Text>
-                      </View>
-                    )}
+                    </TouchableOpacity>
                   </View>
-                </View>
-              ))
+                );
+              })
             )}
           </View>
         </>
@@ -299,13 +450,10 @@ const styles = StyleSheet.create({
   dayText: { fontSize: 13 },
 
   eventRow: {
-    flexDirection: "row",
-    alignItems: "center",
     borderWidth: 1,
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
-    gap: 12,
   },
   timeBadge: {
     borderRadius: 8,
@@ -320,4 +468,12 @@ const styles = StyleSheet.create({
   eventTitle: { fontSize: 14, fontWeight: "600", lineHeight: 19 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   metaText: { fontSize: 12, marginTop: 2 },
+
+  bookButton: {
+    marginTop: 12,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  bookButtonText: { fontSize: 13, fontWeight: "700" },
 });
