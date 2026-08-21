@@ -46,8 +46,8 @@ serviceAccountKey.json
 *.key
 serviceAccountKey*.json
 *serviceAccount*.json
-GoogleService-Info.plist
-google-services.json
+//GoogleService-Info.plist
+//google-services.json
 firebase-debug.log*
 firestore-debug.log*
 
