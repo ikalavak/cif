@@ -19,9 +19,19 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider, useTheme } from "./src/context/ThemeContext";
 import Constants, { ExecutionEnvironment } from "expo-constants";
 
+// --- Native Google Sign-In Initialization ---
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
+
+GoogleSignin.configure({
+  webClientId:
+    "574795894327-fsblatou4ahd0hqsp08htj4elhmi5acj.apps.googleusercontent.com",
+  iosClientId:
+    "574795894327-oft2jj4plu80g5a1qfjduoojlsbgfn2v.apps.googleusercontent.com",
+});
+
 // --- Firebase Auth & Firestore ---
 import { auth, db } from "./src/config/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 // --- IMPORT YOUR SCREENS ---
@@ -82,7 +92,6 @@ async function registerForPushNotificationsAsync() {
 
     if (existingStatus !== "granted") {
       const { status } = await Notifications.requestPermissionsAsync();
-
       finalStatus = status;
     }
 
@@ -100,7 +109,6 @@ async function registerForPushNotificationsAsync() {
 
     const token = tokenData.data;
 
-    // Attach push token directly to the current user's record in Firestore
     if (auth?.currentUser && token && db) {
       await setDoc(
         doc(db, "users", auth.currentUser.uid),
@@ -116,7 +124,6 @@ async function registerForPushNotificationsAsync() {
     return token;
   } catch (error) {
     console.warn("[Push] Native module check skipped:", error.message);
-
     return null;
   }
 }
@@ -127,9 +134,14 @@ const Stack = createNativeStackNavigator();
 function ProfileScreen({ navigation }) {
   const { colors } = useTheme();
 
-  const handleLogout = () => {
-    const parentNav = navigation.getParent();
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.warn("Sign out error:", e);
+    }
 
+    const parentNav = navigation.getParent();
     if (parentNav?.replace) {
       parentNav.replace("Login");
     } else {
@@ -184,7 +196,6 @@ function ProfileScreen({ navigation }) {
           color="#fff"
           style={{ marginRight: 8 }}
         />
-
         <Text style={styles.logoutButtonText}>Logout</Text>
       </TouchableOpacity>
     </View>
@@ -198,20 +209,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 24,
   },
-
   profileTitle: {
     fontSize: 28,
     fontWeight: "bold",
     marginBottom: 10,
   },
-
   profileSubtitle: {
     fontSize: 16,
     textAlign: "center",
     marginBottom: 24,
     lineHeight: 22,
   },
-
   logoutButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -220,7 +228,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 16,
   },
-
   logoutButtonText: {
     color: "#ffffff",
     fontSize: 16,
@@ -298,11 +305,8 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-
       <Tab.Screen name="Events" component={EventsScreen} />
-
       <Tab.Screen name="Maps" component={MapsScreen} />
-
       <Tab.Screen name="Profile" component={FestivalProfileScreen} />
     </Tab.Navigator>
   );
@@ -378,11 +382,8 @@ function GuestTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeGuest} />
-
       <Tab.Screen name="Events" component={EventsScreen} />
-
       <Tab.Screen name="Maps" component={MapsScreen} />
-
       <Tab.Screen name="Profile" component={ProfileGuest} />
     </Tab.Navigator>
   );
@@ -400,13 +401,20 @@ export default function App() {
 
 function AppInner() {
   const { colors, scheme } = useTheme();
-
   const navigationRef = useRef(null);
 
-  // 1. Auth Sync: Automatically ensures all authenticated users exist in Firestore
+  // 1. Auth Sync: Ensures authenticated and verified users exist in Firestore
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (user && db) {
+        // Skip unverified password-based accounts
+        const isPasswordProvider = user.providerData.some(
+          (p) => p.providerId === "password",
+        );
+        if (isPasswordProvider && !user.emailVerified) {
+          return;
+        }
+
         try {
           const userRef = doc(db, "users", user.uid);
           const docSnap = await getDoc(userRef);
@@ -458,14 +466,12 @@ function AppInner() {
 
     if (!isExpoGo && isPhysicalDevice) {
       import("expo-notifications").then((Notifications) => {
-        // Foreground notification received
         notificationSub = Notifications.addNotificationReceivedListener(
           (notification) => {
             console.log("Foreground notification received:", notification);
           },
         );
 
-        // Notification tapped (Deep Linking)
         responseSub = Notifications.addNotificationResponseReceivedListener(
           (response) => {
             const data = response.notification.request.content.data;
@@ -500,18 +506,12 @@ function AppInner() {
 
   const navigationTheme = {
     ...baseTheme,
-
     colors: {
       ...baseTheme.colors,
-
       background: colors.bg || colors.background,
-
       card: colors.card,
-
       text: colors.text,
-
       border: colors.border,
-
       primary: colors.primary || "#8B5CF6",
     },
   };
@@ -533,13 +533,9 @@ function AppInner() {
           initialRouteName="Splash"
         >
           <Stack.Screen name="Splash" component={SplashScreen} />
-
           <Stack.Screen name="Login" component={LoginScreen} />
-
           <Stack.Screen name="SignUp" component={SignUpScreen} />
-
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
-
           <Stack.Screen
             name="Settings"
             component={SettingsScreen}
@@ -549,22 +545,15 @@ function AppInner() {
               headerBackVisible: false,
             }}
           />
-
           <Stack.Screen name="Gallery" component={GalleryScreen} />
-
           <Stack.Screen name="ForumScreen" component={ForumScreen} />
-
           <Stack.Screen name="JobBoard" component={JobBoard} />
-
           <Stack.Screen name="PortfolioScreen" component={PortfolioScreen} />
-
           <Stack.Screen
             name="EditProfileScreen"
             component={EditProfileScreen}
           />
-
           <Stack.Screen name="MainApp" component={MainTabs} />
-
           <Stack.Screen name="GuestApp" component={GuestTabs} />
         </Stack.Navigator>
       </NavigationContainer>
