@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -30,16 +30,21 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
-// Expo OAuth Tools
+// Native Google Sign-In SDK
+import {
+  GoogleSignin,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
+
+// Expo OAuth Tools (For Microsoft flow)
 import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
 import * as AuthSession from 'expo-auth-session';
 
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen({ navigation }) {
   const [authMode, setAuthMode] = useState('email'); // 'email' | 'phone'
-  
+
   // Email states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -74,54 +79,56 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  // --- Option A: Explicit Expo Auth Proxy Redirect URI ---
-  const redirectUri = AuthSession.makeRedirectUri({
-    native: 'https://auth.expo.io/@akshayreddy/cif-app',
-  });
-
-  // --- Google Auth Hook ---
-  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
-    iosClientId: "574795894327-oft2jj4plu80g5a1qfjduoojlsbgfn2v.apps.googleusercontent.com",
-    androidClientId: "574795894327-b3dbea5ut54l9quism282p9tus6lsfpg.apps.googleusercontent.com",
-    webClientId: "574795894327-fsblatou4ahd0hqsp08htj4elhmi5acj.apps.googleusercontent.com",
-    redirectUri,
-  });
-
-  useEffect(() => {
-    if (googleResponse?.type === 'success') {
-      const { id_token, authentication } = googleResponse.params;
-      const token = id_token || authentication?.idToken;
-
-      if (token) {
-        handleFirebaseGoogleLogin(token);
-      }
-    } else if (googleResponse?.type === 'error') {
-      setIsLoading(false);
-      Alert.alert(
-        'Google Sign-In Error',
-        googleResponse.error?.message || 'Unable to sign in with Google.'
-      );
-    } else if (googleResponse?.type === 'cancel' || googleResponse?.type === 'dismiss') {
-      setIsLoading(false);
-    }
-  }, [googleResponse]);
-
-  const handleFirebaseGoogleLogin = async (idToken) => {
+  // 1. Native Google Sign-In Flow
+  const handleGoogleLogin = async () => {
+    if (isLoading) return;
     setIsLoading(true);
+
     try {
+      // Check Google Play Services availability (Android)
+      await GoogleSignin.hasPlayServices({
+        showPlayServicesUpdateDialog: true,
+      });
+
+      // Trigger OS native sign-in dialog
+      const response = await GoogleSignin.signIn();
+
+      // Handle v13+ response structure or legacy fallback
+      const idToken = response?.data?.idToken ?? response?.idToken;
+
+      if (!idToken) {
+        throw new Error('No ID token returned from Google Sign-In.');
+      }
+
+      // Authenticate with Firebase
       const credential = GoogleAuthProvider.credential(idToken);
       const userCred = await signInWithCredential(auth, credential);
+
       await syncUserToFirestore(userCred.user);
       navigation.replace('MainApp');
     } catch (error) {
-      console.log('Firebase Google Login Error:', error);
-      Alert.alert('Google Sign-In Error', error.message);
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        console.log('User cancelled Google sign-in');
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        Alert.alert('Sign-In', 'Google sign-in is already in progress.');
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert(
+          'Error',
+          'Google Play Services is not available or outdated on this device.'
+        );
+      } else {
+        console.error('Google Sign-In Error:', error);
+        Alert.alert(
+          'Google Sign-In Error',
+          error.message || 'Unable to sign in with Google.'
+        );
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 1. Email Login (with Verification Enforcement)
+  // 2. Email Login (with Verification Enforcement)
   const handleLogin = async () => {
     const emailTrimmed = email.trim();
     if (!emailTrimmed || !password) {
@@ -131,7 +138,11 @@ export default function LoginScreen({ navigation }) {
 
     setIsLoading(true);
     try {
-      const userCred = await signInWithEmailAndPassword(auth, emailTrimmed, password);
+      const userCred = await signInWithEmailAndPassword(
+        auth,
+        emailTrimmed,
+        password
+      );
       const user = userCred.user;
 
       // Force refresh user data to check email verification status
@@ -150,7 +161,10 @@ export default function LoginScreen({ navigation }) {
               onPress: async () => {
                 try {
                   await sendEmailVerification(user);
-                  Alert.alert('Sent', 'A new verification link has been sent to your email.');
+                  Alert.alert(
+                    'Sent',
+                    'A new verification link has been sent to your email.'
+                  );
                 } catch (resendErr) {
                   Alert.alert('Error', resendErr.message);
                 }
@@ -181,7 +195,7 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  // 2. Phone OTP Verification
+  // 3. Phone OTP Verification
   const handleConfirmPhoneCode = async () => {
     if (!verificationCode.trim()) {
       Alert.alert('Error', 'Please enter the 6-digit verification code.');
@@ -204,34 +218,21 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  // 3. Trigger Google OAuth Login (with Proxy Project Name)
-  const handleGoogleLogin = () => {
-    if (googleRequest) {
-      setIsLoading(true);
-      promptGoogleAsync({
-        projectNameForProxy: '@akshayreddy/cif-app',
-      }).catch((err) => {
-        console.warn('Google prompt error:', err);
-        setIsLoading(false);
-      });
-    }
-  };
-
   // 4. Microsoft OAuth Login
   const handleMicrosoftLogin = async () => {
     try {
       setIsLoading(true);
 
-      const clientId = "YOUR_MICROSOFT_APPLICATION_CLIENT_ID";
+      const clientId = 'YOUR_MICROSOFT_APPLICATION_CLIENT_ID';
 
       const redirectUri = AuthSession.makeRedirectUri({
-        scheme: "cifapp",
-        path: "oauth",
+        scheme: 'cifapp',
+        path: 'oauth',
       });
 
       const discovery = {
         authorizationEndpoint:
-          "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+          'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
       };
 
       const request = new AuthSession.AuthRequest({
@@ -239,7 +240,7 @@ export default function LoginScreen({ navigation }) {
         redirectUri,
         usePKCE: false,
         responseType: AuthSession.ResponseType.IdToken,
-        scopes: ["openid", "profile", "email"],
+        scopes: ['openid', 'profile', 'email'],
         extraParams: {
           nonce: Math.random().toString(36).substring(2),
         },
@@ -247,29 +248,29 @@ export default function LoginScreen({ navigation }) {
 
       const result = await request.promptAsync(discovery);
 
-      if (result.type !== "success") {
+      if (result.type !== 'success') {
         setIsLoading(false);
         return;
       }
 
       const idToken = result.params?.id_token;
       if (!idToken) {
-        throw new Error("Microsoft did not return an ID token.");
+        throw new Error('Microsoft did not return an ID token.');
       }
 
-      const provider = new OAuthProvider("microsoft.com");
+      const provider = new OAuthProvider('microsoft.com');
       const credential = provider.credential({
         idToken: idToken,
       });
 
       const userCred = await signInWithCredential(auth, credential);
       await syncUserToFirestore(userCred.user);
-      navigation.replace("MainApp");
+      navigation.replace('MainApp');
     } catch (error) {
-      console.log("Microsoft Sign-In Error:", error);
+      console.log('Microsoft Sign-In Error:', error);
       Alert.alert(
-        "Microsoft Sign-In Error",
-        error?.message || "Unable to sign in with Microsoft."
+        'Microsoft Sign-In Error',
+        error?.message || 'Unable to sign in with Microsoft.'
       );
     } finally {
       setIsLoading(false);
@@ -334,18 +335,30 @@ export default function LoginScreen({ navigation }) {
             />
 
             <View style={styles.titleContainer}>
-              <Text style={[styles.titleText, { color: colors.text }]}>CREATIVE</Text>
-              <Text style={[styles.gradientTextFallback, { color: colors.text }]}>
+              <Text style={[styles.titleText, { color: colors.text }]}>
+                CREATIVE
+              </Text>
+              <Text
+                style={[styles.gradientTextFallback, { color: colors.text }]}
+              >
                 INDUSTRIES
               </Text>
-              <Text style={[styles.titleText, { color: colors.text }]}>FESTIVAL</Text>
+              <Text style={[styles.titleText, { color: colors.text }]}>
+                FESTIVAL
+              </Text>
 
               <View style={styles.subtitleRow}>
-                <Text style={[styles.subtitleText, { color: colors.text }]}>CREATE</Text>
+                <Text style={[styles.subtitleText, { color: colors.text }]}>
+                  CREATE
+                </Text>
                 <Text style={[styles.dot, { color: colors.white + '66' }]}>•</Text>
-                <Text style={[styles.subtitleText, { color: colors.text }]}>CONNECT</Text>
+                <Text style={[styles.subtitleText, { color: colors.text }]}>
+                  CONNECT
+                </Text>
                 <Text style={[styles.dot, { color: colors.white + '66' }]}>•</Text>
-                <Text style={[styles.subtitleText, { color: colors.text }]}>INSPIRE</Text>
+                <Text style={[styles.subtitleText, { color: colors.text }]}>
+                  INSPIRE
+                </Text>
               </View>
             </View>
           </View>
@@ -357,7 +370,9 @@ export default function LoginScreen({ navigation }) {
               { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
-            <Text style={[styles.welcomeText, { color: colors.text }]}>Welcome Back</Text>
+            <Text style={[styles.welcomeText, { color: colors.text }]}>
+              Welcome Back
+            </Text>
             <Text style={[styles.instructionText, { color: colors.textMuted }]}>
               Sign in to continue your experience
             </Text>
@@ -378,7 +393,8 @@ export default function LoginScreen({ navigation }) {
                   style={[
                     styles.tabText,
                     {
-                      color: authMode === 'email' ? colors.primary : colors.textMuted,
+                      color:
+                        authMode === 'email' ? colors.primary : colors.textMuted,
                     },
                   ]}
                 >
@@ -400,7 +416,8 @@ export default function LoginScreen({ navigation }) {
                   style={[
                     styles.tabText,
                     {
-                      color: authMode === 'phone' ? colors.primary : colors.textMuted,
+                      color:
+                        authMode === 'phone' ? colors.primary : colors.textMuted,
                     },
                   ]}
                 >
@@ -412,7 +429,12 @@ export default function LoginScreen({ navigation }) {
             {authMode === 'email' ? (
               <>
                 <View style={styles.inputContainer}>
-                  <Feather name="mail" size={18} color={colors.primary} style={styles.inputIcon} />
+                  <Feather
+                    name="mail"
+                    size={18}
+                    color={colors.primary}
+                    style={styles.inputIcon}
+                  />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
                     placeholder="Email address"
@@ -425,7 +447,12 @@ export default function LoginScreen({ navigation }) {
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <Feather name="lock" size={18} color={colors.primary} style={styles.inputIcon} />
+                  <Feather
+                    name="lock"
+                    size={18}
+                    color={colors.primary}
+                    style={styles.inputIcon}
+                  />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
                     placeholder="Password"
@@ -434,7 +461,9 @@ export default function LoginScreen({ navigation }) {
                     onChangeText={setPassword}
                     secureTextEntry={!showPassword}
                   />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
                     <Feather
                       name={showPassword ? 'eye' : 'eye-off'}
                       size={18}
@@ -456,15 +485,28 @@ export default function LoginScreen({ navigation }) {
                         { borderColor: colors.primary },
                       ]}
                     >
-                      {rememberMe && <Feather name="check" size={12} color={colors.onPrimary} />}
+                      {rememberMe && (
+                        <Feather
+                          name="check"
+                          size={12}
+                          color={colors.onPrimary}
+                        />
+                      )}
                     </View>
-                    <Text style={[styles.rememberMeText, { color: colors.text }]}>
+                    <Text
+                      style={[styles.rememberMeText, { color: colors.text }]}
+                    >
                       Remember me
                     </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity onPress={handleForgotPassword}>
-                    <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>
+                    <Text
+                      style={[
+                        styles.forgotPasswordText,
+                        { color: colors.primary },
+                      ]}
+                    >
                       Forgot Password?
                     </Text>
                   </TouchableOpacity>
@@ -482,7 +524,9 @@ export default function LoginScreen({ navigation }) {
                     style={styles.loginButton}
                   >
                     {isLoading ? (
-                      <ActivityIndicator color={colors.onPrimary || '#ffffff'} />
+                      <ActivityIndicator
+                        color={colors.onPrimary || '#ffffff'}
+                      />
                     ) : (
                       <>
                         <Text style={styles.loginButtonText}>Login</Text>
@@ -500,7 +544,12 @@ export default function LoginScreen({ navigation }) {
             ) : (
               <>
                 <View style={styles.inputContainer}>
-                  <Feather name="phone" size={18} color={colors.primary} style={styles.inputIcon} />
+                  <Feather
+                    name="phone"
+                    size={18}
+                    color={colors.primary}
+                    style={styles.inputIcon}
+                  />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
                     placeholder="+44 7123 456789"
@@ -535,7 +584,11 @@ export default function LoginScreen({ navigation }) {
                   onPress={
                     verificationId
                       ? handleConfirmPhoneCode
-                      : () => Alert.alert('SMS', 'Verification code flow triggers here.')
+                      : () =>
+                          Alert.alert(
+                            'SMS',
+                            'Verification code flow triggers here.'
+                          )
                   }
                   disabled={isLoading}
                 >
@@ -546,7 +599,9 @@ export default function LoginScreen({ navigation }) {
                     style={styles.loginButton}
                   >
                     {isLoading ? (
-                      <ActivityIndicator color={colors.onPrimary || '#ffffff'} />
+                      <ActivityIndicator
+                        color={colors.onPrimary || '#ffffff'}
+                      />
                     ) : (
                       <Text style={styles.loginButtonText}>
                         {verificationId ? 'Verify & Login' : 'Send Code'}
@@ -559,11 +614,15 @@ export default function LoginScreen({ navigation }) {
 
             {/* Social Divider */}
             <View style={styles.dividerRow}>
-              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              <View
+                style={[styles.dividerLine, { backgroundColor: colors.border }]}
+              />
               <Text style={[styles.dividerText, { color: colors.textMuted }]}>
                 OR CONTINUE WITH
               </Text>
-              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              <View
+                style={[styles.dividerLine, { backgroundColor: colors.border }]}
+              />
             </View>
 
             {/* Google & Microsoft Buttons */}
@@ -572,13 +631,15 @@ export default function LoginScreen({ navigation }) {
                 style={[
                   styles.socialButton,
                   { borderColor: colors.border },
-                  (!googleRequest || isLoading) && { opacity: 0.7 },
+                  isLoading && { opacity: 0.7 },
                 ]}
                 onPress={handleGoogleLogin}
-                disabled={!googleRequest || isLoading}
+                disabled={isLoading}
               >
                 <FontAwesome5 name="google" size={15} color="#EA4335" />
-                <Text style={[styles.socialButtonText, { color: colors.text }]}>Google</Text>
+                <Text style={[styles.socialButtonText, { color: colors.text }]}>
+                  Google
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -587,7 +648,9 @@ export default function LoginScreen({ navigation }) {
                 disabled={isLoading}
               >
                 <FontAwesome5 name="microsoft" size={15} color="#00A4EF" />
-                <Text style={[styles.socialButtonText, { color: colors.text }]}>Microsoft</Text>
+                <Text style={[styles.socialButtonText, { color: colors.text }]}>
+                  Microsoft
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -595,7 +658,7 @@ export default function LoginScreen({ navigation }) {
             <TouchableOpacity
               style={styles.guestButton}
               activeOpacity={0.7}
-              onPress={() => navigation.replace('GuestApp')} 
+              onPress={() => navigation.replace('GuestApp')}
             >
               <Feather name="user" size={16} color={colors.primary} />
               <Text style={[styles.guestButtonText, { color: colors.text }]}>
@@ -613,7 +676,12 @@ export default function LoginScreen({ navigation }) {
                 style={{ flexDirection: 'row', alignItems: 'center' }}
                 onPress={() => navigation.navigate('SignUp')}
               >
-                <Text style={[styles.createAccountText, { color: colors.accent2 || colors.primary }]}>
+                <Text
+                  style={[
+                    styles.createAccountText,
+                    { color: colors.accent2 || colors.primary },
+                  ]}
+                >
                   Create Account{' '}
                 </Text>
                 <Feather
@@ -627,9 +695,18 @@ export default function LoginScreen({ navigation }) {
 
             {/* Footer Branding */}
             <View style={styles.footer}>
-              <Text style={[styles.footerText, { color: colors.textMuted }]}>POWERED BY</Text>
-              <View style={[styles.dcLogo, { backgroundColor: colors.primary }]}>
-                <Text style={[styles.dcLogoText, { color: colors.onPrimary || '#ffffff' }]}>
+              <Text style={[styles.footerText, { color: colors.textMuted }]}>
+                POWERED BY
+              </Text>
+              <View
+                style={[styles.dcLogo, { backgroundColor: colors.primary }]}
+              >
+                <Text
+                  style={[
+                    styles.dcLogoText,
+                    { color: colors.onPrimary || '#ffffff' },
+                  ]}
+                >
                   DC
                 </Text>
               </View>
