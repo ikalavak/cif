@@ -1,157 +1,3 @@
-
-
-Pasted code(1).js
-JavaScript
-CHANGES TO cif-admin-panel/src/pages/Events.jsx 
-================================================= 
- 
-1. In the emptyForm object near the top, add a capacity field: 
- 
-const emptyForm = { 
-  title: "", 
-  imageUrl: "", 
-  category: "", 
-  venue: "", 
-  startDate: "", 
-  status: "Open", 
-  capacity: "",          // ADD THIS — blank means unlimited 
-  isPublished: true, 
-  isFeatured: false, 
-}; 
- 
-2. In startEdit, add capacity to the loaded form: 
- 
-    setForm({ 
-      title: ev.title || "", 
-      imageUrl: ev.image_url || "", 
-      category: ev.category || "", 
-      venue: ev.venue || "", 
-      startDate: ev.start_date 
-        ? new Date(ev.start_date.toDate()).toISOString().slice(0, 16) 
-        : "", 
-      status: ev.status || "Open", 
-      capacity: ev.capacity != null ? String(ev.capacity) : "",   // ADD THIS 
-      isPublished: !!ev.published, 
-      isFeatured: !!ev.featured, 
-    }); 
- 
-3. In handleSave, add capacity to the payload, and initialize booked_count 
-   only when creating (never overwrite it on edit, since that would wipe 
-   real booking numbers): 
- 
-      const payload = { 
-        title: form.title.trim(), 
-        image_url: form.imageUrl.trim(), 
-        category: form.category.trim(), 
-        venue: form.venue.trim(), 
-        start_date: eventStartTimestamp, 
-        status: form.status, 
-        capacity: form.capacity ? Number(form.capacity) : null,   // ADD THIS 
-        published: Boolean(form.isPublished), 
-        featured: Boolean(form.isFeatured), 
-      }; 
- 
-      if (editingId) { 
-        await updateDoc(doc(db, "events", editingId), payload); 
-        alert("Event updated!"); 
-      } else { 
-        await addDoc(collection(db, "events"), { 
-          ...payload, 
-          booked_count: 0,        // ADD THIS — starting point for new events 
-          created_at: serverTimestamp(), 
-        }); 
-        alert("Event created!"); 
-      } 
- 
-4. Add a Capacity input field in the form JSX — right after the Status 
-   select in the "Start date & Status" row, change that row to a 3-column 
-   row: 
- 
-        <div style={styles.row}> 
-          <div style={{ flex: 1 }}> 
-            <label style={styles.label}>Start date</label> 
-            <input 
-              type="datetime-local" 
-              value={form.startDate} 
-              onChange={(e) => setForm({ ...form, startDate: e.target.value })} 
-              style={styles.input} 
-            /> 
-          </div> 
-          <div style={{ flex: 1 }}> 
-            <label style={styles.label}>Status</label> 
-            <select 
-              value={form.status} 
-              onChange={(e) => setForm({ ...form, status: e.target.value })} 
-              style={styles.input} 
-            > 
-              <option value="Open">Open</option> 
-              <option value="Almost Full">Almost Full</option> 
-              <option value="Sold Out">Sold Out</option> 
-              <option value="Cancelled">Cancelled</option> 
-            </select> 
-          </div> 
-          <div style={{ flex: 1 }}> 
-            <label style={styles.label}>Capacity (blank = unlimited)</label> 
-            <input 
-              type="number" 
-              min="0" 
-              value={form.capacity} 
-              onChange={(e) => setForm({ ...form, capacity: e.target.value })} 
-              style={styles.input} 
-            /> 
-          </div> 
-        </div> 
- 
-5. Add two columns to the table — CAPACITY and BOOKED — in both the <thead> 
-   and the row mapping: 
- 
-   In <thead>, after the STATUS <th>: 
-              <th style={styles.th}>CAPACITY</th> 
-              <th style={styles.th}>BOOKED</th> 
- 
-   In the row mapping, after the status <td>: 
-                  <td style={styles.td}>{ev.capacity ?? "Unlimited"}</td> 
-                  <td style={styles.td}>{ev.booked_count ?? 0}</td> 
- 
-   And update colSpan="8" to colSpan="10" in the "No items yet" row. apply the 5 changes to the event code an send it back
-
-Done. I applied all 5 requested changes to Events.jsx, including:
-
-Capacity field in emptyForm
-
-Capacity loaded when editing
-
-Capacity saved to Firestore
-
-booked_count: 0 only for new events
-
-Capacity input added to the form
-
-CAPACITY and BOOKED columns added to the table
-
-colSpan changed from 8 to 10
-
-I also corrected the existing capacity: "3" to the requested blank default (""), so blank means unlimited. 
-
-
-Updated file: Download Events_updated.jsx
-
-
-Events_updated.jsx
-Code
-
-Improve accuracy for technical work
-Upgrade to Plus and use increased reasoning to debug code, work through systems, and solve math or science problems.
-
-Rejoin Plus
-
-
-
-Library
-/
-Events_updated.jsx
-
-
 import React, { useState, useEffect } from "react";
 import {
   collection,
@@ -174,7 +20,7 @@ const emptyForm = {
   venue: "",
   startDate: "",
   status: "Open",
-  capacity: "",          // blank means unlimited
+  capacity: "2", // blank means unlimited
   isPublished: true,
   isFeatured: false,
 };
@@ -207,7 +53,7 @@ export default function EventsAdmin() {
   // Populate the form with an existing event's data and switch to edit mode
   const startEdit = (ev) => {
     setEditingId(ev.id);
-setForm({
+    setForm({
       title: ev.title || "",
       imageUrl: ev.image_url || "",
       category: ev.category || "",
@@ -216,7 +62,7 @@ setForm({
         ? new Date(ev.start_date.toDate()).toISOString().slice(0, 16)
         : "",
       status: ev.status || "Open",
-      capacity: ev.capacity != null ? String(ev.capacity) : "",   // ADD THIS
+      capacity: ev.capacity != null ? String(ev.capacity) : "", // ADD THIS
       isPublished: !!ev.published,
       isFeatured: !!ev.featured,
     });
@@ -238,25 +84,25 @@ setForm({
         ? Timestamp.fromDate(new Date(form.startDate))
         : null;
 
- const payload = {
+      const payload = {
         title: form.title.trim(),
         image_url: form.imageUrl.trim(),
         category: form.category.trim(),
         venue: form.venue.trim(),
         start_date: eventStartTimestamp,
         status: form.status,
-        capacity: form.capacity ? Number(form.capacity) : null,   // ADD THIS
+        capacity: form.capacity ? Number(form.capacity) : null, // ADD THIS
         published: Boolean(form.isPublished),
         featured: Boolean(form.isFeatured),
       };
- 
+
       if (editingId) {
         await updateDoc(doc(db, "events", editingId), payload);
         alert("Event updated!");
       } else {
         await addDoc(collection(db, "events"), {
           ...payload,
-          booked_count: 0,        // ADD THIS — starting point for new events
+          booked_count: 0, // ADD THIS — starting point for new events
           created_at: serverTimestamp(),
         });
         alert("Event created!");
