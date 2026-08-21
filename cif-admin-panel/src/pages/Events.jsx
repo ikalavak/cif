@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   collection,
   addDoc,
+  updateDoc,
   onSnapshot,
   query,
   orderBy,
@@ -10,52 +11,66 @@ import {
   Timestamp,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "../firebaseClient"; // Ensure this points to your firebase config
+import { db } from "../firebaseClient";
+
+const emptyForm = {
+  title: "",
+  imageUrl: "",
+  category: "",
+  venue: "",
+  startDate: "",
+  status: "Open",
+  isPublished: true,
+  isFeatured: false,
+};
 
 export default function EventsAdmin() {
-  // 1. Form States (matching your screenshot fields)
-  const [title, setTitle] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [category, setCategory] = useState("");
-  const [venue, setVenue] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [status, setStatus] = useState("Open");
-  const [isPublished, setIsPublished] = useState(true);
-  const [isFeatured, setIsFeatured] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState(null); // null = creating, otherwise editing this doc id
 
-  // Table state
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 2. Real-time Listener: Keeps the table synced with Firestore
-  // NOTE: collection is "events" (lowercase) to match what HomeScreen.js
-  // and the rest of the app read from.
   useEffect(() => {
     const q = query(collection(db, "events"), orderBy("created_at", "desc"));
-
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const liveData = snapshot.docs.map((docSnap) => ({
-          id: docSnap.id,
-          ...docSnap.data(),
-        }));
-        setEvents(liveData);
+        setEvents(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
       },
-      (error) => {
-        console.error("Error fetching events:", error);
-      },
+      (error) => console.error("Error fetching events:", error),
     );
-
     return () => unsubscribe();
   }, []);
 
-  // 3. Save Handler: Writes the new event to Firestore
+  const resetForm = () => {
+    setForm(emptyForm);
+    setEditingId(null);
+  };
+
+  // Populate the form with an existing event's data and switch to edit mode
+  const startEdit = (ev) => {
+    setEditingId(ev.id);
+    setForm({
+      title: ev.title || "",
+      imageUrl: ev.image_url || "",
+      category: ev.category || "",
+      venue: ev.venue || "",
+      startDate: ev.start_date
+        ? new Date(ev.start_date.toDate()).toISOString().slice(0, 16)
+        : "",
+      status: ev.status || "Open",
+      isPublished: !!ev.published,
+      isFeatured: !!ev.featured,
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
 
-    if (!title.trim()) {
+    if (!form.title.trim()) {
       alert("Please provide an event title.");
       return;
     }
@@ -63,58 +78,55 @@ export default function EventsAdmin() {
     setLoading(true);
 
     try {
-      // Parse the startDate into a Firestore Timestamp if provided
-      let eventStartTimestamp = null;
-      if (startDate) {
-        eventStartTimestamp = Timestamp.fromDate(new Date(startDate));
+      const eventStartTimestamp = form.startDate
+        ? Timestamp.fromDate(new Date(form.startDate))
+        : null;
+
+      const payload = {
+        title: form.title.trim(),
+        image_url: form.imageUrl.trim(),
+        category: form.category.trim(),
+        venue: form.venue.trim(),
+        start_date: eventStartTimestamp,
+        status: form.status,
+        published: Boolean(form.isPublished),
+        featured: Boolean(form.isFeatured),
+      };
+
+      if (editingId) {
+        // Update existing event — created_at stays untouched
+        await updateDoc(doc(db, "events", editingId), payload);
+        alert("Event updated!");
+      } else {
+        // Create new event
+        await addDoc(collection(db, "events"), {
+          ...payload,
+          created_at: serverTimestamp(),
+        });
+        alert("Event created!");
       }
 
-      // Add new document to /events collection
-      // Field names (start_date, published, featured, created_at) match
-      // what HomeScreen.js and firestore.rules expect elsewhere in the app.
-      await addDoc(collection(db, "events"), {
-        title: title.trim(),
-        image_url: imageUrl.trim(),
-        category: category.trim(),
-        venue: venue.trim(),
-        start_date: eventStartTimestamp,
-        status: status,
-        published: Boolean(isPublished),
-        featured: Boolean(isFeatured),
-        created_at: serverTimestamp(),
-      });
-
-      // Clear Form Fields on success
-      setTitle("");
-      setImageUrl("");
-      setCategory("");
-      setVenue("");
-      setStartDate("");
-      setStatus("Open");
-      setIsPublished(true);
-      setIsFeatured(false);
-
-      alert("Event successfully created and saved to database!");
+      resetForm();
     } catch (error) {
-      console.error("Error adding event to Firestore:", error);
+      console.error("Error saving event to Firestore:", error);
       alert("Failed to save event: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // 4. Delete Handler
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this event?")) {
       try {
         await deleteDoc(doc(db, "events", id));
+        // If the deleted event was mid-edit, clear the form
+        if (editingId === id) resetForm();
       } catch (error) {
         alert("Error deleting event: " + error.message);
       }
     }
   };
 
-  // Filter events based on search query
   const filteredEvents = events.filter(
     (ev) =>
       ev.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -129,7 +141,6 @@ export default function EventsAdmin() {
         Manage lifecycle, visibility, and featured status for festival events.
       </p>
 
-      {/* Search Bar */}
       <input
         type="text"
         placeholder="Search..."
@@ -145,44 +156,40 @@ export default function EventsAdmin() {
         }}
       />
 
-      {/* New Event Form Card */}
       <form onSubmit={handleSave} style={styles.card}>
         <h2 style={{ fontSize: 18, fontWeight: "bold", marginBottom: 16 }}>
-          New Event
+          {editingId ? "Edit Event" : "New Event"}
         </h2>
 
-        {/* Title */}
         <div style={styles.formGroup}>
           <label style={styles.label}>Title</label>
           <input
             type="text"
             required
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
             style={styles.input}
           />
         </div>
 
-        {/* Image URL */}
         <div style={styles.formGroup}>
           <label style={styles.label}>Image URL</label>
           <input
             type="text"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
+            value={form.imageUrl}
+            onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
             style={styles.input}
             placeholder="https://res.cloudinary.com/..."
           />
         </div>
 
-        {/* Category & Venue Row */}
         <div style={styles.row}>
           <div style={{ flex: 1 }}>
             <label style={styles.label}>Category</label>
             <input
               type="text"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value })}
               style={styles.input}
             />
           </div>
@@ -190,40 +197,38 @@ export default function EventsAdmin() {
             <label style={styles.label}>Venue</label>
             <input
               type="text"
-              value={venue}
-              onChange={(e) => setVenue(e.target.value)}
+              value={form.venue}
+              onChange={(e) => setForm({ ...form, venue: e.target.value })}
               style={styles.input}
             />
           </div>
         </div>
 
-        {/* Start Date & Status Row */}
         <div style={styles.row}>
           <div style={{ flex: 1 }}>
             <label style={styles.label}>Start date</label>
             <input
               type="datetime-local"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              value={form.startDate}
+              onChange={(e) => setForm({ ...form, startDate: e.target.value })}
               style={styles.input}
             />
           </div>
           <div style={{ flex: 1 }}>
             <label style={styles.label}>Status</label>
             <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
               style={styles.input}
             >
               <option value="Open">Open</option>
-              <option value="Closed">Closed</option>
-              <option value="Draft">Draft</option>
+              <option value="Almost Full">Almost Full</option>
+              <option value="Sold Out">Sold Out</option>
               <option value="Cancelled">Cancelled</option>
             </select>
           </div>
         </div>
 
-        {/* Checkboxes Row */}
         <div style={{ display: "flex", gap: 24, margin: "16px 0" }}>
           <label
             style={{
@@ -235,8 +240,10 @@ export default function EventsAdmin() {
           >
             <input
               type="checkbox"
-              checked={isPublished}
-              onChange={(e) => setIsPublished(e.target.checked)}
+              checked={form.isPublished}
+              onChange={(e) =>
+                setForm({ ...form, isPublished: e.target.checked })
+              }
             />
             Published
           </label>
@@ -250,14 +257,15 @@ export default function EventsAdmin() {
           >
             <input
               type="checkbox"
-              checked={isFeatured}
-              onChange={(e) => setIsFeatured(e.target.checked)}
+              checked={form.isFeatured}
+              onChange={(e) =>
+                setForm({ ...form, isFeatured: e.target.checked })
+              }
             />
             Featured
           </label>
         </div>
 
-        {/* Buttons */}
         <div style={{ display: "flex", gap: 12 }}>
           <button
             type="submit"
@@ -272,17 +280,11 @@ export default function EventsAdmin() {
               fontWeight: "600",
             }}
           >
-            {loading ? "Saving..." : "Save"}
+            {loading ? "Saving..." : editingId ? "Update" : "Save"}
           </button>
           <button
             type="button"
-            onClick={() => {
-              setTitle("");
-              setImageUrl("");
-              setCategory("");
-              setVenue("");
-              setStartDate("");
-            }}
+            onClick={resetForm}
             style={{
               backgroundColor: "#fff",
               color: "#333",
@@ -297,7 +299,6 @@ export default function EventsAdmin() {
         </div>
       </form>
 
-      {/* Events Table */}
       <div style={{ ...styles.card, marginTop: 24 }}>
         <table
           style={{
@@ -359,6 +360,19 @@ export default function EventsAdmin() {
                   <td style={styles.td}>{ev.featured ? "Yes" : "No"}</td>
                   <td style={styles.td}>
                     <button
+                      onClick={() => startEdit(ev)}
+                      style={{
+                        color: "#5850ec",
+                        border: "none",
+                        background: "none",
+                        cursor: "pointer",
+                        marginRight: 12,
+                        fontWeight: 600,
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
                       onClick={() => handleDelete(ev.id)}
                       style={{
                         color: "#e53e3e",
@@ -387,14 +401,8 @@ const styles = {
     border: "1px solid #e2e8f0",
     padding: 24,
   },
-  formGroup: {
-    marginBottom: 16,
-  },
-  row: {
-    display: "flex",
-    gap: 16,
-    marginBottom: 16,
-  },
+  formGroup: { marginBottom: 16 },
+  row: { display: "flex", gap: 16, marginBottom: 16 },
   label: {
     display: "block",
     fontSize: 13,
@@ -410,11 +418,6 @@ const styles = {
     fontSize: 14,
     boxSizing: "border-box",
   },
-  th: {
-    padding: "12px 16px",
-    fontWeight: "bold",
-  },
-  td: {
-    padding: "14px 16px",
-  },
+  th: { padding: "12px 16px", fontWeight: "bold" },
+  td: { padding: "14px 16px" },
 };
