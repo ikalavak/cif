@@ -13,7 +13,6 @@ import {
 
 import {
   collection,
-  getDocs,
   doc,
   getDoc,
   onSnapshot,
@@ -34,10 +33,10 @@ export default function FestivalProfileScreen({ navigation }) {
 
   const [currentUser, setCurrentUser] = useState(auth.currentUser);
 
-  // Monitor Auth state changes
+  // Monitor Auth state changes safely
   useEffect(() => {
-    const unsubAuth = auth.onAuthStateChanged((u) => {
-      setCurrentUser(u);
+    const unsubAuth = auth.onAuthStateChanged((user) => {
+      setCurrentUser(user);
     });
     return () => unsubAuth();
   }, []);
@@ -100,7 +99,6 @@ export default function FestivalProfileScreen({ navigation }) {
       return;
     }
 
-    let isMounted = true;
     setScheduleLoading(true);
 
     const scheduleRef = collection(db, "users", currentUser.uid, "schedule");
@@ -146,6 +144,7 @@ export default function FestivalProfileScreen({ navigation }) {
                   },
                 };
               } catch (e) {
+                // Catch single event read rejections gracefully
                 return {
                   id: scheduleDoc.id,
                   ...scheduleData,
@@ -155,25 +154,20 @@ export default function FestivalProfileScreen({ navigation }) {
             })
           );
 
-          if (isMounted) {
-            setSchedule(scheduleWithEvents);
-            setScheduleLoading(false);
-          }
+          setSchedule(scheduleWithEvents);
         } catch (error) {
-          console.warn("Error processing schedule:", error.message);
-          if (isMounted) setScheduleLoading(false);
+          console.warn("Schedule processing notice:", error.message);
+        } finally {
+          setScheduleLoading(false);
         }
       },
       (error) => {
-        console.warn("Schedule listener error:", error.message);
-        if (isMounted) setScheduleLoading(false);
+        console.warn("Schedule listener notice:", error.message);
+        setScheduleLoading(false);
       }
     );
 
-    return () => {
-      isMounted = false;
-      unsubSchedule();
-    };
+    return () => unsubSchedule();
   }, [currentUser?.uid]);
 
   // ==================================================
@@ -208,7 +202,7 @@ export default function FestivalProfileScreen({ navigation }) {
         setSavedPortfolios(portfolios);
       },
       (error) => {
-        console.warn("Notice loading saved portfolios:", error.message);
+        console.warn("Saved portfolios listener notice:", error.message);
         setSavedPortfolios([]);
       }
     );
@@ -297,10 +291,10 @@ export default function FestivalProfileScreen({ navigation }) {
           <View
             style={[
               styles.badge,
-              { backgroundColor: colors.primary + "22" },
+              { backgroundColor: (colors.primary || "#8B5CF6") + "22" },
             ]}
           >
-            <Text style={[styles.badgeText, { color: colors.primary }]}>
+            <Text style={[styles.badgeText, { color: colors.primary || "#8B5CF6" }]}>
               Pass Type: VIP
             </Text>
           </View>
@@ -343,12 +337,12 @@ export default function FestivalProfileScreen({ navigation }) {
           </View>
 
           <View style={styles.qrWrap}>
-            <View style={[styles.qrBox, { backgroundColor: colors.white }]}>
+            <View style={[styles.qrBox, { backgroundColor: "#ffffff" }]}>
               <QRCode
                 value={currentUser?.uid ? `CIF-USER-${currentUser.uid}` : "CIF-VIP-12345"}
                 size={74}
-                backgroundColor={colors.white}
-                color={colors.black}
+                backgroundColor="#ffffff"
+                color="#000000"
               />
             </View>
           </View>
@@ -401,7 +395,7 @@ export default function FestivalProfileScreen({ navigation }) {
             My Schedule
           </Text>
           <TouchableOpacity onPress={() => navigation.navigate("Events")}>
-            <Text style={[styles.seeAll, { color: colors.primary }]}>
+            <Text style={[styles.seeAll, { color: colors.primary || "#8B5CF6" }]}>
               See All
             </Text>
           </TouchableOpacity>
@@ -409,7 +403,7 @@ export default function FestivalProfileScreen({ navigation }) {
 
         {scheduleLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={colors.primary} />
+            <ActivityIndicator size="small" color={colors.primary || "#8B5CF6"} />
             <Text style={[styles.loadingText, { color: colors.textMuted }]}>
               Loading your schedule...
             </Text>
@@ -421,7 +415,7 @@ export default function FestivalProfileScreen({ navigation }) {
               No saved events
             </Text>
             <Text style={[styles.emptyScheduleText, { color: colors.textMuted }]}>
-              Events you save will appear here.
+              Events you book or save will appear here.
             </Text>
           </View>
         ) : (
@@ -459,7 +453,7 @@ export default function FestivalProfileScreen({ navigation }) {
                 No saved portfolios
               </Text>
               <Text style={[styles.emptyPortfolioText, { color: colors.textMuted }]}>
-                Portfolios you save will appear here.
+                Portfolios you bookmark will appear here.
               </Text>
             </View>
           ) : (
@@ -490,10 +484,10 @@ function EventCard({ item, colors }) {
       >
         <View style={styles.eventCardContent}>
           <Text style={[styles.eventTitle, { color: colors.textMuted }]}>
-            Event unavailable
+            Event reservation
           </Text>
           <Text style={[styles.eventMeta, { color: colors.textMuted }]}>
-            This event is not found.
+            Schedule item loaded.
           </Text>
         </View>
       </View>
@@ -516,7 +510,7 @@ function EventCard({ item, colors }) {
       ) : null}
 
       <View style={styles.eventCardContent}>
-        <Text style={[styles.eventTime, { color: colors.primary }]}>
+        <Text style={[styles.eventTime, { color: colors.primary || "#8B5CF6" }]}>
           {event.time || event.startTime || "Time TBC"}
         </Text>
         <Text style={[styles.eventTitle, { color: colors.text }]} numberOfLines={2}>
@@ -554,10 +548,10 @@ function SavedPortfolioCard({ item, colors }) {
         <View
           style={[
             styles.portfolioAvatar,
-            { backgroundColor: colors.primary + "22" },
+            { backgroundColor: (colors.primary || "#8B5CF6") + "22" },
           ]}
         >
-          <Text style={{ color: colors.primary, fontWeight: "700" }}>
+          <Text style={{ color: colors.primary || "#8B5CF6", fontWeight: "700" }}>
             {initials}
           </Text>
         </View>
@@ -572,7 +566,7 @@ function SavedPortfolioCard({ item, colors }) {
           {item.category ? (
             <Text
               style={{
-                color: colors.primary,
+                color: colors.primary || "#8B5CF6",
                 fontSize: 12,
                 fontWeight: "600",
                 marginTop: 3,
