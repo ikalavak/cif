@@ -42,10 +42,7 @@ export default function GuestHomeScreen({ navigation }) {
         </View>
 
         <View style={styles.headerIcons}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={requireLogin}
-          >
+          <TouchableOpacity style={styles.iconButton} onPress={requireLogin}>
             <Feather name="user" size={20} color={colors.text} />
           </TouchableOpacity>
 
@@ -65,12 +62,7 @@ export default function GuestHomeScreen({ navigation }) {
           },
         ]}
       >
-        <View
-          style={[
-            styles.bannerIcon,
-            { backgroundColor: colors.primary },
-          ]}
-        >
+        <View style={[styles.bannerIcon, { backgroundColor: colors.primary }]}>
           <Feather name="log-in" size={18} color={colors.white} />
         </View>
 
@@ -79,27 +71,16 @@ export default function GuestHomeScreen({ navigation }) {
             You're browsing as a guest
           </Text>
 
-          <Text
-            style={[styles.bannerSubtitle, { color: colors.textMuted }]}
-          >
+          <Text style={[styles.bannerSubtitle, { color: colors.textMuted }]}>
             Sign in to register for events and access your profile.
           </Text>
         </View>
 
-        <Feather
-          name="chevron-right"
-          size={20}
-          color={colors.textMuted}
-        />
+        <Feather name="chevron-right" size={20} color={colors.textMuted} />
       </TouchableOpacity>
 
       {/* Search */}
-      <View
-        style={[
-          styles.searchContainer,
-          { backgroundColor: colors.input },
-        ]}
-      >
+      <View style={[styles.searchContainer, { backgroundColor: colors.input }]}>
         <Feather
           name="search"
           size={20}
@@ -114,11 +95,7 @@ export default function GuestHomeScreen({ navigation }) {
         />
 
         <TouchableOpacity onPress={requireLogin}>
-          <Feather
-            name="sliders"
-            size={18}
-            color={colors.primary}
-          />
+          <Feather name="sliders" size={18} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -146,8 +123,8 @@ export default function GuestHomeScreen({ navigation }) {
         </Text>
 
         <Text style={[styles.heroDesc, { color: colors.text }]}>
-          Explore events, exhibitions, workshops and opportunities
-          across the festival.
+          Explore events, exhibitions, workshops and opportunities across the
+          festival.
         </Text>
       </View>
 
@@ -184,15 +161,8 @@ export default function GuestHomeScreen({ navigation }) {
           Featured Events
         </Text>
 
-        <TouchableOpacity
-          onPress={() => navigation.navigate("Events")}
-        >
-          <Text
-            style={[
-              styles.seeAllText,
-              { color: colors.primary },
-            ]}
-          >
+        <TouchableOpacity onPress={() => navigation.navigate("Events")}>
+          <Text style={[styles.seeAllText, { color: colors.primary }]}>
             See All
           </Text>
         </TouchableOpacity>
@@ -207,10 +177,7 @@ export default function GuestHomeScreen({ navigation }) {
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => navigation.navigate("EventDetails")}
-          style={[
-            styles.featuredMiniCard,
-            { backgroundColor: colors.accent },
-          ]}
+          style={[styles.featuredMiniCard, { backgroundColor: colors.accent }]}
         >
           <Feather
             name="heart"
@@ -219,12 +186,7 @@ export default function GuestHomeScreen({ navigation }) {
             style={styles.heartIconAbs}
           />
 
-          <Text
-            style={[
-              styles.placeholderText,
-              { color: colors.white },
-            ]}
-          >
+          <Text style={[styles.placeholderText, { color: colors.white }]}>
             AI Exhibition
           </Text>
         </TouchableOpacity>
@@ -240,12 +202,7 @@ export default function GuestHomeScreen({ navigation }) {
             },
           ]}
         >
-          <Text
-            style={[
-              styles.placeholderText,
-              { color: colors.white },
-            ]}
-          >
+          <Text style={[styles.placeholderText, { color: colors.white }]}>
             VR Demo
           </Text>
         </TouchableOpacity>
@@ -261,45 +218,23 @@ export default function GuestHomeScreen({ navigation }) {
           },
         ]}
       >
-        <Feather
-          name="lock"
-          size={22}
-          color={colors.primary}
-        />
+        <Feather name="lock" size={22} color={colors.primary} />
 
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text
-            style={[
-              styles.bottomCardTitle,
-              { color: colors.text },
-            ]}
-          >
+          <Text style={[styles.bottomCardTitle, { color: colors.text }]}>
             Want to register for an event?
           </Text>
 
-          <Text
-            style={[
-              styles.bottomCardText,
-              { color: colors.textMuted },
-            ]}
-          >
+          <Text style={[styles.bottomCardText, { color: colors.textMuted }]}>
             Create an account or sign in to register.
           </Text>
         </View>
 
         <TouchableOpacity
           onPress={requireLogin}
-          style={[
-            styles.loginButton,
-            { backgroundColor: colors.primary },
-          ]}
+          style={[styles.loginButton, { backgroundColor: colors.primary }]}
         >
-          <Text
-            style={[
-              styles.loginButtonText,
-              { color: colors.white },
-            ]}
-          >
+          <Text style={[styles.loginButtonText, { color: colors.white }]}>
             Sign In
           </Text>
         </TouchableOpacity>
@@ -308,13 +243,7 @@ export default function GuestHomeScreen({ navigation }) {
   );
 }
 
-const ActionBtn = ({
-  icon,
-  color,
-  label,
-  colors,
-  onPress,
-}) => (
+const ActionBtn = ({ icon, color, label, colors, onPress }) => (
   <TouchableOpacity
     style={styles.actionBtn}
     onPress={onPress}
@@ -329,21 +258,10 @@ const ActionBtn = ({
         },
       ]}
     >
-      <Feather
-        name={icon}
-        size={22}
-        color={color}
-      />
+      <Feather name={icon} size={22} color={color} />
     </View>
 
-    <Text
-      style={[
-        styles.actionLabel,
-        { color: colors.text },
-      ]}
-    >
-      {label}
-    </Text>
+    <Text style={[styles.actionLabel, { color: colors.text }]}>{label}</Text>
   </TouchableOpacity>
 );
 
