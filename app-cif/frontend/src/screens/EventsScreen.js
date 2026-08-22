@@ -313,6 +313,13 @@ export default function EventsScreen({ navigation }) {
                         <Image
                           source={{ uri: event.image_url }}
                           style={styles.thumb}
+                          onError={(e) =>
+                            console.log(
+                              "Image failed:",
+                              event.image_url,
+                              e.nativeEvent,
+                            )
+                          }
                         />
                       ) : (
                         <View
