@@ -554,7 +554,7 @@ function AppInner() {
               headerBackVisible: false,
             }}
           />
-
+          <Stack.Screen name="MyTickets" component={MyTicketsScreen} />
           <Stack.Screen name="ForumScreen" component={ForumScreen} />
           <Stack.Screen name="JobBoard" component={JobBoard} />
           <Stack.Screen name="JobDetails" component={JobDetails} />
