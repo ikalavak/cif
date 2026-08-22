@@ -28,6 +28,7 @@ import {
   getDocs,
   serverTimestamp,
   setDoc,
+  deleteDoc,
 } from "firebase/firestore";
 
 export default function PortfolioScreen({
@@ -313,6 +314,84 @@ export default function PortfolioScreen({
     };
 
   // ==================================================
+  // DELETE
+  // ==================================================
+
+  const handleDeleteMyPortfolio = async () => {
+  try {
+    const user = auth.currentUser;
+
+    if (!user) {
+      Alert.alert(
+        "Sign In Required",
+        "Please sign in before deleting your portfolio."
+      );
+      return;
+    }
+
+    Alert.alert(
+      "Delete My Portfolio",
+      "Are you sure you want to permanently delete your portfolio?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setSaving(true);
+
+              const portfolioRef = doc(
+                db,
+                "users",
+                user.uid,
+                "portfolio",
+                "profile"
+              );
+
+              await deleteDoc(portfolioRef);
+
+              Alert.alert(
+                "Portfolio Deleted",
+                "Your portfolio has been deleted successfully.",
+                [
+                  {
+                    text: "OK",
+                    onPress: () => {
+                      loadPortfolios();
+                    },
+                  },
+                ]
+              );
+            } catch (error) {
+              console.error(
+                "Error deleting own portfolio:",
+                error
+              );
+
+              Alert.alert(
+                "Delete Failed",
+                "Could not delete your portfolio. Please try again."
+              );
+            } finally {
+              setSaving(false);
+            }
+          },
+        },
+      ]
+    );
+  } catch (error) {
+    console.error(
+      "Delete portfolio error:",
+      error
+    );
+  }
+};
+
+  // ==================================================
   // CONTACT
   // ==================================================
 
@@ -428,6 +507,16 @@ export default function PortfolioScreen({
           + Create My Portfolio
         </Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+  style={styles.deletePortfolioButton}
+  onPress={handleDeleteMyPortfolio}
+  disabled={saving}
+>
+  <Text style={styles.deletePortfolioButtonText}>
+    {saving ? "Deleting..." : "Delete My Portfolio"}
+  </Text>
+</TouchableOpacity>
 
       {/* SEARCH */}
 
@@ -1059,4 +1148,20 @@ const getStyles = (colors) =>
       color: colors.text,
       fontWeight: "700",
     },
+
+    deletePortfolioButton: {
+  width: "100%",
+  height: 50,
+  borderRadius: 10,
+  backgroundColor: "#dc2626",
+  alignItems: "center",
+  justifyContent: "center",
+  marginBottom: 16,
+},
+
+deletePortfolioButtonText: {
+  color: "#fff",
+  fontSize: 15,
+  fontWeight: "700",
+},
   });

@@ -32,6 +32,7 @@ export default function CreatePortfolioScreen({ navigation }) {
   );
 
   const [name, setName] = useState("");
+  const [linkedin, setLinkedin] = useState("");
   const [education, setEducation] = useState("");
   const [bio, setBio] = useState("");
 
@@ -351,6 +352,25 @@ const deletePortfolio = async () => {
           autoCapitalize="words"
         />
       </View>
+
+      {/* LINKEDIN */}
+
+<View style={styles.section}>
+  <Text style={styles.label}>
+    LinkedIn
+  </Text>
+
+  <TextInput
+    style={styles.input}
+    placeholder="Enter your LinkedIn profile URL"
+    placeholderTextColor={colors.textMuted}
+    value={linkedin}
+    onChangeText={setLinkedin}
+    autoCapitalize="none"
+    autoCorrect={false}
+    keyboardType="url"
+  />
+</View>
 
       {/* EDUCATION */}
 
