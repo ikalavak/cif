@@ -6,6 +6,7 @@
   },
   "dependencies": {
     "expo": "^57.0.8",
+    "expo-secure-store": "~57.0.1",
     "firebase-admin": "^14.2.0",
     "react-feather": "^2.0.10"
   },
