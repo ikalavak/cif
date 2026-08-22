@@ -9,6 +9,7 @@ import {
   Image,
   TouchableOpacity,
   Share,
+  Alert,
 } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
@@ -27,11 +28,36 @@ export default function EventDetailsModal({
   onBook,
   bookingInProgress,
   currentUser,
+  navigation,
 }) {
   const { colors } = useTheme();
   const [showQrPass, setShowQrPass] = useState(false);
 
   if (!event) return null;
+
+  // Check if current user is logged in
+  const handleAuthAction = (action) => {
+    if (!currentUser || currentUser.isAnonymous) {
+      Alert.alert(
+        "Account Required",
+        "Please log in or create an account to access event passes and save favorites.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Log In",
+            onPress: () => {
+              onClose();
+              if (navigation?.navigate) {
+                navigation.navigate("Login");
+              }
+            },
+          },
+        ],
+      );
+      return;
+    }
+    action();
+  };
 
   const dateObj = event.start_date?.toDate ? event.start_date.toDate() : null;
   const fullDateStr = dateObj
@@ -66,7 +92,9 @@ export default function EventDetailsModal({
     }
   };
 
-  const bookingId = currentUser?.uid ? `${event.id}_${currentUser.uid}` : event.id;
+  const bookingId = currentUser?.uid
+    ? `${event.id}_${currentUser.uid}`
+    : event.id;
 
   return (
     <Modal
@@ -103,7 +131,11 @@ export default function EventDetailsModal({
               <Feather name="share-2" size={18} color={colors.text} />
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => onToggleBookmark && onToggleBookmark(event.id)}
+              onPress={() =>
+                handleAuthAction(
+                  () => onToggleBookmark && onToggleBookmark(event.id),
+                )
+              }
               style={[styles.iconCircle, { backgroundColor: colors.bg }]}
               activeOpacity={0.8}
             >
@@ -179,18 +211,28 @@ export default function EventDetailsModal({
                     { backgroundColor: (colors.primary || "#8B5CF6") + "20" },
                   ]}
                 >
-                  <Feather name="share-2" size={16} color={colors.primary || "#8B5CF6"} />
+                  <Feather
+                    name="share-2"
+                    size={16}
+                    color={colors.primary || "#8B5CF6"}
+                  />
                 </View>
                 <View>
                   <Text style={[styles.shareRowTitle, { color: colors.text }]}>
                     Share with friends or colleagues
                   </Text>
-                  <Text style={[styles.shareRowSub, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.shareRowSub, { color: colors.textMuted }]}
+                  >
                     Invite others to join this session
                   </Text>
                 </View>
               </View>
-              <Feather name="chevron-right" size={18} color={colors.textMuted} />
+              <Feather
+                name="chevron-right"
+                size={18}
+                color={colors.textMuted}
+              />
             </TouchableOpacity>
 
             {/* Organizer */}
@@ -250,19 +292,13 @@ export default function EventDetailsModal({
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text
-                      style={[styles.infoHeading, { color: colors.text }]}
-                    >
+                    <Text style={[styles.infoHeading, { color: colors.text }]}>
                       Date and Time
                     </Text>
-                    <Text
-                      style={[styles.infoSub, { color: colors.textMuted }]}
-                    >
+                    <Text style={[styles.infoSub, { color: colors.textMuted }]}>
                       {fullDateStr}
                     </Text>
-                    <Text
-                      style={[styles.infoSub, { color: colors.textMuted }]}
-                    >
+                    <Text style={[styles.infoSub, { color: colors.textMuted }]}>
                       {timeStr} BST
                     </Text>
                   </View>
@@ -285,14 +321,10 @@ export default function EventDetailsModal({
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text
-                      style={[styles.infoHeading, { color: colors.text }]}
-                    >
+                    <Text style={[styles.infoHeading, { color: colors.text }]}>
                       Location
                     </Text>
-                    <Text
-                      style={[styles.infoSub, { color: colors.textMuted }]}
-                    >
+                    <Text style={[styles.infoSub, { color: colors.textMuted }]}>
                       {event.venue || "University of East London / Royal Docks"}
                     </Text>
                     {!!event.room && (
@@ -334,14 +366,23 @@ export default function EventDetailsModal({
                   ]}
                 >
                   <View style={styles.capacityMeta}>
-                    <Text style={[styles.capacityTitle, { color: colors.text }]}>
+                    <Text
+                      style={[styles.capacityTitle, { color: colors.text }]}
+                    >
                       General Admission Pass
                     </Text>
-                    <Text style={[styles.capacityCount, { color: colors.textMuted }]}>
+                    <Text
+                      style={[
+                        styles.capacityCount,
+                        { color: colors.textMuted },
+                      ]}
+                    >
                       {spotsRemaining} of {capacity} spots remaining
                     </Text>
                   </View>
-                  <View style={[styles.barBase, { backgroundColor: colors.input }]}>
+                  <View
+                    style={[styles.barBase, { backgroundColor: colors.input }]}
+                  >
                     <View
                       style={[
                         styles.barFill,
@@ -372,7 +413,9 @@ export default function EventDetailsModal({
           ]}
         >
           <View>
-            <Text style={[styles.bottomPriceLabel, { color: colors.textMuted }]}>
+            <Text
+              style={[styles.bottomPriceLabel, { color: colors.textMuted }]}
+            >
               {isBooked ? "Booking Status" : "Pass Type"}
             </Text>
             <Text
@@ -381,7 +424,11 @@ export default function EventDetailsModal({
                 { color: isBooked ? "#10b981" : colors.text },
               ]}
             >
-              {isBooked ? "Confirmed ✓" : event.price ? `£${event.price}` : "Free Pass"}
+              {isBooked
+                ? "Confirmed ✓"
+                : event.price
+                  ? `£${event.price}`
+                  : "Free Pass"}
             </Text>
           </View>
 
@@ -396,14 +443,19 @@ export default function EventDetailsModal({
                 ]}
                 activeOpacity={0.85}
               >
-                <Feather name="maximize-2" size={14} color="#fff" style={{ marginRight: 6 }} />
+                <Feather
+                  name="maximize-2"
+                  size={14}
+                  color="#fff"
+                  style={{ marginRight: 6 }}
+                />
                 <Text style={styles.viewPassBtnText}>View Pass</Text>
               </TouchableOpacity>
             )}
 
             {/* Register / Cancel Button */}
             <TouchableOpacity
-              onPress={() => onBook && onBook(event)}
+              onPress={() => handleAuthAction(() => onBook && onBook(event))}
               disabled={bookingInProgress || (isFull && !isBooked)}
               style={[
                 styles.checkoutBtn,
@@ -411,8 +463,8 @@ export default function EventDetailsModal({
                   backgroundColor: isBooked
                     ? colors.bg
                     : isFull
-                    ? colors.border
-                    : colors.primary || "#8B5CF6",
+                      ? colors.border
+                      : colors.primary || "#8B5CF6",
                   borderColor: isBooked ? "#ef4444" : "transparent",
                   borderWidth: isBooked ? 1.2 : 0,
                   paddingHorizontal: isBooked ? 14 : 24,
@@ -427,18 +479,18 @@ export default function EventDetailsModal({
                     color: isBooked
                       ? "#ef4444"
                       : isFull
-                      ? colors.textMuted
-                      : "#FFFFFF",
+                        ? colors.textMuted
+                        : "#FFFFFF",
                   },
                 ]}
               >
                 {bookingInProgress
                   ? "..."
                   : isBooked
-                  ? "Cancel"
-                  : isFull
-                  ? "Sold Out"
-                  : "Register Now"}
+                    ? "Cancel"
+                    : isFull
+                      ? "Sold Out"
+                      : "Register Now"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -460,10 +512,18 @@ export default function EventDetailsModal({
             >
               <View style={styles.qrModalHeader}>
                 <View>
-                  <Text style={[styles.qrModalTag, { color: colors.primary || "#8B5CF6" }]}>
+                  <Text
+                    style={[
+                      styles.qrModalTag,
+                      { color: colors.primary || "#8B5CF6" },
+                    ]}
+                  >
                     CIF 2026 ENTRY PASS
                   </Text>
-                  <Text style={[styles.qrModalTitle, { color: colors.text }]} numberOfLines={2}>
+                  <Text
+                    style={[styles.qrModalTitle, { color: colors.text }]}
+                    numberOfLines={2}
+                  >
                     {event.title}
                   </Text>
                 </View>
@@ -487,12 +547,18 @@ export default function EventDetailsModal({
                 <Text style={[styles.qrRefText, { color: colors.textMuted }]}>
                   REF: {bookingId.slice(0, 10).toUpperCase()}
                 </Text>
-                <Text style={styles.qrScanLabel}>Present code at venue check-in</Text>
+                <Text style={styles.qrScanLabel}>
+                  Present code at venue check-in
+                </Text>
               </View>
 
-              <View style={[styles.qrMetaRow, { borderTopColor: colors.border }]}>
+              <View
+                style={[styles.qrMetaRow, { borderTopColor: colors.border }]}
+              >
                 <View>
-                  <Text style={[styles.qrMetaLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.qrMetaLabel, { color: colors.textMuted }]}
+                  >
                     DATE & TIME
                   </Text>
                   <Text style={[styles.qrMetaVal, { color: colors.text }]}>
@@ -500,7 +566,9 @@ export default function EventDetailsModal({
                   </Text>
                 </View>
                 <View>
-                  <Text style={[styles.qrMetaLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.qrMetaLabel, { color: colors.textMuted }]}
+                  >
                     LOCATION
                   </Text>
                   <Text style={[styles.qrMetaVal, { color: colors.text }]}>
@@ -579,7 +647,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 16,
   },
-  shareRowLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  shareRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
   shareIconWrap: {
     width: 36,
     height: 36,
@@ -683,7 +756,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   qrModalTag: { fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
-  qrModalTitle: { fontSize: 18, fontWeight: "800", marginTop: 2, maxWidth: 220 },
+  qrModalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginTop: 2,
+    maxWidth: 220,
+  },
   qrCloseBtn: {
     width: 32,
     height: 32,
@@ -691,7 +769,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  qrCenterBox: { alignItems: "center", justifyContent: "center", marginVertical: 10 },
+  qrCenterBox: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginVertical: 10,
+  },
   qrWhiteContainer: {
     backgroundColor: "#fff",
     padding: 16,

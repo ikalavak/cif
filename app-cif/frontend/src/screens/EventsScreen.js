@@ -104,7 +104,7 @@ export default function EventsScreen({ navigation }) {
       (err) => {
         console.warn("Live events error:", err.message);
         setLoading(false);
-      }
+      },
     );
 
     return () => unsubscribe();
@@ -119,7 +119,7 @@ export default function EventsScreen({ navigation }) {
 
     const q = query(
       collection(db, "bookings"),
-      where("userId", "==", currentUser.uid)
+      where("userId", "==", currentUser.uid),
     );
 
     const unsubscribe = onSnapshot(
@@ -127,7 +127,7 @@ export default function EventsScreen({ navigation }) {
       (snapshot) => {
         setMyBookingIds(new Set(snapshot.docs.map((d) => d.data().eventId)));
       },
-      (err) => console.warn("Bookings listener notice:", err.message)
+      (err) => console.warn("Bookings listener notice:", err.message),
     );
 
     return () => unsubscribe();
@@ -145,7 +145,7 @@ export default function EventsScreen({ navigation }) {
       (snap) => {
         setMyBookmarks(new Set(snap.docs.map((d) => d.id)));
       },
-      (err) => console.warn("Bookmarks notice:", err.message)
+      (err) => console.warn("Bookmarks notice:", err.message),
     );
 
     return () => unsub();
@@ -166,10 +166,19 @@ export default function EventsScreen({ navigation }) {
   }, [events]);
 
   const toggleBookmark = async (eventId) => {
-    if (!currentUser) {
-      Alert.alert("Sign in required", "Please log in to save events.");
+    // Block guest / anonymous users from saving bookmarks
+    if (!currentUser || currentUser.isAnonymous) {
+      Alert.alert(
+        "Sign in required",
+        "Please log in or create an account to save events.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Log in", onPress: () => navigation?.navigate?.("Login") },
+        ],
+      );
       return;
     }
+
     const bookmarkRef = doc(db, "users", currentUser.uid, "bookmarks", eventId);
     try {
       if (myBookmarks.has(eventId)) {
@@ -203,11 +212,16 @@ export default function EventsScreen({ navigation }) {
   }, [events, activeDay, selectedCategory, query_]);
 
   const handleBook = async (event) => {
-    if (!currentUser) {
-      Alert.alert("Sign in required", "Please log in to book events.", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Log in", onPress: () => navigation?.navigate?.("Login") },
-      ]);
+    // Block guest / anonymous users from registering
+    if (!currentUser || currentUser.isAnonymous) {
+      Alert.alert(
+        "Account Required",
+        "Guests cannot register for events. Please sign in or create an account to reserve your spot.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Log in", onPress: () => navigation?.navigate?.("Login") },
+        ],
+      );
       return;
     }
 
@@ -273,7 +287,7 @@ export default function EventsScreen({ navigation }) {
               text: "View My Tickets",
               onPress: navigateToMyTickets,
             },
-          ]
+          ],
         );
       }
     } catch (err) {
@@ -433,14 +447,21 @@ export default function EventsScreen({ navigation }) {
         <View style={styles.eventListWrapper}>
           {loading ? (
             <View style={styles.loadingBox}>
-              <ActivityIndicator size="large" color={colors.primary || "#8B5CF6"} />
+              <ActivityIndicator
+                size="large"
+                color={colors.primary || "#8B5CF6"}
+              />
               <Text style={[styles.statusText, { color: colors.textMuted }]}>
                 Loading festival schedule...
               </Text>
             </View>
           ) : filteredEvents.length === 0 ? (
             <View style={styles.emptyBox}>
-              <Ionicons name="calendar-outline" size={48} color={colors.textMuted} />
+              <Ionicons
+                name="calendar-outline"
+                size={48}
+                color={colors.textMuted}
+              />
               <Text style={[styles.emptyTitle, { color: colors.text }]}>
                 No events found
               </Text>
@@ -513,7 +534,9 @@ export default function EventsScreen({ navigation }) {
                       <Ionicons
                         name={isSaved ? "bookmark" : "bookmark-outline"}
                         size={18}
-                        color={isSaved ? colors.primary || "#8B5CF6" : "#0f172a"}
+                        color={
+                          isSaved ? colors.primary || "#8B5CF6" : "#0f172a"
+                        }
                       />
                     </TouchableOpacity>
 
@@ -536,7 +559,9 @@ export default function EventsScreen({ navigation }) {
                       >
                         {event.category || "FESTIVAL SESSION"}
                       </Text>
-                      <Text style={[styles.timeLabel, { color: colors.textMuted }]}>
+                      <Text
+                        style={[styles.timeLabel, { color: colors.textMuted }]}
+                      >
                         {timeStr}
                       </Text>
                     </View>
@@ -622,7 +647,9 @@ export default function EventsScreen({ navigation }) {
                           { color: colors.primary || "#8B5CF6" },
                         ]}
                       >
-                        {isBooked ? "✓ Registered (Tap to view pass)" : "View Details & Register →"}
+                        {isBooked
+                          ? "✓ Registered (Tap to view pass)"
+                          : "View Details & Register →"}
                       </Text>
                     </View>
                   </View>
@@ -708,9 +735,22 @@ const styles = StyleSheet.create({
   },
   categoryChipText: { fontSize: 12 },
   eventListWrapper: { paddingHorizontal: 20, marginTop: 18, gap: 18 },
-  loadingBox: { alignItems: "center", justifyContent: "center", paddingVertical: 60 },
-  emptyBox: { alignItems: "center", justifyContent: "center", paddingVertical: 60 },
-  emptyTitle: { fontSize: 18, fontWeight: "800", marginTop: 12, marginBottom: 4 },
+  loadingBox: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+  },
+  emptyBox: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginTop: 12,
+    marginBottom: 4,
+  },
   statusText: { fontSize: 13, marginTop: 8, textAlign: "center" },
 
   eventBriteCard: {
@@ -766,13 +806,28 @@ const styles = StyleSheet.create({
   },
   categoryLabel: { fontSize: 11, fontWeight: "800", letterSpacing: 0.5 },
   timeLabel: { fontSize: 12, fontWeight: "600" },
-  eventTitle: { fontSize: 18, fontWeight: "800", lineHeight: 23, marginBottom: 6 },
-  venueRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 8 },
+  eventTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    lineHeight: 23,
+    marginBottom: 6,
+  },
+  venueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginBottom: 8,
+  },
   venueText: { fontSize: 12, flex: 1 },
   eventDescription: { fontSize: 13, lineHeight: 18, marginBottom: 12 },
 
   capacityWrapper: { marginBottom: 10 },
-  progressBarBase: { height: 5, borderRadius: 3, overflow: "hidden", marginBottom: 5 },
+  progressBarBase: {
+    height: 5,
+    borderRadius: 3,
+    overflow: "hidden",
+    marginBottom: 5,
+  },
   progressBarCurrent: { height: "100%", borderRadius: 3 },
   spotsRemainingText: { fontSize: 11, fontWeight: "600" },
   tapDetailsPrompt: { marginTop: 6 },
