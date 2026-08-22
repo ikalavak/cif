@@ -204,8 +204,6 @@ export default function HomeScreen({ navigation }) {
       {/* QUICK ACTIONS */}
       <View style={styles.quickActionsRow}>
         <ActionBtn
-<<<<<<< HEAD
-=======
           icon="calendar"
           color={colors.primary}
           label="Events"
@@ -213,14 +211,6 @@ export default function HomeScreen({ navigation }) {
           onPress={() => navigation.navigate("Events")}
         />
         <ActionBtn
-          icon="image"
-          color={colors.accent}
-          label="Gallery"
-          colors={colors}
-          onPress={() => navigation.navigate("Gallery")}
-        />
-        <ActionBtn
->>>>>>> 10282a5 (feat: Add IconPicker component and integrate Feather icons into HomeSettings)
           icon="message-circle"
           color={colors.accent}
           label="Forum"
@@ -298,14 +288,6 @@ export default function HomeScreen({ navigation }) {
                 <View style={styles.eventDateRow}>
                   <Feather name="calendar" size={13} color={colors.primary} />
                   <Text style={[styles.eventDate, { color: colors.primary }]}>
-<<<<<<< HEAD
-                    {event.start_date
-                      ? event.start_date.toDate().toLocaleDateString("en-GB", {
-                          day: "numeric",
-                          month: "long",
-                        })
-                      : ""}
-=======
                     {event.start_date?.toDate
                       ? event.start_date
                           .toDate()
@@ -314,7 +296,6 @@ export default function HomeScreen({ navigation }) {
                             month: "long",
                           })
                       : event.start_date || ""}
->>>>>>> 10282a5 (feat: Add IconPicker component and integrate Feather icons into HomeSettings)
                   </Text>
                 </View>
                 <Text
@@ -469,7 +450,6 @@ const ActionBtn = ({ icon, color, label, colors, onPress }) => (
 );
 
 const HighlightCard = ({ icon, title, text, colors }) => {
-  // Normalize icon string to lowercase kebab-case for Expo Feather
   const safeIcon =
     typeof icon === "string" && icon.trim()
       ? icon.trim().toLowerCase().replace(/_/g, "-")
