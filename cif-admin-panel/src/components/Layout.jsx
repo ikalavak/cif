@@ -15,7 +15,7 @@ export default function Layout() {
       label: "CONTENT MANAGEMENT",
       links: [
         { to: "/events", label: "Events" },
-        { to: "/opportunities", label: "Opportunities" }, // <-- Added Opportunities
+        { to: "/opportunities", label: "Opportunities" },
         { to: "/venues", label: "Venues" },
         { to: "/categories", label: "Categories" },
         { to: "/speakers", label: "Speakers" },
@@ -30,19 +30,11 @@ export default function Layout() {
       label: "USER & ENGAGEMENT",
       links: [
         { to: "/users", label: "Users" },
-        { to: "/applications", label: "Job Applications" }, // <-- Candidate submissions
+        { to: "/forum-moderation", label: "Forum Moderation" },
+        { to: "/applications", label: "Job Applications" },
         { to: "/admin-roles", label: "Admin Roles", superAdminOnly: true },
       ],
     },
-    // System & Governance Group
-    ...(isSuperAdmin
-      ? [
-          {
-            label: "SYSTEM",
-            links: [{ to: "/audit-logs", label: "Audit Logs", superAdminOnly: true }],
-          },
-        ]
-      : []),
   ];
 
   return (

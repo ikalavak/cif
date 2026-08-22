@@ -1,3 +1,4 @@
+// cif-admin-panel/src/App.jsx
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./AuthContext";
@@ -19,6 +20,7 @@ import Announcements from "./pages/Announcements";
 import Users from "./pages/Users";
 import NotificationsPage from "./pages/NotificationsPage";
 import AdminRolesManager from "./pages/AdminRolesManager";
+import ForumModeration from "./pages/ForumModeration"; // <-- 1. Import
 
 export default function App() {
   return (
@@ -43,6 +45,7 @@ export default function App() {
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/sponsors" element={<Sponsors />} />
           <Route path="/announcements" element={<Announcements />} />
+          <Route path="/forum-moderation" element={<ForumModeration />} /> {/* <-- 2. Add Route */}
           <Route path="/users" element={<Users />} />
           <Route path="/admin-roles" element={<AdminRolesManager />} />
           <Route path="/home-settings" element={<HomeSettings />} />
