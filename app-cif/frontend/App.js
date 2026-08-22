@@ -25,6 +25,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 // --- IMPORT SCREENS ---
+import MyTicketsScreen from "./src/screens/MyTicketsScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import SignUpScreen from "./src/screens/SignUpScreen";
 import SplashScreen from "./src/screens/SplashScreen";
