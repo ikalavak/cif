@@ -41,8 +41,8 @@ import PortfolioScreen from "./src/screens/PortfolioScreen";
 import HomeGuest from "./src/screens/HomeGuest";
 import ProfileGuest from "./src/screens/ProfileGuest";
 import EditProfileScreen from "./src/screens/EditProfileScreen";
-import GalleryScreen from "./src/screens/GalleryScreen";
-import CreatePortfolioScreen from "./src/screens/CreatePortfolioScreen"; 
+
+import CreatePortfolioScreen from "./src/screens/CreatePortfolioScreen";
 
 const isExpoGo =
   Constants?.executionEnvironment === ExecutionEnvironment.StoreClient;
@@ -50,7 +50,9 @@ const isExpoGo =
 // --- Safe Google Sign-In Configuration (Bypassed in Expo Go) ---
 if (!isExpoGo) {
   try {
-    const { GoogleSignin } = require("@react-native-google-signin/google-signin");
+    const {
+      GoogleSignin,
+    } = require("@react-native-google-signin/google-signin");
     GoogleSignin.configure({
       webClientId:
         "574795894327-fsblatou4ahd0hqsp08htj4elhmi5acj.apps.googleusercontent.com",
@@ -67,7 +69,7 @@ async function registerForPushNotificationsAsync() {
 
   if (isExpoGo || !isPhysicalDevice) {
     console.log(
-      "[Push] Running in Expo Go / Simulator — push registration bypassed."
+      "[Push] Running in Expo Go / Simulator — push registration bypassed.",
     );
     return null;
   }
@@ -111,7 +113,7 @@ async function registerForPushNotificationsAsync() {
       Constants?.easConfig?.projectId;
 
     const tokenData = await Notifications.getExpoPushTokenAsync(
-      projectId ? { projectId } : undefined
+      projectId ? { projectId } : undefined,
     );
 
     const token = tokenData.data;
@@ -124,7 +126,7 @@ async function registerForPushNotificationsAsync() {
           platform: Platform.OS,
           lastTokenUpdate: serverTimestamp(),
         },
-        { merge: true }
+        { merge: true },
       );
     }
 
@@ -415,7 +417,7 @@ function AppInner() {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (user && db) {
         const isPasswordProvider = user.providerData.some(
-          (p) => p.providerId === "password"
+          (p) => p.providerId === "password",
         );
         if (isPasswordProvider && !user.emailVerified) {
           return;
@@ -441,7 +443,7 @@ function AppInner() {
                 createdAt: serverTimestamp(),
                 lastLoginAt: serverTimestamp(),
               },
-              { merge: true }
+              { merge: true },
             );
           } else {
             await setDoc(
@@ -449,7 +451,7 @@ function AppInner() {
               {
                 lastLoginAt: serverTimestamp(),
               },
-              { merge: true }
+              { merge: true },
             );
           }
         } catch (err) {
@@ -475,7 +477,7 @@ function AppInner() {
         notificationSub = Notifications.addNotificationReceivedListener(
           (notification) => {
             console.log("Foreground notification received:", notification);
-          }
+          },
         );
 
         responseSub = Notifications.addNotificationResponseReceivedListener(
@@ -497,7 +499,7 @@ function AppInner() {
                 navigationRef.current?.navigate("MainApp");
               }
             }
-          }
+          },
         );
       });
     }
@@ -551,13 +553,19 @@ function AppInner() {
               headerBackVisible: false,
             }}
           />
-          <Stack.Screen name="Gallery" component={GalleryScreen} />
+
           <Stack.Screen name="ForumScreen" component={ForumScreen} />
           <Stack.Screen name="JobBoard" component={JobBoard} />
           <Stack.Screen name="JobDetails" component={JobDetails} />
           <Stack.Screen name="PortfolioScreen" component={PortfolioScreen} />
-          <Stack.Screen name="CreatePortfolioScreen" component={CreatePortfolioScreen} />
-          <Stack.Screen name="EditProfileScreen"component={EditProfileScreen}/>
+          <Stack.Screen
+            name="CreatePortfolioScreen"
+            component={CreatePortfolioScreen}
+          />
+          <Stack.Screen
+            name="EditProfileScreen"
+            component={EditProfileScreen}
+          />
           <Stack.Screen name="MainApp" component={MainTabs} />
           <Stack.Screen name="GuestApp" component={GuestTabs} />
         </Stack.Navigator>

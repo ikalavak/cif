@@ -212,22 +212,6 @@ export default function HomeScreen({ navigation }) {
 
       <View style={styles.quickActionsRow}>
         <ActionBtn
-          icon="calendar"
-          color={colors.primary}
-          label="Events"
-          colors={colors}
-          onPress={() => navigation.navigate("Events")}
-        />
-
-        <ActionBtn
-          icon="image"
-          color={colors.accent}
-          label="Gallery"
-          colors={colors}
-          onPress={() => navigation.navigate("Gallery")}
-        />
-
-        <ActionBtn
           icon="message-circle"
           color={colors.accent}
           label="Forum"
@@ -315,12 +299,10 @@ export default function HomeScreen({ navigation }) {
                   <Feather name="calendar" size={13} color={colors.primary} />
                   <Text style={[styles.eventDate, { color: colors.primary }]}>
                     {event.start_date
-                      ? event.start_date
-                          .toDate()
-                          .toLocaleDateString("en-GB", {
-                            day: "numeric",
-                            month: "long",
-                          })
+                      ? event.start_date.toDate().toLocaleDateString("en-GB", {
+                          day: "numeric",
+                          month: "long",
+                        })
                       : ""}
                   </Text>
                 </View>
