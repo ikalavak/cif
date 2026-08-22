@@ -156,11 +156,16 @@ body {
   cursor: pointer;
 }
 
+.btn-secondary {
+  background: transparent; color: #1a1d29; border: 1px solid #d5d7de;
+  padding: 10px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+
 /* Dedicated Sign Out button styling */
 .btn-signout {
   background: transparent;
-  color: #fff; /* Change to your preferred text color */
-  border: 1px solid fff; /* Change or remove border */
+  color: #d5d7de; /* Change to your preferred text color */
+  border: 1px solid #d5d7de; /* Change or remove border */
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 13px;
