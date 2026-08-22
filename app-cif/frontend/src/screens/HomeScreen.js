@@ -8,6 +8,7 @@ import {
   ScrollView,
   Image,
   ImageBackground,
+  Alert,
 } from "react-native";
 import SafeScreen from "../components/SafeScreen";
 import { Feather } from "@expo/vector-icons";
@@ -30,6 +31,25 @@ export default function HomeScreen({ navigation }) {
   const { colors } = useTheme();
   const user = auth.currentUser;
   const firstName = user?.displayName?.trim().split(" ")[0] || "Creative";
+
+  // Check if current user is logged in or browsing as guest
+  const requireAuth = (onSuccess) => {
+    if (!auth.currentUser) {
+      Alert.alert(
+        "Account Required",
+        "You must be logged in to register for events or access your account features.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Log In",
+            onPress: () => navigation.replace("Login"),
+          },
+        ],
+      );
+      return;
+    }
+    onSuccess();
+  };
 
   // 1. Dynamic Home Site Settings (Hero, About, Highlights, CTA)
   const [homeConfig, setHomeConfig] = useState({
@@ -121,12 +141,14 @@ export default function HomeScreen({ navigation }) {
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => {
-              const parent = navigation.getParent && navigation.getParent();
-              if (parent?.navigate) {
-                parent.navigate("Notifications");
-              } else {
-                navigation.navigate("Notifications");
-              }
+              requireAuth(() => {
+                const parent = navigation.getParent && navigation.getParent();
+                if (parent?.navigate) {
+                  parent.navigate("Notifications");
+                } else {
+                  navigation.navigate("Notifications");
+                }
+              });
             }}
           >
             <Feather name="bell" size={20} color={colors.text} />
@@ -207,7 +229,7 @@ export default function HomeScreen({ navigation }) {
           color={colors.accent}
           label="Forum"
           colors={colors}
-          onPress={() => navigation.navigate("ForumScreen")}
+          onPress={() => requireAuth(() => navigation.navigate("ForumScreen"))}
         />
         <ActionBtn
           icon="briefcase"
@@ -221,7 +243,9 @@ export default function HomeScreen({ navigation }) {
           color={colors.primary}
           label="Portfolio"
           colors={colors}
-          onPress={() => navigation.navigate("PortfolioScreen")}
+          onPress={() =>
+            requireAuth(() => navigation.navigate("PortfolioScreen"))
+          }
         />
       </View>
 
@@ -395,7 +419,7 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.ctaText}>{homeConfig.cta_text}</Text>
         <TouchableOpacity
           style={styles.ctaButton}
-          onPress={() => navigation.navigate("Events")}
+          onPress={() => requireAuth(() => navigation.navigate("Events"))}
         >
           <Text style={[styles.ctaButtonText, { color: colors.primary }]}>
             {homeConfig.cta_button_text || "Explore Events"}
