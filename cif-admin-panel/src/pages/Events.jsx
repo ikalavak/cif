@@ -37,10 +37,7 @@ const formatDate = (dateVal) => {
 const getDatetimeInputString = (dateVal) => {
   if (!dateVal) return "";
   try {
-    const d =
-      typeof dateVal.toDate === "function"
-        ? dateVal.toDate()
-        : new Date(dateVal);
+    const d = typeof dateVal.toDate === "function" ? dateVal.toDate() : new Date(dateVal);
     if (isNaN(d.getTime())) return "";
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
       .toISOString()
@@ -73,13 +70,13 @@ export default function EventsAdmin() {
           const timeA = a.created_at?.toMillis
             ? a.created_at.toMillis()
             : a.start_date?.toMillis
-              ? a.start_date.toMillis()
-              : 0;
+            ? a.start_date.toMillis()
+            : 0;
           const timeB = b.created_at?.toMillis
             ? b.created_at.toMillis()
             : b.start_date?.toMillis
-              ? b.start_date.toMillis()
-              : 0;
+            ? b.start_date.toMillis()
+            : 0;
           return timeB - timeA;
         });
 
@@ -87,7 +84,7 @@ export default function EventsAdmin() {
       },
       (error) => {
         console.error("Error fetching events in admin panel:", error);
-      },
+      }
     );
 
     return () => unsubscribe();
@@ -177,7 +174,7 @@ export default function EventsAdmin() {
     (ev) =>
       ev.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ev.venue?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ev.category?.toLowerCase().includes(searchQuery.toLowerCase()),
+      ev.category?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
