@@ -15,6 +15,7 @@ export default function Layout() {
       label: "CONTENT MANAGEMENT",
       links: [
         { to: "/events", label: "Events" },
+        { to: "/bookings", label: "Bookings" }, // <-- Added Bookings link
         { to: "/opportunities", label: "Opportunities" },
         { to: "/campus-maps", label: "Campus Maps" },
         { to: "/venues", label: "Venues" },
