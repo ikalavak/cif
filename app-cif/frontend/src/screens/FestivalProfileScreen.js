@@ -17,6 +17,8 @@ import {
   doc,
   getDoc,
   onSnapshot,
+  query,
+  where,
 } from "firebase/firestore";
 
 import SafeScreen from "../components/SafeScreen";
@@ -55,6 +57,38 @@ export default function FestivalProfileScreen({ navigation }) {
   const [schedule, setSchedule] = useState([]);
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [savedPortfolios, setSavedPortfolios] = useState([]);
+  const [myBookings, setMyBookings] = useState([]);
+
+  // ==================================================
+  // LOAD USER BOOKINGS
+  // ==================================================
+  useEffect(() => {
+    if (!currentUser?.uid) {
+      setMyBookings([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, "bookings"),
+      where("userId", "==", currentUser.uid)
+    );
+
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        const bookingsList = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+        }));
+        setMyBookings(bookingsList);
+      },
+      (error) => {
+        console.warn("Bookings listener error:", error.message);
+      }
+    );
+
+    return () => unsub();
+  }, [currentUser?.uid]);
 
   // ==================================================
   // LOAD USER SCHEDULE
@@ -151,7 +185,6 @@ export default function FestivalProfileScreen({ navigation }) {
       return;
     }
 
-    // Try subcollection "portfolio", fallback cleanly without throwing
     const portfolioRef = collection(db, "users", currentUser.uid, "portfolio");
 
     const unsubscribe = onSnapshot(
@@ -162,7 +195,6 @@ export default function FestivalProfileScreen({ navigation }) {
           ...docSnap.data(),
         }));
 
-        // Sort in memory to avoid index requirements or missing timestamp errors
         portfolios.sort((a, b) => {
           const timeA = a.createdAt?.toMillis
             ? a.createdAt.toMillis()
@@ -290,7 +322,7 @@ export default function FestivalProfileScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* TICKET CARD */}
+      {/* VIP TICKET CARD */}
       <View
         style={[
           styles.ticketCard,
@@ -331,6 +363,36 @@ export default function FestivalProfileScreen({ navigation }) {
           </Text>
         </View>
       </View>
+
+      {/* MY EVENT TICKETS BUTTON */}
+      <TouchableOpacity
+        style={[
+          styles.menuTile,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+        onPress={() => navigation.navigate("MyTickets")}
+        activeOpacity={0.8}
+      >
+        <View style={styles.menuTileLeft}>
+          <View
+            style={[
+              styles.iconCircle,
+              { backgroundColor: (colors.primary || "#8B5CF6") + "22" },
+            ]}
+          >
+            <Feather name="ticket" size={20} color={colors.primary || "#8B5CF6"} />
+          </View>
+          <View>
+            <Text style={[styles.menuTileTitle, { color: colors.text }]}>
+              My Event Tickets
+            </Text>
+            <Text style={[styles.menuTileSub, { color: colors.textMuted }]}>
+              {myBookings.length} confirmed booking{myBookings.length === 1 ? "" : "s"}
+            </Text>
+          </View>
+        </View>
+        <Feather name="chevron-right" size={20} color={colors.textMuted} />
+      </TouchableOpacity>
 
       {/* MY SCHEDULE */}
       <View style={styles.section}>
@@ -573,7 +635,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    marginBottom: 18,
+    marginBottom: 12,
   },
   ticketRow: { flexDirection: "row", alignItems: "center" },
   ticketInfo: { flex: 1 },
@@ -598,7 +660,37 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   ticketFooterText: { fontSize: 12 },
-  section: { marginTop: 8, paddingVertical: 8 },
+  menuTile: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginHorizontal: 16,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  menuTileLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuTileTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  menuTileSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  section: { marginTop: 4, paddingVertical: 8 },
   sectionHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
