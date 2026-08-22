@@ -1,3 +1,4 @@
+// src/screens/LoginScreen.js
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -15,6 +16,7 @@ import SafeScreen from '../components/SafeScreen';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 
 // Direct Firebase Authentication & Firestore imports
 import { auth, db } from '../config/firebase';
@@ -30,17 +32,14 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
-// Native Google Sign-In SDK
-import {
-  GoogleSignin,
-  statusCodes,
-} from '@react-native-google-signin/google-signin';
-
 // Expo OAuth Tools (For Microsoft flow)
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 
 WebBrowser.maybeCompleteAuthSession();
+
+const isExpoGo =
+  Constants?.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 export default function LoginScreen({ navigation }) {
   const [authMode, setAuthMode] = useState('email'); // 'email' | 'phone'
@@ -79,12 +78,23 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  // 1. Native Google Sign-In Flow
+  // 1. Safe Google Sign-In Flow
   const handleGoogleLogin = async () => {
     if (isLoading) return;
+
+    if (isExpoGo) {
+      Alert.alert(
+        'Expo Go Notice',
+        'Native Google Sign-In requires a custom Development Build (npx expo run:ios/android). Please use Email/Password while testing in Expo Go.'
+      );
+      return;
+    }
+
     setIsLoading(true);
 
     try {
+      const { GoogleSignin, statusCodes } = require('@react-native-google-signin/google-signin');
+
       // Check Google Play Services availability (Android)
       await GoogleSignin.hasPlayServices({
         showPlayServicesUpdateDialog: true,
@@ -107,15 +117,8 @@ export default function LoginScreen({ navigation }) {
       await syncUserToFirestore(userCred.user);
       navigation.replace('MainApp');
     } catch (error) {
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+      if (error?.code === 'SIGN_IN_CANCELLED' || error?.code === '12501') {
         console.log('User cancelled Google sign-in');
-      } else if (error.code === statusCodes.IN_PROGRESS) {
-        Alert.alert('Sign-In', 'Google sign-in is already in progress.');
-      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        Alert.alert(
-          'Error',
-          'Google Play Services is not available or outdated on this device.'
-        );
       } else {
         console.error('Google Sign-In Error:', error);
         Alert.alert(

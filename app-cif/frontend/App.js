@@ -19,16 +19,6 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider, useTheme } from "./src/context/ThemeContext";
 import Constants, { ExecutionEnvironment } from "expo-constants";
 
-// --- Native Google Sign-In Initialization ---
-import { GoogleSignin } from "@react-native-google-signin/google-signin";
-
-GoogleSignin.configure({
-  webClientId:
-    "574795894327-fsblatou4ahd0hqsp08htj4elhmi5acj.apps.googleusercontent.com",
-  iosClientId:
-    "574795894327-oft2jj4plu80g5a1qfjduoojlsbgfn2v.apps.googleusercontent.com",
-});
-
 // --- Firebase Auth & Firestore ---
 import { auth, db } from "./src/config/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -46,7 +36,7 @@ import NotificationsScreen from "./src/screens/NotificationsScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
 import ForumScreen from "./src/screens/ForumScreen";
 import JobBoard from "./src/screens/JobBoard";
-import JobDetails from "./src/screens/JobDetails"; // <-- Added import
+import JobDetails from "./src/screens/JobDetails";
 import PortfolioScreen from "./src/screens/PortfolioScreen";
 import HomeGuest from "./src/screens/HomeGuest";
 import ProfileGuest from "./src/screens/ProfileGuest";
@@ -56,12 +46,27 @@ import GalleryScreen from "./src/screens/GalleryScreen";
 const isExpoGo =
   Constants?.executionEnvironment === ExecutionEnvironment.StoreClient;
 
+// --- Safe Google Sign-In Configuration (Bypassed in Expo Go) ---
+if (!isExpoGo) {
+  try {
+    const { GoogleSignin } = require("@react-native-google-signin/google-signin");
+    GoogleSignin.configure({
+      webClientId:
+        "574795894327-fsblatou4ahd0hqsp08htj4elhmi5acj.apps.googleusercontent.com",
+      iosClientId:
+        "574795894327-oft2jj4plu80g5a1qfjduoojlsbgfn2v.apps.googleusercontent.com",
+    });
+  } catch (err) {
+    console.warn("[GoogleSignIn] Native initialization bypassed:", err.message);
+  }
+}
+
 async function registerForPushNotificationsAsync() {
   const isPhysicalDevice = Constants?.isDevice ?? false;
 
   if (isExpoGo || !isPhysicalDevice) {
     console.log(
-      "[Push] Running in Expo Go / Simulator — push registration bypassed.",
+      "[Push] Running in Expo Go / Simulator — push registration bypassed."
     );
     return null;
   }
@@ -105,7 +110,7 @@ async function registerForPushNotificationsAsync() {
       Constants?.easConfig?.projectId;
 
     const tokenData = await Notifications.getExpoPushTokenAsync(
-      projectId ? { projectId } : undefined,
+      projectId ? { projectId } : undefined
     );
 
     const token = tokenData.data;
@@ -118,7 +123,7 @@ async function registerForPushNotificationsAsync() {
           platform: Platform.OS,
           lastTokenUpdate: serverTimestamp(),
         },
-        { merge: true },
+        { merge: true }
       );
     }
 
@@ -409,7 +414,7 @@ function AppInner() {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (user && db) {
         const isPasswordProvider = user.providerData.some(
-          (p) => p.providerId === "password",
+          (p) => p.providerId === "password"
         );
         if (isPasswordProvider && !user.emailVerified) {
           return;
@@ -435,7 +440,7 @@ function AppInner() {
                 createdAt: serverTimestamp(),
                 lastLoginAt: serverTimestamp(),
               },
-              { merge: true },
+              { merge: true }
             );
           } else {
             await setDoc(
@@ -443,7 +448,7 @@ function AppInner() {
               {
                 lastLoginAt: serverTimestamp(),
               },
-              { merge: true },
+              { merge: true }
             );
           }
         } catch (err) {
@@ -469,7 +474,7 @@ function AppInner() {
         notificationSub = Notifications.addNotificationReceivedListener(
           (notification) => {
             console.log("Foreground notification received:", notification);
-          },
+          }
         );
 
         responseSub = Notifications.addNotificationResponseReceivedListener(
@@ -491,7 +496,7 @@ function AppInner() {
                 navigationRef.current?.navigate("MainApp");
               }
             }
-          },
+          }
         );
       });
     }
