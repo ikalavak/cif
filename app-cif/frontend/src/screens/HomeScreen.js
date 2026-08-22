@@ -62,7 +62,7 @@ export default function HomeScreen({ navigation }) {
           }));
         }
       },
-      (err) => console.warn("Home settings listener notice:", err.message)
+      (err) => console.warn("Home settings listener notice:", err.message),
     );
     return () => unsubHome();
   }, []);
@@ -73,16 +73,16 @@ export default function HomeScreen({ navigation }) {
     const q = query(
       collection(db, "events"),
       orderBy("start_date", "asc"),
-      limit(6)
+      limit(6),
     );
     const unsubEvents = onSnapshot(
       q,
       (snapshot) => {
         setFestivalEvents(
-          snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+          snapshot.docs.map((d) => ({ id: d.id, ...d.data() })),
         );
       },
-      (err) => console.warn("Events listener notice:", err.message)
+      (err) => console.warn("Events listener notice:", err.message),
     );
     return () => unsubEvents();
   }, []);
@@ -95,7 +95,7 @@ export default function HomeScreen({ navigation }) {
       (snapshot) => {
         setVenuesList(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
       },
-      (err) => console.warn("Venues listener notice:", err.message)
+      (err) => console.warn("Venues listener notice:", err.message),
     );
     return () => unsubVenues();
   }, []);
@@ -160,12 +160,11 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.heroContent}>
             {!!homeConfig.hero_badge && (
               <View
-                style={[
-                  styles.freeBadge,
-                  { backgroundColor: colors.primary },
-                ]}
+                style={[styles.freeBadge, { backgroundColor: colors.primary }]}
               >
-                <Text style={styles.freeBadgeText}>{homeConfig.hero_badge}</Text>
+                <Text style={styles.freeBadgeText}>
+                  {homeConfig.hero_badge}
+                </Text>
               </View>
             )}
 
@@ -203,13 +202,6 @@ export default function HomeScreen({ navigation }) {
 
       {/* QUICK ACTIONS */}
       <View style={styles.quickActionsRow}>
-        <ActionBtn
-          icon="calendar"
-          color={colors.primary}
-          label="Events"
-          colors={colors}
-          onPress={() => navigation.navigate("Events")}
-        />
         <ActionBtn
           icon="message-circle"
           color={colors.accent}
@@ -289,12 +281,10 @@ export default function HomeScreen({ navigation }) {
                   <Feather name="calendar" size={13} color={colors.primary} />
                   <Text style={[styles.eventDate, { color: colors.primary }]}>
                     {event.start_date?.toDate
-                      ? event.start_date
-                          .toDate()
-                          .toLocaleDateString("en-GB", {
-                            day: "numeric",
-                            month: "long",
-                          })
+                      ? event.start_date.toDate().toLocaleDateString("en-GB", {
+                          day: "numeric",
+                          month: "long",
+                        })
                       : event.start_date || ""}
                   </Text>
                 </View>
@@ -323,10 +313,7 @@ export default function HomeScreen({ navigation }) {
                       color={colors.textMuted}
                     />
                     <Text
-                      style={[
-                        styles.locationText,
-                        { color: colors.textMuted },
-                      ]}
+                      style={[styles.locationText, { color: colors.textMuted }]}
                     >
                       {event.venue}
                     </Text>
@@ -377,10 +364,7 @@ export default function HomeScreen({ navigation }) {
               ]}
             >
               <View
-                style={[
-                  styles.venueIcon,
-                  { backgroundColor: colors.input },
-                ]}
+                style={[styles.venueIcon, { backgroundColor: colors.input }]}
               >
                 <Feather name="map-pin" size={22} color={colors.primary} />
               </View>
@@ -389,10 +373,7 @@ export default function HomeScreen({ navigation }) {
                   {venue.name || venue.title}
                 </Text>
                 <Text
-                  style={[
-                    styles.venueDescription,
-                    { color: colors.textMuted },
-                  ]}
+                  style={[styles.venueDescription, { color: colors.textMuted }]}
                 >
                   {venue.address || venue.location || venue.description}
                 </Text>
@@ -416,12 +397,7 @@ export default function HomeScreen({ navigation }) {
           style={styles.ctaButton}
           onPress={() => navigation.navigate("Events")}
         >
-          <Text
-            style={[
-              styles.ctaButtonText,
-              { color: colors.primary },
-            ]}
-          >
+          <Text style={[styles.ctaButtonText, { color: colors.primary }]}>
             {homeConfig.cta_button_text || "Explore Events"}
           </Text>
           <Feather name="arrow-right" size={17} color={colors.primary} />
