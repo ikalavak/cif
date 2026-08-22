@@ -1,6 +1,14 @@
 // cif-admin-panel/src/pages/Users.jsx
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import {
+  collection,
+  onSnapshot,
+  query,
+  doc,
+  updateDoc,
+  deleteDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
 import { db } from '../firebaseClient';
 import { useAuth } from '../AuthContext';
 import CollectionManager from '../components/CollectionManager';
@@ -11,6 +19,7 @@ export default function Users() {
   const [appUsers, setAppUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'active' | 'deactivated'
   const [selectedUser, setSelectedUser] = useState(null);
 
   // Fetch live app users from Firestore /users collection
@@ -42,16 +51,61 @@ export default function Users() {
     const name = (u.name || u.displayName || '').toLowerCase();
     const email = (u.email || '').toLowerCase();
     const phone = (u.phone || u.phoneNumber || '').toLowerCase();
-    return name.includes(term) || email.includes(term) || phone.includes(term);
+
+    const matchesSearch =
+      name.includes(term) || email.includes(term) || phone.includes(term) || u.id.toLowerCase().includes(term);
+
+    const isDeactivated = Boolean(u.is_deleted || u.status === 'deactivated');
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'active' && !isDeactivated) ||
+      (statusFilter === 'deactivated' && isDeactivated);
+
+    return matchesSearch && matchesStatus;
   });
 
-  const handleDeleteUserRecord = async (userId) => {
-    if (!window.confirm('Delete this user profile record from Firestore?')) return;
+  // Soft Delete (Deactivate)
+  const handleSoftDelete = async (userId) => {
+    if (!window.confirm('Deactivate (soft-delete) this user account? Their data will be preserved.')) return;
+    try {
+      await updateDoc(doc(db, 'users', userId), {
+        is_deleted: true,
+        status: 'deactivated',
+        deleted_at: serverTimestamp(),
+      });
+      if (selectedUser?.id === userId) {
+        setSelectedUser((prev) => ({ ...prev, is_deleted: true, status: 'deactivated' }));
+      }
+    } catch (err) {
+      alert('Deactivation failed: ' + err.message);
+    }
+  };
+
+  // Reactivate (Restore)
+  const handleReactivate = async (userId) => {
+    if (!window.confirm('Reactivate this user account?')) return;
+    try {
+      await updateDoc(doc(db, 'users', userId), {
+        is_deleted: false,
+        status: 'active',
+        restored_at: serverTimestamp(),
+      });
+      if (selectedUser?.id === userId) {
+        setSelectedUser((prev) => ({ ...prev, is_deleted: false, status: 'active' }));
+      }
+    } catch (err) {
+      alert('Reactivation failed: ' + err.message);
+    }
+  };
+
+  // Permanent Hard Delete (SuperAdmin only)
+  const handlePermanentDelete = async (userId) => {
+    if (!window.confirm('PERMANENTLY delete this user profile document from Firestore? This cannot be undone.')) return;
     try {
       await deleteDoc(doc(db, 'users', userId));
       if (selectedUser?.id === userId) setSelectedUser(null);
     } catch (err) {
-      alert('Delete failed: ' + err.message);
+      alert('Hard delete failed: ' + err.message);
     }
   };
 
@@ -62,7 +116,7 @@ export default function Users() {
         <div>
           <h1 style={{ margin: '0 0 6px 0' }}>User Management</h1>
           <p className="muted" style={{ margin: 0 }}>
-            Inspect mobile app attendees, registration details, and administrative accounts.
+            Inspect mobile app attendees, registration details, account statuses, and administrative access.
           </p>
         </div>
       </div>
@@ -90,14 +144,29 @@ export default function Users() {
       {/* TAB 1: App Users Collection */}
       {activeTab === 'app_users' && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <input
-              className="search-input"
-              placeholder="Search by name, email, or phone..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ maxWidth: 360 }}
-            />
+          {/* Search & Filter Controls */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 10, flex: 1, minWidth: 280 }}>
+              <input
+                className="search-input"
+                placeholder="Search by name, email, phone, or UID..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{ width: '100%', maxWidth: 360, margin: 0 }}
+              />
+
+              <select
+                className="search-input"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                style={{ width: 160, margin: 0 }}
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active Only</option>
+                <option value="deactivated">Deactivated Only</option>
+              </select>
+            </div>
+
             <span className="muted" style={{ fontSize: 13 }}>
               {filteredUsers.length} attendee account{filteredUsers.length === 1 ? '' : 's'}
             </span>
@@ -107,75 +176,141 @@ export default function Users() {
             <p className="muted">Loading user accounts...</p>
           ) : filteredUsers.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 0', color: '#64748b' }}>
-              No user accounts found in the database.
+              No user accounts found matching your filters.
             </div>
           ) : (
             <table className="data-table">
               <thead>
                 <tr>
                   <th>User</th>
+                  <th>Status</th>
                   <th>Email</th>
                   <th>Phone</th>
                   <th>Registered</th>
-                  <th>Actions</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((user) => (
-                  <tr key={user.id}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div
-                          style={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: '50%',
-                            background: '#e2e8f0',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 600,
-                            color: '#475569',
-                            fontSize: 13,
-                          }}
-                        >
-                          {(user.name || user.displayName || user.email || '?')[0].toUpperCase()}
+                {filteredUsers.map((user) => {
+                  const isDeactivated = Boolean(user.is_deleted || user.status === 'deactivated');
+
+                  return (
+                    <tr key={user.id} style={{ opacity: isDeactivated ? 0.7 : 1 }}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div
+                            style={{
+                              width: 34,
+                              height: 34,
+                              borderRadius: '50%',
+                              background: isDeactivated ? '#fee2e2' : '#e2e8f0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: 600,
+                              color: isDeactivated ? '#991b1b' : '#475569',
+                              fontSize: 13,
+                            }}
+                          >
+                            {(user.name || user.displayName || user.email || '?')[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 600, color: isDeactivated ? '#64748b' : '#0f172a' }}>
+                              {user.name || user.displayName || 'Unnamed User'}
+                            </div>
+                            <div className="muted" style={{ fontSize: 11 }}>
+                              UID: {user.id.slice(0, 10)}...
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <div style={{ fontWeight: 600 }}>{user.name || user.displayName || 'Unnamed User'}</div>
-                          <div className="muted" style={{ fontSize: 11 }}>UID: {user.id.slice(0, 10)}...</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td>{user.email || '—'}</td>
-                    <td>{user.phone || user.phoneNumber || '—'}</td>
-                    <td>
-                      {user.created_at?.toDate
-                        ? user.created_at.toDate().toLocaleDateString()
-                        : user.createdAt
-                        ? new Date(user.createdAt).toLocaleDateString()
-                        : '—'}
-                    </td>
-                    <td className="actions-cell">
-                      <button
-                        type="button"
-                        className="link-btn"
-                        onClick={() => setSelectedUser(user)}
-                      >
-                        View Details
-                      </button>
-                      {isSuperAdmin && (
+                      </td>
+
+                      {/* Status Badge */}
+                      <td>
+                        {isDeactivated ? (
+                          <span
+                            style={{
+                              backgroundColor: '#fee2e2',
+                              color: '#991b1b',
+                              padding: '3px 8px',
+                              borderRadius: 6,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              display: 'inline-block',
+                            }}
+                          >
+                            Deactivated
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              backgroundColor: '#dcfce7',
+                              color: '#166534',
+                              padding: '3px 8px',
+                              borderRadius: 6,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              display: 'inline-block',
+                            }}
+                          >
+                            Active
+                          </span>
+                        )}
+                      </td>
+
+                      <td>{user.email || '—'}</td>
+                      <td>{user.phone || user.phoneNumber || '—'}</td>
+                      <td>
+                        {user.created_at?.toDate
+                          ? user.created_at.toDate().toLocaleDateString()
+                          : user.createdAt
+                          ? new Date(user.createdAt).toLocaleDateString()
+                          : '—'}
+                      </td>
+
+                      {/* Action Buttons */}
+                      <td className="actions-cell" style={{ textAlign: 'right' }}>
                         <button
                           type="button"
-                          className="link-btn danger"
-                          onClick={() => handleDeleteUserRecord(user.id)}
+                          className="link-btn"
+                          onClick={() => setSelectedUser(user)}
                         >
-                          Delete
+                          View
                         </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+
+                        {isDeactivated ? (
+                          <button
+                            type="button"
+                            className="link-btn"
+                            style={{ color: '#16a34a' }}
+                            onClick={() => handleReactivate(user.id)}
+                          >
+                            Restore
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="link-btn danger"
+                            onClick={() => handleSoftDelete(user.id)}
+                          >
+                            Deactivate
+                          </button>
+                        )}
+
+                        {isSuperAdmin && (
+                          <button
+                            type="button"
+                            className="link-btn danger"
+                            title="Permanently remove from database"
+                            onClick={() => handlePermanentDelete(user.id)}
+                          >
+                            Purge
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -203,7 +338,7 @@ export default function Users() {
         </div>
       )}
 
-      {/* User Details Slide-over / Modal */}
+      {/* User Details Modal */}
       {selectedUser && (
         <div
           onClick={() => setSelectedUser(null)}
@@ -244,6 +379,20 @@ export default function Users() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 14 }}>
               <div>
+                <strong className="muted" style={{ display: 'block', fontSize: 12 }}>ACCOUNT STATUS</strong>
+                <div style={{ marginTop: 4 }}>
+                  {selectedUser.is_deleted || selectedUser.status === 'deactivated' ? (
+                    <span style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '3px 8px', borderRadius: 4, fontSize: 12, fontWeight: 700 }}>
+                      Deactivated (Soft-Deleted)
+                    </span>
+                  ) : (
+                    <span style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '3px 8px', borderRadius: 4, fontSize: 12, fontWeight: 700 }}>
+                      Active
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div>
                 <strong className="muted" style={{ display: 'block', fontSize: 12 }}>FULL NAME</strong>
                 <div>{selectedUser.name || selectedUser.displayName || '—'}</div>
               </div>
@@ -278,8 +427,29 @@ export default function Users() {
               </div>
             </div>
 
-            <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn-secondary" type="button" onClick={() => setSelectedUser(null)}>
+            <div style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                {selectedUser.is_deleted || selectedUser.status === 'deactivated' ? (
+                  <button
+                    className="btn-secondary"
+                    type="button"
+                    style={{ color: '#16a34a' }}
+                    onClick={() => handleReactivate(selectedUser.id)}
+                  >
+                    Restore Account
+                  </button>
+                ) : (
+                  <button
+                    className="btn-secondary"
+                    type="button"
+                    style={{ color: '#dc2626' }}
+                    onClick={() => handleSoftDelete(selectedUser.id)}
+                  >
+                    Deactivate Account
+                  </button>
+                )}
+              </div>
+              <button className="btn-primary" type="button" onClick={() => setSelectedUser(null)}>
                 Close
               </button>
             </div>

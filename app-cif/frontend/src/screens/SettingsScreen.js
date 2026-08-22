@@ -2,17 +2,19 @@ import React, { useState, useLayoutEffect } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, Alert } from 'react-native';
 import SafeScreen from '../components/SafeScreen';
 import { useTheme } from '../context/ThemeContext';
-// 1. Added signOut to your imports
-import { auth } from '../config/firebase'; 
-import { deleteUser, signOut } from 'firebase/auth'; 
+import { auth, db } from '../config/firebase'; 
+import { signOut } from 'firebase/auth'; 
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function SettingsScreen({ navigation }) {
   const { colors } = useTheme();
+
   useLayoutEffect(() => {
     navigation.setOptions({
       headerShown: false,
     });
   }, [navigation]);
+
   const [pushEnabled, setPushEnabled] = useState(true);
   const [offlineCached, setOfflineCached] = useState(false);
 
@@ -29,9 +31,7 @@ export default function SettingsScreen({ navigation }) {
         style: 'destructive', 
         onPress: async () => {
           try {
-            // 2. Actually sign the user out of Firebase
             await signOut(auth);
-            
             const parent = navigation.getParent && navigation.getParent();
             if (parent && parent.replace) parent.replace('Login');
             else navigation.replace('Login');
@@ -43,42 +43,48 @@ export default function SettingsScreen({ navigation }) {
     ]);
   };
 
-  const handleDeleteAccount = async () => {
+  const handleSoftDeleteAccount = async () => {
     const user = auth.currentUser;
 
-    if (user) {
-      try {
-        await deleteUser(user);
-        navigation.replace('Login'); 
-      } catch (error) {
-        if (error.code === 'auth/requires-recent-login') {
-          Alert.alert(
-            "Security Requirement", 
-            "For your security, you must log out and log back in before deleting your account."
-          );
-        } else {
-          Alert.alert("Error", error.message);
-        }
-      }
+    if (!user) return;
+
+    try {
+      // 1. Flag the Firestore user record as soft-deleted
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        is_deleted: true,
+        status: 'deactivated',
+        deleted_at: serverTimestamp(),
+      });
+
+      // 2. Safely sign out the user
+      await signOut(auth);
+
+      // 3. Navigate back to Login
+      const parent = navigation.getParent && navigation.getParent();
+      if (parent && parent.replace) parent.replace('Login');
+      else navigation.replace('Login');
+    } catch (error) {
+      console.error('Soft delete error:', error);
+      Alert.alert('Error', error.message || 'Failed to deactivate account. Please try again.');
     }
   };
 
   const confirmDelete = () => {
     Alert.alert(
-      "Delete Account",
-      "Are you sure you want to permanently delete your account? This action cannot be undone.",
+      "Deactivate Account",
+      "Are you sure you want to deactivate your account? Your profile and schedule will no longer be visible to other attendees, but your data will be preserved.",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Delete", onPress: handleDeleteAccount, style: "destructive" }
+        { text: "Deactivate", onPress: handleSoftDeleteAccount, style: "destructive" }
       ]
     );
   };
 
   return (
-    // 3. Cleaned up the container styles here
     <SafeScreen scroll style={[styles.safeArea, { backgroundColor: colors.bg }]} contentContainerStyle={styles.container}>
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() =>  navigation.goBack() }> 
+        <TouchableOpacity onPress={() => navigation.goBack()}> 
           <Text style={[styles.title, { color: colors.text }]}>← Settings</Text>
         </TouchableOpacity> 
       </View>
@@ -113,8 +119,10 @@ export default function SettingsScreen({ navigation }) {
         </View>
 
         {/* Edit Profile button */}
-        <TouchableOpacity style={[ styles.editProfileButton, { backgroundColor: '#7B61FF' }]} 
-        onPress={() => navigation.navigate('EditProfileScreen')}>
+        <TouchableOpacity 
+          style={[styles.editProfileButton, { backgroundColor: '#7B61FF' }]} 
+          onPress={() => navigation.navigate('EditProfileScreen')}
+        >
           <Text style={styles.editProfileButtonText}>
             Edit Profile
           </Text>
@@ -124,9 +132,9 @@ export default function SettingsScreen({ navigation }) {
           <Text style={{ color: colors.white, fontWeight: '700' }}>Logout</Text>
         </TouchableOpacity>
 
-        {/* 4. Moved the Delete Account button here and added the outline style */}
+        {/* Soft Delete Account button */}
         <TouchableOpacity onPress={confirmDelete} style={[styles.deleteBtn, { borderColor: colors.error }]} activeOpacity={0.85}>
-          <Text style={{ color: colors.error, fontWeight: '700' }}>Delete Account</Text>
+          <Text style={{ color: colors.error, fontWeight: '700' }}>Deactivate Account</Text>
         </TouchableOpacity>
 
       </View>
@@ -167,30 +175,25 @@ const styles = StyleSheet.create({
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
   statusRight: { flexDirection: 'row', alignItems: 'center' },
   dot: { width: 10, height: 10, borderRadius: 6 },
-
- editProfileButton: {
-  paddingVertical: 12,
-  borderRadius: 10,
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginTop: 12,
-},
-
-editProfileButtonText: {
-  color: '#FFFFFF',
-  fontSize: 16,
-  fontWeight: '700',
-},
-
+  editProfileButton: {
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  editProfileButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
   logoutBtn: { marginTop: 12, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
-  
-  // 5. Added the specific style for the delete button
   deleteBtn: {
     marginTop: 12,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
     borderWidth: 1,
-    backgroundColor: 'transparent', // Keeps the inside transparent
+    backgroundColor: 'transparent',
   },
 });
