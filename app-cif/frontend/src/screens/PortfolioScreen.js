@@ -390,15 +390,9 @@ export default function PortfolioScreen({
           <Text
             style={styles.backText}
           >
-            ←
+            ← Portfolios
           </Text>
         </TouchableOpacity>
-
-        <Text
-          style={styles.title}
-        >
-          Portfolios
-        </Text>
       </View>
 
       <Text
@@ -760,6 +754,7 @@ const getStyles = (colors) =>
 
     backText: {
       fontSize: 28,
+      fontWeight: "bold",
       color: colors.text,
     },
 
