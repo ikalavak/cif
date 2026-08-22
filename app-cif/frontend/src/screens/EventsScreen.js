@@ -205,9 +205,7 @@ export default function EventsScreen({ navigation }) {
       <View style={styles.headerRow}>
         <View>
           <Text style={[styles.pageTitle, { color: colors.text }]}>Events</Text>
-          <Text style={[styles.pageSubtitle, { color: colors.textMuted }]}>
-            Festival schedule, day by day
-          </Text>
+          
         </View>
         <TouchableOpacity
           style={[styles.iconButton, { backgroundColor: colors.card }]}
