@@ -1,3 +1,4 @@
+// src/screens/HomeScreen.js
 import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
@@ -22,84 +23,97 @@ import {
   limit,
 } from "firebase/firestore";
 
-const FALLBACK_IMAGE =
+const FALLBACK_HERO =
   "https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=1200&q=80";
 
 export default function HomeScreen({ navigation }) {
   const { colors } = useTheme();
-
   const user = auth.currentUser;
+  const firstName = user?.displayName?.trim().split(" ")[0] || "Creative";
 
-  const fullName = user?.displayName || "";
-  const firstName = fullName.trim().split(" ")[0] || "Creative";
-
-  // Live hero image, synced from the admin panel's Home Settings page
-  const [festivalImage, setFestivalImage] = useState(FALLBACK_IMAGE);
+  // 1. Dynamic Home Site Settings (Hero, About, Highlights, CTA)
+  const [homeConfig, setHomeConfig] = useState({
+    hero_badge: "FREE FESTIVAL",
+    hero_title: "Creative Industries Festival 2026",
+    hero_subtitle: "Creative Balance: Good Work, Health and Life",
+    hero_dates: "2 – 5 September 2026",
+    hero_locations: "Royal Docks & Stratford",
+    hero_image_url: FALLBACK_HERO,
+    about_text:
+      "Explore how creativity can help us find balance in our work, health and lives. Discover talks, workshops and industry collaborations focused on inclusion, wellbeing, innovation and the future of creative work.",
+    cta_title: "Don't miss the festival",
+    cta_text:
+      "Explore the programme, save your favourite events and connect with the creative community.",
+    cta_button_text: "Explore Events",
+    highlights: [],
+  });
 
   useEffect(() => {
-    const ref = doc(db, "site_settings", "home");
-    const unsubscribe = onSnapshot(ref, (snap) => {
-      const url = snap.exists() ? snap.data().hero_image_url : null;
-      setFestivalImage(url || FALLBACK_IMAGE);
-    });
-    return unsubscribe;
+    const unsubHome = onSnapshot(
+      doc(db, "site_settings", "home"),
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          setHomeConfig((prev) => ({
+            ...prev,
+            ...data,
+            hero_image_url: data.hero_image_url || FALLBACK_HERO,
+            highlights: Array.isArray(data.highlights) ? data.highlights : [],
+          }));
+        }
+      },
+      (err) => console.warn("Home settings listener notice:", err.message)
+    );
+    return () => unsubHome();
   }, []);
 
-  // Live festival events, synced from the admin panel's Events page —
-  // each event now carries its own image_url, set individually per event.
+  // 2. Dynamic Events Collection
   const [festivalEvents, setFestivalEvents] = useState([]);
-
   useEffect(() => {
     const q = query(
       collection(db, "events"),
       orderBy("start_date", "asc"),
-      limit(6),
+      limit(6)
     );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setFestivalEvents(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-    return unsubscribe;
+    const unsubEvents = onSnapshot(
+      q,
+      (snapshot) => {
+        setFestivalEvents(
+          snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+        );
+      },
+      (err) => console.warn("Events listener notice:", err.message)
+    );
+    return () => unsubEvents();
+  }, []);
+
+  // 3. Dynamic Venues Collection
+  const [venuesList, setVenuesList] = useState([]);
+  useEffect(() => {
+    const unsubVenues = onSnapshot(
+      collection(db, "venues"),
+      (snapshot) => {
+        setVenuesList(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+      },
+      (err) => console.warn("Venues listener notice:", err.message)
+    );
+    return () => unsubVenues();
   }, []);
 
   return (
     <SafeScreen
       scroll
-      style={[
-        styles.screen,
-        {
-          backgroundColor: colors.bg,
-        },
-      ]}
-      contentContainerStyle={{
-        paddingBottom: 40,
-      }}
+      style={[styles.screen, { backgroundColor: colors.bg }]}
+      contentContainerStyle={{ paddingBottom: 40 }}
     >
-      {/* ==================================================
-          HEADER
-      ================================================== */}
-
+      {/* HEADER */}
       <View style={styles.headerRow}>
         <View style={styles.headerTextContainer}>
-          <Text
-            style={[
-              styles.greetingText,
-              {
-                color: colors.textMuted,
-              },
-            ]}
-          >
+          <Text style={[styles.greetingText, { color: colors.textMuted }]}>
             Hi {firstName} 👋
           </Text>
-
-          <Text
-            style={[
-              styles.headerTitle,
-              {
-                color: colors.text,
-              },
-            ]}
-          >
-            Creative Industries Festival
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            {homeConfig.hero_title}
           </Text>
         </View>
 
@@ -108,8 +122,7 @@ export default function HomeScreen({ navigation }) {
             style={styles.iconButton}
             onPress={() => {
               const parent = navigation.getParent && navigation.getParent();
-
-              if (parent && parent.navigate) {
+              if (parent?.navigate) {
                 parent.navigate("Notifications");
               } else {
                 navigation.navigate("Notifications");
@@ -117,38 +130,26 @@ export default function HomeScreen({ navigation }) {
             }}
           >
             <Feather name="bell" size={20} color={colors.text} />
-
             <View
               style={[
                 styles.notificationDot,
-                {
-                  backgroundColor: colors.error,
-                },
+                { backgroundColor: colors.error || "#EF4444" },
               ]}
             />
           </TouchableOpacity>
-
           <ThemeToggle />
         </View>
       </View>
 
-      {/* ==================================================
-          HERO CARD
-      ================================================== */}
-
+      {/* DYNAMIC HERO CARD */}
       <View
         style={[
           styles.heroCard,
-          {
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-          },
+          { backgroundColor: colors.card, borderColor: colors.border },
         ]}
       >
         <ImageBackground
-          source={{
-            uri: festivalImage,
-          }}
+          source={{ uri: homeConfig.hero_image_url }}
           resizeMode="cover"
           style={styles.heroImage}
           imageStyle={styles.heroImageRadius}
@@ -157,68 +158,75 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.heroOverlay} />
 
           <View style={styles.heroContent}>
-            <View
-              style={[
-                styles.freeBadge,
-                {
-                  backgroundColor: colors.primary,
-                },
-              ]}
-            >
-              <Text style={styles.freeBadgeText}>FREE FESTIVAL</Text>
-            </View>
+            {!!homeConfig.hero_badge && (
+              <View
+                style={[
+                  styles.freeBadge,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
+                <Text style={styles.freeBadgeText}>{homeConfig.hero_badge}</Text>
+              </View>
+            )}
 
-            <Text style={styles.heroTitle}>
-              Creative Industries Festival 2026
-            </Text>
+            <Text style={styles.heroTitle}>{homeConfig.hero_title}</Text>
+            <Text style={styles.heroSubtitle}>{homeConfig.hero_subtitle}</Text>
 
-            <Text style={styles.heroSubtitle}>
-              Creative Balance: Good Work, Health and Life
-            </Text>
+            {!!homeConfig.hero_dates && (
+              <View style={styles.heroInfoRow}>
+                <Feather name="calendar" size={16} color="#FFFFFF" />
+                <Text style={styles.heroInfoText}>{homeConfig.hero_dates}</Text>
+              </View>
+            )}
 
-            <View style={styles.heroInfoRow}>
-              <Feather name="calendar" size={16} color="#FFFFFF" />
-              <Text style={styles.heroInfoText}>2 – 5 September 2026</Text>
-            </View>
-
-            <View style={styles.heroInfoRow}>
-              <Feather name="map-pin" size={16} color="#FFFFFF" />
-              <Text style={styles.heroInfoText}>Royal Docks & Stratford</Text>
-            </View>
+            {!!homeConfig.hero_locations && (
+              <View style={styles.heroInfoRow}>
+                <Feather name="map-pin" size={16} color="#FFFFFF" />
+                <Text style={styles.heroInfoText}>
+                  {homeConfig.hero_locations}
+                </Text>
+              </View>
+            )}
           </View>
         </ImageBackground>
       </View>
 
-      {/* ==================================================
-          ABOUT FESTIVAL
-      ================================================== */}
-
+      {/* DYNAMIC ABOUT FESTIVAL */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
           About the Festival
         </Text>
-
         <Text style={[styles.bodyText, { color: colors.textMuted }]}>
-          Explore how creativity can help us find balance in our work, health
-          and lives. Discover talks, workshops and industry collaborations
-          focused on inclusion, wellbeing, innovation and the future of creative
-          work.
+          {homeConfig.about_text}
         </Text>
       </View>
 
-      {/* ==================================================
-          QUICK ACTIONS
-      ================================================== */}
-
+      {/* QUICK ACTIONS */}
       <View style={styles.quickActionsRow}>
         <ActionBtn
+<<<<<<< HEAD
+=======
+          icon="calendar"
+          color={colors.primary}
+          label="Events"
+          colors={colors}
+          onPress={() => navigation.navigate("Events")}
+        />
+        <ActionBtn
+          icon="image"
+          color={colors.accent}
+          label="Gallery"
+          colors={colors}
+          onPress={() => navigation.navigate("Gallery")}
+        />
+        <ActionBtn
+>>>>>>> 10282a5 (feat: Add IconPicker component and integrate Feather icons into HomeSettings)
           icon="message-circle"
           color={colors.accent}
           label="Forum"
           colors={colors}
           onPress={() => navigation.navigate("ForumScreen")}
         />
-
         <ActionBtn
           icon="briefcase"
           color={colors.success}
@@ -226,7 +234,6 @@ export default function HomeScreen({ navigation }) {
           colors={colors}
           onPress={() => navigation.navigate("JobBoard")}
         />
-
         <ActionBtn
           icon="user"
           color={colors.primary}
@@ -236,10 +243,7 @@ export default function HomeScreen({ navigation }) {
         />
       </View>
 
-      {/* ==================================================
-          FESTIVAL EVENTS
-      ================================================== */}
-
+      {/* DYNAMIC FESTIVAL EVENTS */}
       <View style={styles.sectionHeader}>
         <View>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -249,7 +253,6 @@ export default function HomeScreen({ navigation }) {
             Discover what's happening
           </Text>
         </View>
-
         <TouchableOpacity onPress={() => navigation.navigate("Events")}>
           <Text style={[styles.seeAllText, { color: colors.primary }]}>
             See All
@@ -288,44 +291,49 @@ export default function HomeScreen({ navigation }) {
               onPress={() => navigation.navigate("Events")}
             >
               <Image
-                source={{
-                  uri: event.image_url || festivalImage,
-                }}
+                source={{ uri: event.image_url || homeConfig.hero_image_url }}
                 style={styles.eventImage}
               />
-
               <View style={styles.eventContent}>
                 <View style={styles.eventDateRow}>
                   <Feather name="calendar" size={13} color={colors.primary} />
                   <Text style={[styles.eventDate, { color: colors.primary }]}>
+<<<<<<< HEAD
                     {event.start_date
                       ? event.start_date.toDate().toLocaleDateString("en-GB", {
                           day: "numeric",
                           month: "long",
                         })
                       : ""}
+=======
+                    {event.start_date?.toDate
+                      ? event.start_date
+                          .toDate()
+                          .toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "long",
+                          })
+                      : event.start_date || ""}
+>>>>>>> 10282a5 (feat: Add IconPicker component and integrate Feather icons into HomeSettings)
                   </Text>
                 </View>
-
                 <Text
                   style={[styles.eventTitle, { color: colors.text }]}
                   numberOfLines={2}
                 >
                   {event.title}
                 </Text>
-
                 {!!event.category && (
                   <Text
                     style={[
                       styles.eventDescription,
                       { color: colors.textMuted },
                     ]}
-                    numberOfLines={3}
+                    numberOfLines={2}
                   >
                     {event.category}
                   </Text>
                 )}
-
                 {!!event.venue && (
                   <View style={styles.locationRow}>
                     <Feather
@@ -334,7 +342,10 @@ export default function HomeScreen({ navigation }) {
                       color={colors.textMuted}
                     />
                     <Text
-                      style={[styles.locationText, { color: colors.textMuted }]}
+                      style={[
+                        styles.locationText,
+                        { color: colors.textMuted },
+                      ]}
                     >
                       {event.venue}
                     </Text>
@@ -346,97 +357,71 @@ export default function HomeScreen({ navigation }) {
         </ScrollView>
       )}
 
-      {/* ==================================================
-          FESTIVAL HIGHLIGHTS
-      ================================================== */}
+      {/* DYNAMIC FESTIVAL HIGHLIGHTS */}
+      {homeConfig.highlights && homeConfig.highlights.length > 0 && (
+        <>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Festival Highlights
+            </Text>
+          </View>
+          <View style={styles.highlightsGrid}>
+            {homeConfig.highlights.map((hl, index) => (
+              <HighlightCard
+                key={hl.id || index}
+                icon={hl.icon}
+                title={hl.title}
+                text={hl.text}
+                colors={colors}
+              />
+            ))}
+          </View>
+        </>
+      )}
 
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          Festival Highlights
-        </Text>
-      </View>
+      {/* DYNAMIC FESTIVAL VENUES */}
+      {venuesList.length > 0 && (
+        <>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Festival Venues
+            </Text>
+          </View>
+          {venuesList.map((venue) => (
+            <View
+              key={venue.id}
+              style={[
+                styles.venueCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <View
+                style={[
+                  styles.venueIcon,
+                  { backgroundColor: colors.input },
+                ]}
+              >
+                <Feather name="map-pin" size={22} color={colors.primary} />
+              </View>
+              <View style={styles.venueTextContainer}>
+                <Text style={[styles.venueTitle, { color: colors.text }]}>
+                  {venue.name || venue.title}
+                </Text>
+                <Text
+                  style={[
+                    styles.venueDescription,
+                    { color: colors.textMuted },
+                  ]}
+                >
+                  {venue.address || venue.location || venue.description}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </>
+      )}
 
-      <View style={styles.highlightsGrid}>
-        <HighlightCard
-          icon="briefcase"
-          title="Careers"
-          text="Meet employers and get CV and portfolio advice."
-          colors={colors}
-        />
-        <HighlightCard
-          icon="scissors"
-          title="Fashion"
-          text="Explore creative fashion design and sustainable fashion-tech."
-          colors={colors}
-        />
-        <HighlightCard
-          icon="film"
-          title="Screen"
-          text="Learn how to break into film and television."
-          colors={colors}
-        />
-        <HighlightCard
-          icon="users"
-          title="Networking"
-          text="Connect with creatives, businesses and industry professionals."
-          colors={colors}
-        />
-      </View>
-
-      {/* ==================================================
-          VENUES
-      ================================================== */}
-
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          Festival Venues
-        </Text>
-      </View>
-
-      <View
-        style={[
-          styles.venueCard,
-          { backgroundColor: colors.card, borderColor: colors.border },
-        ]}
-      >
-        <View style={[styles.venueIcon, { backgroundColor: colors.input }]}>
-          <Feather name="map-pin" size={22} color={colors.primary} />
-        </View>
-
-        <View style={styles.venueTextContainer}>
-          <Text style={[styles.venueTitle, { color: colors.text }]}>
-            Royal Docks Centre for Sustainability
-          </Text>
-          <Text style={[styles.venueDescription, { color: colors.textMuted }]}>
-            University Way, London, E16 2RD
-          </Text>
-        </View>
-      </View>
-
-      <View
-        style={[
-          styles.venueCard,
-          { backgroundColor: colors.card, borderColor: colors.border },
-        ]}
-      >
-        <View style={[styles.venueIcon, { backgroundColor: colors.input }]}>
-          <Feather name="map-pin" size={22} color={colors.accent} />
-        </View>
-
-        <View style={styles.venueTextContainer}>
-          <Text style={[styles.venueTitle, { color: colors.text }]}>
-            The Source, Stratford
-          </Text>
-          <Text style={[styles.venueDescription, { color: colors.textMuted }]}>
-            Theatre Square, Stratford, London, E15 1BX
-          </Text>
-        </View>
-      </View>
-
-      {/* ==================================================
-          CTA
-      ================================================== */}
-
+      {/* DYNAMIC CTA BANNER */}
       <View style={[styles.ctaCard, { backgroundColor: colors.primary }]}>
         <Feather
           name="star"
@@ -444,20 +429,19 @@ export default function HomeScreen({ navigation }) {
           color="#FFFFFF"
           style={{ marginBottom: 10 }}
         />
-
-        <Text style={styles.ctaTitle}>Don't miss the festival</Text>
-
-        <Text style={styles.ctaText}>
-          Explore the programme, save your favourite events and connect with the
-          creative community.
-        </Text>
-
+        <Text style={styles.ctaTitle}>{homeConfig.cta_title}</Text>
+        <Text style={styles.ctaText}>{homeConfig.cta_text}</Text>
         <TouchableOpacity
           style={styles.ctaButton}
           onPress={() => navigation.navigate("Events")}
         >
-          <Text style={[styles.ctaButtonText, { color: colors.primary }]}>
-            Explore Events
+          <Text
+            style={[
+              styles.ctaButtonText,
+              { color: colors.primary },
+            ]}
+          >
+            {homeConfig.cta_button_text || "Explore Events"}
           </Text>
           <Feather name="arrow-right" size={17} color={colors.primary} />
         </TouchableOpacity>
@@ -465,10 +449,6 @@ export default function HomeScreen({ navigation }) {
     </SafeScreen>
   );
 }
-
-/* ======================================================
-   ACTION BUTTON
-====================================================== */
 
 const ActionBtn = ({ icon, color, label, colors, onPress }) => (
   <TouchableOpacity
@@ -488,32 +468,33 @@ const ActionBtn = ({ icon, color, label, colors, onPress }) => (
   </TouchableOpacity>
 );
 
-/* ======================================================
-   HIGHLIGHT CARD
-====================================================== */
+const HighlightCard = ({ icon, title, text, colors }) => {
+  // Normalize icon string to lowercase kebab-case for Expo Feather
+  const safeIcon =
+    typeof icon === "string" && icon.trim()
+      ? icon.trim().toLowerCase().replace(/_/g, "-")
+      : "star";
 
-const HighlightCard = ({ icon, title, text, colors }) => (
-  <View
-    style={[
-      styles.highlightCard,
-      { backgroundColor: colors.card, borderColor: colors.border },
-    ]}
-  >
-    <Feather name={icon} size={22} color={colors.primary} />
-    <Text style={[styles.highlightTitle, { color: colors.text }]}>{title}</Text>
-    <Text style={[styles.highlightText, { color: colors.textMuted }]}>
-      {text}
-    </Text>
-  </View>
-);
-
-/* ======================================================
-   STYLES
-====================================================== */
+  return (
+    <View
+      style={[
+        styles.highlightCard,
+        { backgroundColor: colors.card, borderColor: colors.border },
+      ]}
+    >
+      <Feather name={safeIcon} size={22} color={colors.primary} />
+      <Text style={[styles.highlightTitle, { color: colors.text }]}>
+        {title}
+      </Text>
+      <Text style={[styles.highlightText, { color: colors.textMuted }]}>
+        {text}
+      </Text>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -541,16 +522,12 @@ const styles = StyleSheet.create({
     height: 7,
     borderRadius: 4,
   },
-
   heroCard: {
     marginHorizontal: 20,
     marginBottom: 26,
     borderRadius: 22,
     borderWidth: 1,
     overflow: "hidden",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
     elevation: 4,
   },
   heroImage: {
@@ -606,7 +583,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontWeight: "600",
   },
-
   section: { paddingHorizontal: 20, marginBottom: 25 },
   sectionHeader: {
     flexDirection: "row",
@@ -619,7 +595,6 @@ const styles = StyleSheet.create({
   sectionSubtitle: { fontSize: 12, marginTop: 3 },
   bodyText: { fontSize: 14, lineHeight: 22, marginTop: 8 },
   seeAllText: { fontSize: 13, fontWeight: "700" },
-
   quickActionsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -637,7 +612,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   actionLabel: { fontSize: 11, fontWeight: "600" },
-
   eventsScroll: { paddingLeft: 20, paddingRight: 20, paddingBottom: 10 },
   eventCard: {
     width: 275,
@@ -649,7 +623,11 @@ const styles = StyleSheet.create({
   },
   eventImage: { width: "100%", height: 145 },
   eventContent: { padding: 15 },
-  eventDateRow: { flexDirection: "row", alignItems: "center", marginBottom: 7 },
+  eventDateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 7,
+  },
   eventDate: { fontSize: 11, fontWeight: "700", marginLeft: 5 },
   eventTitle: {
     fontSize: 17,
@@ -660,7 +638,6 @@ const styles = StyleSheet.create({
   eventDescription: { fontSize: 12, lineHeight: 18, marginBottom: 10 },
   locationRow: { flexDirection: "row", alignItems: "center" },
   locationText: { fontSize: 11, marginLeft: 5 },
-
   highlightsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -682,7 +659,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   highlightText: { fontSize: 11, lineHeight: 17 },
-
   venueCard: {
     marginHorizontal: 20,
     borderRadius: 15,
@@ -702,7 +678,6 @@ const styles = StyleSheet.create({
   venueTextContainer: { flex: 1, marginLeft: 13 },
   venueTitle: { fontSize: 14, fontWeight: "700", marginBottom: 4 },
   venueDescription: { fontSize: 11, lineHeight: 16 },
-
   ctaCard: {
     marginHorizontal: 20,
     marginTop: 18,
