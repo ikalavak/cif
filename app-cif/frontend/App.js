@@ -42,7 +42,6 @@ import PortfolioScreen from "./src/screens/PortfolioScreen";
 import HomeGuest from "./src/screens/HomeGuest";
 import ProfileGuest from "./src/screens/ProfileGuest";
 import EditProfileScreen from "./src/screens/EditProfileScreen";
-
 import CreatePortfolioScreen from "./src/screens/CreatePortfolioScreen";
 
 const isExpoGo =
@@ -554,7 +553,13 @@ function AppInner() {
               headerBackVisible: false,
             }}
           />
+          {/* Registered both aliases so calls to either MyTickets or MyTicketsScreen work */}
           <Stack.Screen name="MyTickets" component={MyTicketsScreen} />
+          <Stack.Screen name="MyTicketsScreen" component={MyTicketsScreen} />
+          <Stack.Screen
+            name="FestivalProfileScreen"
+            component={FestivalProfileScreen}
+          />
           <Stack.Screen name="ForumScreen" component={ForumScreen} />
           <Stack.Screen name="JobBoard" component={JobBoard} />
           <Stack.Screen name="JobDetails" component={JobDetails} />

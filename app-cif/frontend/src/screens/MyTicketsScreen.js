@@ -1,302 +1,572 @@
-import React, { useEffect, useState } from "react";
+// src/screens/MyTicketsScreen.js
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   Text,
   View,
   FlatList,
-  ActivityIndicator,
   TouchableOpacity,
+  ActivityIndicator,
   Alert,
+  Modal,
+  Share,
 } from "react-native";
 import SafeScreen from "../components/SafeScreen";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
+import QRCode from "react-native-qrcode-svg";
 import { auth, db } from "../config/firebase";
 import {
   collection,
   query,
   where,
-  orderBy,
   onSnapshot,
   doc,
   runTransaction,
 } from "firebase/firestore";
-import QRCode from "react-native-qrcode-svg";
 
 export default function MyTicketsScreen({ navigation }) {
   const { colors } = useTheme();
-  const user = auth.currentUser;
 
-  const [tickets, setTickets] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTicket, setSelectedTicket] = useState(null);
   const [cancellingId, setCancellingId] = useState(null);
 
+  const currentUser = auth.currentUser;
+
   useEffect(() => {
-    if (!user) {
+    if (!currentUser?.uid) {
+      setBookings([]);
       setLoading(false);
       return;
     }
+
     const q = query(
       collection(db, "bookings"),
-      where("userId", "==", user.uid),
-      orderBy("created_at", "desc"),
+      where("userId", "==", currentUser.uid)
     );
+
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        setTickets(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+        const ticketList = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+        }));
+        setBookings(ticketList);
         setLoading(false);
       },
-      () => setLoading(false),
+      (error) => {
+        console.warn("Tickets listener error:", error.message);
+        setLoading(false);
+      }
     );
-    return unsubscribe;
-  }, [user?.uid]);
 
-  const cancelTicket = async (ticket) => {
+    return () => unsubscribe();
+  }, [currentUser?.uid]);
+
+  const handleCancelBooking = (booking) => {
     Alert.alert(
-      "Cancel this ticket?",
-      `${ticket.eventTitle} — ${ticket.eventDate}, ${ticket.eventTime}`,
+      "Cancel Registration",
+      `Are you sure you want to cancel your pass for "${booking.eventTitle || "this event"}"?`,
       [
-        { text: "Keep ticket", style: "cancel" },
+        { text: "Keep Ticket", style: "cancel" },
         {
-          text: "Cancel ticket",
+          text: "Yes, Cancel",
           style: "destructive",
           onPress: async () => {
-            setCancellingId(ticket.id);
+            setCancellingId(booking.id);
             try {
               await runTransaction(db, async (transaction) => {
-                const eventRef = doc(db, "events", ticket.eventId);
+                const eventRef = doc(db, "events", booking.eventId);
                 const eventSnap = await transaction.get(eventRef);
+
                 if (eventSnap.exists()) {
-                  const currentCount = eventSnap.data().booked_count || 0;
+                  const currentCount = eventSnap.data()?.booked_count || 0;
                   transaction.update(eventRef, {
                     booked_count: Math.max(0, currentCount - 1),
                   });
                 }
-                transaction.delete(doc(db, "bookings", ticket.id));
+
+                transaction.delete(doc(db, "bookings", booking.id));
               });
+
+              if (selectedTicket?.id === booking.id) {
+                setSelectedTicket(null);
+              }
             } catch (err) {
-              Alert.alert("Something went wrong", err.message);
+              Alert.alert("Cancellation Error", err.message);
             } finally {
               setCancellingId(null);
             }
           },
         },
-      ],
+      ]
     );
   };
 
-  if (!user) {
+  const handleShareTicket = async (ticket) => {
+    try {
+      await Share.share({
+        title: ticket.eventTitle,
+        message: `Creative Industries Festival 2026 Pass\n\nEvent: ${ticket.eventTitle}\nDate: ${ticket.eventDate} at ${ticket.eventTime}\nPass Ref: ${ticket.id.slice(0, 8).toUpperCase()}`,
+      });
+    } catch (err) {
+      console.warn("Share error:", err);
+    }
+  };
+
+  const renderTicketCard = ({ item }) => {
+    const isCancelling = cancellingId === item.id;
+    const ticketRef = item.id.slice(0, 8).toUpperCase();
+
     return (
-      <SafeScreen style={[styles.screen, { backgroundColor: colors.bg }]}>
-        <View style={styles.backRow}>
-          <TouchableOpacity
-            onPress={() => navigation?.goBack?.()}
-            style={styles.backButton}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Feather name="arrow-left" size={20} color={colors.text} />
-            <Text style={[styles.backText, { color: colors.text }]}>
-              My Tickets
-            </Text>
-          </TouchableOpacity>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => setSelectedTicket(item)}
+        style={[
+          styles.card,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.statusBadge}>
+            <View style={styles.statusDot} />
+            <Text style={styles.statusText}>{item.status || "CONFIRMED"}</Text>
+          </View>
+          <Text style={[styles.refText, { color: colors.textMuted }]}>
+            REF: {ticketRef}
+          </Text>
         </View>
-        <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-          Please log in to view your tickets.
+
+        <Text style={[styles.eventTitle, { color: colors.text }]} numberOfLines={2}>
+          {item.eventTitle || "Festival Event Pass"}
         </Text>
-      </SafeScreen>
+
+        <View style={styles.metaRow}>
+          <View style={styles.metaItem}>
+            <Feather name="calendar" size={14} color={colors.primary || "#8B5CF6"} />
+            <Text style={[styles.metaText, { color: colors.textMuted }]}>
+              {item.eventDate || "Date TBC"}
+            </Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Feather name="clock" size={14} color={colors.primary || "#8B5CF6"} />
+            <Text style={[styles.metaText, { color: colors.textMuted }]}>
+              {item.eventTime || "Time TBC"}
+            </Text>
+          </View>
+        </View>
+
+        <View style={[styles.cardDivider, { borderColor: colors.border }]} />
+
+        <View style={styles.cardFooter}>
+          <View style={styles.ticketHolderWrap}>
+            <Text style={[styles.holderLabel, { color: colors.textMuted }]}>
+              Attendee
+            </Text>
+            <Text style={[styles.holderName, { color: colors.text }]} numberOfLines={1}>
+              {item.userName || currentUser?.displayName || "Pass Holder"}
+            </Text>
+          </View>
+
+          <View style={styles.footerActions}>
+            <TouchableOpacity
+              style={[
+                styles.cancelBtn,
+                { borderColor: colors.border, backgroundColor: colors.bg },
+              ]}
+              onPress={() => handleCancelBooking(item)}
+              disabled={isCancelling}
+            >
+              {isCancelling ? (
+                <ActivityIndicator size="small" color="#ef4444" />
+              ) : (
+                <Feather name="trash-2" size={16} color="#ef4444" />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.viewPassBtn,
+                { backgroundColor: colors.primary || "#8B5CF6" },
+              ]}
+              onPress={() => setSelectedTicket(item)}
+            >
+              <Feather name="maximize-2" size={14} color="#fff" style={{ marginRight: 6 }} />
+              <Text style={styles.viewPassBtnText}>Digital Pass</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
     );
-  }
+  };
 
   return (
-    <SafeScreen style={[styles.screen, { backgroundColor: colors.bg }]}>
-      <View style={styles.backRow}>
+    <SafeScreen
+      scroll={false}
+      style={[styles.screen, { backgroundColor: colors.bg }]}
+    >
+      {/* Top Header */}
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity
-          onPress={() => navigation?.goBack?.()}
-          style={styles.backButton}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={[styles.backBtn, { backgroundColor: colors.card }]}
+          onPress={() => navigation.goBack()}
         >
           <Feather name="arrow-left" size={20} color={colors.text} />
-          <Text style={[styles.backText, { color: colors.text }]}>
-            My Tickets
-          </Text>
         </TouchableOpacity>
-      </View>
-
-      <View style={styles.headerRow}>
-        <Text style={[styles.pageTitle, { color: colors.text }]}>
-          My Tickets
-        </Text>
-        <Text style={[styles.pageSubtitle, { color: colors.textMuted }]}>
-          {tickets.length} confirmed event{tickets.length === 1 ? "" : "s"}
-        </Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>My Tickets</Text>
+        <View style={{ width: 40 }} />
       </View>
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
-      ) : tickets.length === 0 ? (
-        <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-          You haven't booked any events yet.
-        </Text>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.primary || "#8B5CF6"} />
+          <Text style={[styles.loadingText, { color: colors.textMuted }]}>
+            Loading your tickets...
+          </Text>
+        </View>
+      ) : bookings.length === 0 ? (
+        <View style={styles.centered}>
+          <View
+            style={[
+              styles.emptyIconCircle,
+              { backgroundColor: (colors.primary || "#8B5CF6") + "20" },
+            ]}
+          >
+            <Feather name="ticket" size={36} color={colors.primary || "#8B5CF6"} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>
+            No Bookings Found
+          </Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
+            You haven't registered for any festival sessions yet.
+          </Text>
+          <TouchableOpacity
+            style={[
+              styles.exploreBtn,
+              { backgroundColor: colors.primary || "#8B5CF6" },
+            ]}
+            onPress={() => navigation.navigate("MainApp", { screen: "Events" })}
+          >
+            <Text style={styles.exploreBtnText}>Explore Festival Events</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
-          data={tickets}
+          data={bookings}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 20, gap: 16 }}
-          renderItem={({ item }) => (
-            <View
-              style={[
-                styles.ticketCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-            >
-              {/* Ticket Main Details & QR Code */}
-              <View style={styles.ticketTop}>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={[styles.eventTitle, { color: colors.text }]}
-                    numberOfLines={2}
-                  >
-                    {item.eventTitle}
-                  </Text>
-                  <View style={styles.metaRow}>
-                    <Feather
-                      name="calendar"
-                      size={12}
-                      color={colors.textMuted}
-                    />
-                    <Text
-                      style={[styles.metaText, { color: colors.textMuted }]}
-                    >
-                      {item.eventDate} • {item.eventTime}
-                    </Text>
-                  </View>
-                  <View style={styles.metaRow}>
-                    <Feather name="user" size={12} color={colors.textMuted} />
-                    <Text
-                      style={[styles.metaText, { color: colors.textMuted }]}
-                    >
-                      {item.userEmail || "Confirmed Attendee"}
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      { backgroundColor: colors.primary + "18" },
-                    ]}
-                  >
-                    <Text
-                      style={[styles.statusText, { color: colors.primary }]}
-                    >
-                      Confirmed • {item.status || "Valid Pass"}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.qrWrap}>
-                  <QRCode value={item.id} size={72} />
-                </View>
-              </View>
-
-              <View style={[styles.divider, { borderColor: colors.border }]} />
-
-              {/* Confirmation Details Footer */}
-              <View style={styles.ticketBottom}>
-                <View style={{ flex: 1, marginRight: 12 }}>
-                  <Text style={[styles.refLabel, { color: colors.textMuted }]}>
-                    TICKET REF / ENTRY CODE
-                  </Text>
-                  <Text
-                    style={[styles.refText, { color: colors.text }]}
-                    numberOfLines={1}
-                  >
-                    {item.id}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => cancelTicket(item)}
-                  disabled={cancellingId === item.id}
-                >
-                  <Text style={[styles.cancelText, { color: "#d1435b" }]}>
-                    {cancellingId === item.id
-                      ? "Cancelling..."
-                      : "Cancel Booking"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+          renderItem={renderTicketCard}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* FULLSCREEN DIGITAL QR MODAL */}
+      <Modal
+        visible={!!selectedTicket}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSelectedTicket(null)}
+      >
+        {selectedTicket && (
+          <View style={[styles.modalScreen, { backgroundColor: colors.bg }]}>
+            {/* Modal Top Bar */}
+            <View
+              style={[
+                styles.modalTopBar,
+                { borderBottomColor: colors.border, backgroundColor: colors.card },
+              ]}
+            >
+              <TouchableOpacity
+                onPress={() => setSelectedTicket(null)}
+                style={styles.modalIconBtn}
+              >
+                <Feather name="x" size={20} color={colors.text} />
+              </TouchableOpacity>
+              <Text style={[styles.modalHeaderTitle, { color: colors.text }]}>
+                Digital Entry Pass
+              </Text>
+              <TouchableOpacity
+                onPress={() => handleShareTicket(selectedTicket)}
+                style={styles.modalIconBtn}
+              >
+                <Feather name="share-2" size={18} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              {/* Boarding-Pass Style Ticket */}
+              <View
+                style={[
+                  styles.ticketModalCard,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+              >
+                <View style={styles.modalCardHeader}>
+                  <Text style={[styles.modalFestTag, { color: colors.primary || "#8B5CF6" }]}>
+                    CREATIVE INDUSTRIES FESTIVAL 2026
+                  </Text>
+                  <Text style={[styles.modalEventTitle, { color: colors.text }]}>
+                    {selectedTicket.eventTitle}
+                  </Text>
+                </View>
+
+                {/* QR Section */}
+                <View style={styles.qrContainer}>
+                  <View style={styles.qrWhiteBox}>
+                    <QRCode
+                      value={`CIF-TICKET-${selectedTicket.id}`}
+                      size={170}
+                      backgroundColor="#ffffff"
+                      color="#0f172a"
+                    />
+                  </View>
+                  <Text style={styles.scanNotice}>Scan at venue entrance</Text>
+                </View>
+
+                {/* Ticket Details Info */}
+                <View style={styles.modalDetailGrid}>
+                  <View style={styles.modalDetailCol}>
+                    <Text style={[styles.modalLabel, { color: colors.textMuted }]}>
+                      ATTENDEE
+                    </Text>
+                    <Text style={[styles.modalVal, { color: colors.text }]}>
+                      {selectedTicket.userName || "Attendee"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.modalDetailCol}>
+                    <Text style={[styles.modalLabel, { color: colors.textMuted }]}>
+                      PASS REF
+                    </Text>
+                    <Text style={[styles.modalVal, { color: colors.text }]}>
+                      {selectedTicket.id.slice(0, 8).toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={[styles.modalDetailGrid, { marginTop: 12 }]}>
+                  <View style={styles.modalDetailCol}>
+                    <Text style={[styles.modalLabel, { color: colors.textMuted }]}>
+                      DATE
+                    </Text>
+                    <Text style={[styles.modalVal, { color: colors.text }]}>
+                      {selectedTicket.eventDate || "Date TBC"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.modalDetailCol}>
+                    <Text style={[styles.modalLabel, { color: colors.textMuted }]}>
+                      TIME
+                    </Text>
+                    <Text style={[styles.modalVal, { color: colors.text }]}>
+                      {selectedTicket.eventTime || "Time TBC"} BST
+                    </Text>
+                  </View>
+                </View>
+
+                <View
+                  style={[
+                    styles.modalCardFooter,
+                    { borderTopColor: colors.border, backgroundColor: colors.bg },
+                  ]}
+                >
+                  <View style={styles.statusBadge}>
+                    <View style={styles.statusDot} />
+                    <Text style={styles.statusText}>VALID ADMISSION</Text>
+                  </View>
+                  <Text style={[styles.admitQty, { color: colors.textMuted }]}>
+                    Admit: 1 Person
+                  </Text>
+                </View>
+              </View>
+
+              {/* Close Pass Button */}
+              <TouchableOpacity
+                style={[
+                  styles.closeModalBtn,
+                  { backgroundColor: colors.primary || "#8B5CF6" },
+                ]}
+                onPress={() => setSelectedTicket(null)}
+              >
+                <Text style={styles.closeModalBtnText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </Modal>
     </SafeScreen>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  backRow: {
+  header: {
+    height: 56,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 8,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
   },
-  backButton: { flexDirection: "row", alignItems: "center", gap: 6 },
-  backText: { fontSize: 15, fontWeight: "600" },
-  headerRow: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
-  pageTitle: { fontSize: 26, fontWeight: "bold", marginBottom: 4 },
-  pageSubtitle: { fontSize: 14 },
-  emptyText: {
-    textAlign: "center",
-    marginTop: 40,
-    fontSize: 14,
-    paddingHorizontal: 20,
-  },
-
-  ticketCard: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-  },
-  ticketTop: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  eventTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 21,
-    marginBottom: 6,
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    marginBottom: 4,
-  },
-  metaText: { fontSize: 12 },
-  statusBadge: {
-    alignSelf: "flex-start",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginTop: 6,
-  },
-  statusText: { fontSize: 11, fontWeight: "700" },
-  qrWrap: {
-    padding: 8,
-    backgroundColor: "#fff",
-    borderRadius: 10,
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
   },
-  divider: { borderTopWidth: 1, marginVertical: 12 },
-  ticketBottom: {
+  headerTitle: { fontSize: 18, fontWeight: "800" },
+  listContent: { padding: 16, gap: 14 },
+  centered: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+  },
+  loadingText: { marginTop: 12, fontSize: 14, fontWeight: "600" },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  emptyTitle: { fontSize: 20, fontWeight: "800", marginBottom: 6 },
+  emptySubtitle: { fontSize: 14, textAlign: "center", lineHeight: 20, marginBottom: 20 },
+  exploreBtn: {
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  exploreBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
+
+  card: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    elevation: 2,
+  },
+  cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 10,
   },
-  refLabel: { fontSize: 9, fontWeight: "700", tracking: 0.5, marginBottom: 2 },
-  refText: { fontSize: 12, fontWeight: "600" },
-  cancelText: { fontSize: 13, fontWeight: "700" },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#10b98120",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 5,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#10b981",
+  },
+  statusText: { fontSize: 11, fontWeight: "800", color: "#10b981" },
+  refText: { fontSize: 12, fontWeight: "700" },
+  eventTitle: { fontSize: 17, fontWeight: "800", lineHeight: 22, marginBottom: 10 },
+  metaRow: { flexDirection: "row", gap: 16, marginBottom: 12 },
+  metaItem: { flexDirection: "row", alignItems: "center", gap: 5 },
+  metaText: { fontSize: 13, fontWeight: "600" },
+  cardDivider: { borderTopWidth: 1, borderStyle: "dashed", marginVertical: 12 },
+  cardFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  ticketHolderWrap: { flex: 1, marginRight: 10 },
+  holderLabel: { fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
+  holderName: { fontSize: 13, fontWeight: "700", marginTop: 2 },
+  footerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  cancelBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  viewPassBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  viewPassBtnText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
+
+  // Modal Pass Styles
+  modalScreen: { flex: 1 },
+  modalTopBar: {
+    height: 56,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderBottomWidth: 1,
+  },
+  modalHeaderTitle: { fontSize: 16, fontWeight: "800" },
+  modalIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalBody: { flex: 1, padding: 20, justifyContent: "space-between" },
+  ticketModalCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    overflow: "hidden",
+    elevation: 4,
+  },
+  modalCardHeader: { padding: 18, paddingBottom: 12 },
+  modalFestTag: { fontSize: 11, fontWeight: "800", letterSpacing: 0.5, marginBottom: 4 },
+  modalEventTitle: { fontSize: 20, fontWeight: "900", lineHeight: 26 },
+  qrContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 20,
+  },
+  qrWhiteBox: {
+    backgroundColor: "#ffffff",
+    padding: 16,
+    borderRadius: 16,
+    elevation: 3,
+  },
+  scanNotice: { fontSize: 12, fontWeight: "600", color: "#64748b", marginTop: 10 },
+  modalDetailGrid: {
+    flexDirection: "row",
+    paddingHorizontal: 18,
+    justifyContent: "space-between",
+  },
+  modalDetailCol: { flex: 1 },
+  modalLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
+  modalVal: { fontSize: 14, fontWeight: "700", marginTop: 2 },
+  modalCardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    marginTop: 18,
+  },
+  admitQty: { fontSize: 12, fontWeight: "700" },
+  closeModalBtn: {
+    paddingVertical: 15,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  closeModalBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "800" },
 });
