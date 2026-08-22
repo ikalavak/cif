@@ -39,7 +39,7 @@ export default function MyTicketsScreen({ navigation }) {
     const q = query(
       collection(db, "bookings"),
       where("userId", "==", user.uid),
-      orderBy("created_at", "desc")
+      orderBy("created_at", "desc"),
     );
     const unsubscribe = onSnapshot(
       q,
@@ -47,7 +47,7 @@ export default function MyTicketsScreen({ navigation }) {
         setTickets(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
         setLoading(false);
       },
-      () => setLoading(false)
+      () => setLoading(false),
     );
     return unsubscribe;
   }, [user?.uid]);
@@ -82,7 +82,7 @@ export default function MyTicketsScreen({ navigation }) {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -96,7 +96,9 @@ export default function MyTicketsScreen({ navigation }) {
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Feather name="arrow-left" size={20} color={colors.text} />
-            <Text style={[styles.backText, { color: colors.text }]}>My Tickets</Text>
+            <Text style={[styles.backText, { color: colors.text }]}>
+              My Tickets
+            </Text>
           </TouchableOpacity>
         </View>
         <Text style={[styles.emptyText, { color: colors.textMuted }]}>
@@ -115,14 +117,18 @@ export default function MyTicketsScreen({ navigation }) {
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Feather name="arrow-left" size={20} color={colors.text} />
-          <Text style={[styles.backText, { color: colors.text }]}>My Tickets</Text>
+          <Text style={[styles.backText, { color: colors.text }]}>
+            My Tickets
+          </Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.headerRow}>
-        <Text style={[styles.pageTitle, { color: colors.text }]}>My Tickets</Text>
+        <Text style={[styles.pageTitle, { color: colors.text }]}>
+          My Tickets
+        </Text>
         <Text style={[styles.pageSubtitle, { color: colors.textMuted }]}>
-          {tickets.length} event{tickets.length === 1 ? "" : "s"} booked
+          {tickets.length} confirmed event{tickets.length === 1 ? "" : "s"}
         </Text>
       </View>
 
@@ -144,20 +150,45 @@ export default function MyTicketsScreen({ navigation }) {
                 { backgroundColor: colors.card, borderColor: colors.border },
               ]}
             >
+              {/* Ticket Main Details & QR Code */}
               <View style={styles.ticketTop}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.eventTitle, { color: colors.text }]} numberOfLines={2}>
+                  <Text
+                    style={[styles.eventTitle, { color: colors.text }]}
+                    numberOfLines={2}
+                  >
                     {item.eventTitle}
                   </Text>
                   <View style={styles.metaRow}>
-                    <Feather name="calendar" size={12} color={colors.textMuted} />
-                    <Text style={[styles.metaText, { color: colors.textMuted }]}>
+                    <Feather
+                      name="calendar"
+                      size={12}
+                      color={colors.textMuted}
+                    />
+                    <Text
+                      style={[styles.metaText, { color: colors.textMuted }]}
+                    >
                       {item.eventDate} • {item.eventTime}
                     </Text>
                   </View>
-                  <View style={[styles.statusBadge, { backgroundColor: colors.primary + "18" }]}>
-                    <Text style={[styles.statusText, { color: colors.primary }]}>
-                      {item.status || "Valid"}
+                  <View style={styles.metaRow}>
+                    <Feather name="user" size={12} color={colors.textMuted} />
+                    <Text
+                      style={[styles.metaText, { color: colors.textMuted }]}
+                    >
+                      {item.userEmail || "Confirmed Attendee"}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      { backgroundColor: colors.primary + "18" },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.statusText, { color: colors.primary }]}
+                    >
+                      Confirmed • {item.status || "Valid Pass"}
                     </Text>
                   </View>
                 </View>
@@ -169,16 +200,27 @@ export default function MyTicketsScreen({ navigation }) {
 
               <View style={[styles.divider, { borderColor: colors.border }]} />
 
+              {/* Confirmation Details Footer */}
               <View style={styles.ticketBottom}>
-                <Text style={[styles.refText, { color: colors.textMuted }]} numberOfLines={1}>
-                  Ref: {item.id}
-                </Text>
+                <View style={{ flex: 1, marginRight: 12 }}>
+                  <Text style={[styles.refLabel, { color: colors.textMuted }]}>
+                    TICKET REF / ENTRY CODE
+                  </Text>
+                  <Text
+                    style={[styles.refText, { color: colors.text }]}
+                    numberOfLines={1}
+                  >
+                    {item.id}
+                  </Text>
+                </View>
                 <TouchableOpacity
                   onPress={() => cancelTicket(item)}
                   disabled={cancellingId === item.id}
                 >
                   <Text style={[styles.cancelText, { color: "#d1435b" }]}>
-                    {cancellingId === item.id ? "Cancelling..." : "Cancel"}
+                    {cancellingId === item.id
+                      ? "Cancelling..."
+                      : "Cancel Booking"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -203,7 +245,12 @@ const styles = StyleSheet.create({
   headerRow: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
   pageTitle: { fontSize: 26, fontWeight: "bold", marginBottom: 4 },
   pageSubtitle: { fontSize: 14 },
-  emptyText: { textAlign: "center", marginTop: 40, fontSize: 14, paddingHorizontal: 20 },
+  emptyText: {
+    textAlign: "center",
+    marginTop: 40,
+    fontSize: 14,
+    paddingHorizontal: 20,
+  },
 
   ticketCard: {
     borderWidth: 1,
@@ -215,20 +262,33 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 12,
   },
-  eventTitle: { fontSize: 15, fontWeight: "700", lineHeight: 20, marginBottom: 6 },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 8 },
+  eventTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    lineHeight: 21,
+    marginBottom: 6,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginBottom: 4,
+  },
   metaText: { fontSize: 12 },
   statusBadge: {
     alignSelf: "flex-start",
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 3,
+    marginTop: 6,
   },
   statusText: { fontSize: 11, fontWeight: "700" },
   qrWrap: {
-    padding: 6,
+    padding: 8,
     backgroundColor: "#fff",
-    borderRadius: 8,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
   divider: { borderTopWidth: 1, marginVertical: 12 },
   ticketBottom: {
@@ -236,6 +296,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  refText: { fontSize: 11, flex: 1, marginRight: 12 },
+  refLabel: { fontSize: 9, fontWeight: "700", tracking: 0.5, marginBottom: 2 },
+  refText: { fontSize: 12, fontWeight: "600" },
   cancelText: { fontSize: 13, fontWeight: "700" },
 });
