@@ -9,9 +9,9 @@ import {
   Image,
   TouchableOpacity,
   Share,
-  Alert,
 } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { useTheme } from "../context/ThemeContext";
 import QRCode from "react-native-qrcode-svg";
 
@@ -28,38 +28,16 @@ export default function EventDetailsModal({
   onBook,
   bookingInProgress,
   currentUser,
-  navigation,
 }) {
   const { colors } = useTheme();
+  const navigation = useNavigation();
+
   const [showQrPass, setShowQrPass] = useState(false);
 
   if (!event) return null;
 
-  // Check if current user is logged in
-  const handleAuthAction = (action) => {
-    if (!currentUser || currentUser.isAnonymous) {
-      Alert.alert(
-        "Account Required",
-        "Please log in or create an account to access event passes and save favorites.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Log In",
-            onPress: () => {
-              onClose();
-              if (navigation?.navigate) {
-                navigation.navigate("Login");
-              }
-            },
-          },
-        ],
-      );
-      return;
-    }
-    action();
-  };
-
   const dateObj = event.start_date?.toDate ? event.start_date.toDate() : null;
+
   const fullDateStr = dateObj
     ? dateObj.toLocaleDateString("en-GB", {
         weekday: "long",
@@ -78,14 +56,77 @@ export default function EventDetailsModal({
 
   const capacity = event.capacity || 100;
   const booked = event.booked_count || 0;
+
   const spotsRemaining = Math.max(0, capacity - booked);
+
   const isFull = event.capacity != null && booked >= capacity && !isBooked;
 
+  /*
+   * -------------------------------------------------------
+   * GUEST LOGIN CHECK
+   * -------------------------------------------------------
+   *
+   * Guests can browse events, but anything that requires
+   * an account sends them to the Login screen.
+   */
+  const requireLogin = () => {
+    onClose();
+
+    navigation.navigate("Login");
+  };
+
+  /*
+   * -------------------------------------------------------
+   * HANDLE REGISTRATION
+   * -------------------------------------------------------
+   */
+  const handleBooking = () => {
+    // Guest user
+    if (!currentUser) {
+      requireLogin();
+      return;
+    }
+
+    // Logged-in user
+    if (onBook) {
+      onBook(event);
+    }
+  };
+
+  /*
+   * -------------------------------------------------------
+   * HANDLE BOOKMARK
+   * -------------------------------------------------------
+   */
+  const handleBookmark = () => {
+    // Guest user
+    if (!currentUser) {
+      requireLogin();
+      return;
+    }
+
+    // Logged-in user
+    if (onToggleBookmark) {
+      onToggleBookmark(event.id);
+    }
+  };
+
+  /*
+   * -------------------------------------------------------
+   * SHARE EVENT
+   * -------------------------------------------------------
+   */
   const handleShare = async () => {
     try {
       await Share.share({
         title: event.title,
-        message: `Check out "${event.title}" at the Creative Industries Festival 2026!\n\n📅 Date: ${fullDateStr}\n⏰ Time: ${timeStr} BST\n📍 Location: ${event.venue || "Royal Docks & Stratford"}\n\nBook your spot now!`,
+        message: `Check out "${event.title}" at the Creative Industries Festival 2026!
+
+📅 Date: ${fullDateStr}
+⏰ Time: ${timeStr} BST
+📍 Location: ${event.venue || "Royal Docks & Stratford"}
+
+Book your spot now!`,
       });
     } catch (err) {
       console.warn("Share error:", err);
@@ -104,7 +145,9 @@ export default function EventDetailsModal({
       onRequestClose={onClose}
     >
       <View style={[styles.container, { backgroundColor: colors.bg }]}>
-        {/* Top Navigation Bar */}
+        {/* =====================================================
+            TOP NAVIGATION BAR
+        ====================================================== */}
         <View
           style={[
             styles.navBar,
@@ -123,6 +166,7 @@ export default function EventDetailsModal({
           </TouchableOpacity>
 
           <View style={styles.navActions}>
+            {/* Share */}
             <TouchableOpacity
               onPress={handleShare}
               style={[styles.iconCircle, { backgroundColor: colors.bg }]}
@@ -130,12 +174,10 @@ export default function EventDetailsModal({
             >
               <Feather name="share-2" size={18} color={colors.text} />
             </TouchableOpacity>
+
+            {/* Bookmark */}
             <TouchableOpacity
-              onPress={() =>
-                handleAuthAction(
-                  () => onToggleBookmark && onToggleBookmark(event.id),
-                )
-              }
+              onPress={handleBookmark}
               style={[styles.iconCircle, { backgroundColor: colors.bg }]}
               activeOpacity={0.8}
             >
@@ -148,10 +190,14 @@ export default function EventDetailsModal({
           </View>
         </View>
 
-        {/* Scrollable Content */}
+        {/* =====================================================
+            SCROLLABLE CONTENT
+        ====================================================== */}
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 120 }}
+          contentContainerStyle={{
+            paddingBottom: 120,
+          }}
         >
           {/* Hero Banner */}
           <Image
@@ -162,18 +208,24 @@ export default function EventDetailsModal({
           />
 
           <View style={styles.contentWrap}>
-            {/* Category & Price Pill */}
+            {/* =================================================
+                CATEGORY & PRICE
+            ================================================== */}
             <View style={styles.badgeRow}>
               <View
                 style={[
                   styles.categoryPill,
-                  { backgroundColor: (colors.primary || "#8B5CF6") + "20" },
+                  {
+                    backgroundColor: (colors.primary || "#8B5CF6") + "20",
+                  },
                 ]}
               >
                 <Text
                   style={[
                     styles.categoryText,
-                    { color: colors.primary || "#8B5CF6" },
+                    {
+                      color: colors.primary || "#8B5CF6",
+                    },
                   ]}
                 >
                   {event.category || "FESTIVAL SESSION"}
@@ -183,7 +235,9 @@ export default function EventDetailsModal({
               <Text
                 style={[
                   styles.priceTag,
-                  { color: colors.primary || "#8B5CF6" },
+                  {
+                    color: colors.primary || "#8B5CF6",
+                  },
                 ]}
               >
                 {event.price ? `£${event.price}` : "FREE PASS"}
@@ -195,12 +249,17 @@ export default function EventDetailsModal({
               {event.title}
             </Text>
 
-            {/* Quick Share Banner Option */}
+            {/* =================================================
+                SHARE BANNER
+            ================================================== */}
             <TouchableOpacity
               onPress={handleShare}
               style={[
                 styles.shareRowBtn,
-                { backgroundColor: colors.card, borderColor: colors.border },
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                },
               ]}
               activeOpacity={0.8}
             >
@@ -208,7 +267,9 @@ export default function EventDetailsModal({
                 <View
                   style={[
                     styles.shareIconWrap,
-                    { backgroundColor: (colors.primary || "#8B5CF6") + "20" },
+                    {
+                      backgroundColor: (colors.primary || "#8B5CF6") + "20",
+                    },
                   ]}
                 >
                   <Feather
@@ -217,10 +278,12 @@ export default function EventDetailsModal({
                     color={colors.primary || "#8B5CF6"}
                   />
                 </View>
+
                 <View>
                   <Text style={[styles.shareRowTitle, { color: colors.text }]}>
                     Share with friends or colleagues
                   </Text>
+
                   <Text
                     style={[styles.shareRowSub, { color: colors.textMuted }]}
                   >
@@ -228,6 +291,7 @@ export default function EventDetailsModal({
                   </Text>
                 </View>
               </View>
+
               <Feather
                 name="chevron-right"
                 size={18}
@@ -235,7 +299,9 @@ export default function EventDetailsModal({
               />
             </TouchableOpacity>
 
-            {/* Organizer */}
+            {/* =================================================
+                ORGANIZER
+            ================================================== */}
             <View
               style={[
                 styles.hostRow,
@@ -248,15 +314,19 @@ export default function EventDetailsModal({
               <View
                 style={[
                   styles.hostAvatar,
-                  { backgroundColor: colors.primary || "#8B5CF6" },
+                  {
+                    backgroundColor: colors.primary || "#8B5CF6",
+                  },
                 ]}
               >
                 <Feather name="award" size={18} color="#FFFFFF" />
               </View>
+
               <View style={{ flex: 1 }}>
                 <Text style={[styles.hostLabel, { color: colors.textMuted }]}>
                   Organised by
                 </Text>
+
                 <Text
                   style={[styles.hostName, { color: colors.text }]}
                   numberOfLines={1}
@@ -268,13 +338,16 @@ export default function EventDetailsModal({
               </View>
             </View>
 
-            {/* When & Where Section */}
+            {/* =================================================
+                WHEN AND WHERE
+            ================================================== */}
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 When and Where
               </Text>
 
               <View style={styles.infoCard}>
+                {/* Date */}
                 <View style={styles.infoItem}>
                   <View
                     style={[
@@ -291,19 +364,23 @@ export default function EventDetailsModal({
                       color={colors.primary || "#8B5CF6"}
                     />
                   </View>
+
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.infoHeading, { color: colors.text }]}>
                       Date and Time
                     </Text>
+
                     <Text style={[styles.infoSub, { color: colors.textMuted }]}>
                       {fullDateStr}
                     </Text>
+
                     <Text style={[styles.infoSub, { color: colors.textMuted }]}>
                       {timeStr} BST
                     </Text>
                   </View>
                 </View>
 
+                {/* Location */}
                 <View style={[styles.infoItem, { marginTop: 14 }]}>
                   <View
                     style={[
@@ -320,16 +397,24 @@ export default function EventDetailsModal({
                       color={colors.primary || "#8B5CF6"}
                     />
                   </View>
+
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.infoHeading, { color: colors.text }]}>
                       Location
                     </Text>
+
                     <Text style={[styles.infoSub, { color: colors.textMuted }]}>
                       {event.venue || "University of East London / Royal Docks"}
                     </Text>
+
                     {!!event.room && (
                       <Text
-                        style={[styles.infoSub, { color: colors.textMuted }]}
+                        style={[
+                          styles.infoSub,
+                          {
+                            color: colors.textMuted,
+                          },
+                        ]}
                       >
                         Room: {event.room}
                       </Text>
@@ -339,23 +424,29 @@ export default function EventDetailsModal({
               </View>
             </View>
 
-            {/* About this Event */}
+            {/* =================================================
+                ABOUT EVENT
+            ================================================== */}
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 About this Event
               </Text>
+
               <Text style={[styles.description, { color: colors.text }]}>
                 {event.description ||
                   "Join us for an inspiring session exploring creative innovation, interactive workshops, and collaborative industry projects. Network with peers and gain first-hand insights."}
               </Text>
             </View>
 
-            {/* Capacity / Availability */}
+            {/* =================================================
+                CAPACITY
+            ================================================== */}
             {event.capacity != null && (
               <View style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>
                   Ticket Availability
                 </Text>
+
                 <View
                   style={[
                     styles.capacityBox,
@@ -371,17 +462,26 @@ export default function EventDetailsModal({
                     >
                       General Admission Pass
                     </Text>
+
                     <Text
                       style={[
                         styles.capacityCount,
-                        { color: colors.textMuted },
+                        {
+                          color: colors.textMuted,
+                        },
                       ]}
                     >
                       {spotsRemaining} of {capacity} spots remaining
                     </Text>
                   </View>
+
                   <View
-                    style={[styles.barBase, { backgroundColor: colors.input }]}
+                    style={[
+                      styles.barBase,
+                      {
+                        backgroundColor: colors.input,
+                      },
+                    ]}
                   >
                     <View
                       style={[
@@ -402,7 +502,9 @@ export default function EventDetailsModal({
           </View>
         </ScrollView>
 
-        {/* Sticky Bottom Action Bar */}
+        {/* =====================================================
+            STICKY BOTTOM ACTION BAR
+        ====================================================== */}
         <View
           style={[
             styles.bottomCheckoutBar,
@@ -418,10 +520,13 @@ export default function EventDetailsModal({
             >
               {isBooked ? "Booking Status" : "Pass Type"}
             </Text>
+
             <Text
               style={[
                 styles.bottomPrice,
-                { color: isBooked ? "#10b981" : colors.text },
+                {
+                  color: isBooked ? "#10b981" : colors.text,
+                },
               ]}
             >
               {isBooked
@@ -433,13 +538,17 @@ export default function EventDetailsModal({
           </View>
 
           <View style={styles.bottomButtonsGroup}>
-            {/* View Pass Button (Only shown if booked) */}
+            {/* =================================================
+                VIEW PASS
+            ================================================== */}
             {isBooked && (
               <TouchableOpacity
                 onPress={() => setShowQrPass(true)}
                 style={[
                   styles.viewPassBtn,
-                  { backgroundColor: colors.primary || "#8B5CF6" },
+                  {
+                    backgroundColor: colors.primary || "#8B5CF6",
+                  },
                 ]}
                 activeOpacity={0.85}
               >
@@ -449,13 +558,16 @@ export default function EventDetailsModal({
                   color="#fff"
                   style={{ marginRight: 6 }}
                 />
+
                 <Text style={styles.viewPassBtnText}>View Pass</Text>
               </TouchableOpacity>
             )}
 
-            {/* Register / Cancel Button */}
+            {/* =================================================
+                REGISTER / CANCEL
+            ================================================== */}
             <TouchableOpacity
-              onPress={() => handleAuthAction(() => onBook && onBook(event))}
+              onPress={handleBooking}
               disabled={bookingInProgress || (isFull && !isBooked)}
               style={[
                 styles.checkoutBtn,
@@ -465,8 +577,11 @@ export default function EventDetailsModal({
                     : isFull
                       ? colors.border
                       : colors.primary || "#8B5CF6",
+
                   borderColor: isBooked ? "#ef4444" : "transparent",
+
                   borderWidth: isBooked ? 1.2 : 0,
+
                   paddingHorizontal: isBooked ? 14 : 24,
                 },
               ]}
@@ -496,7 +611,9 @@ export default function EventDetailsModal({
           </View>
         </View>
 
-        {/* INLINE DIGITAL QR PASS MODAL */}
+        {/* =====================================================
+            QR PASS MODAL
+        ====================================================== */}
         <Modal
           visible={showQrPass}
           animationType="fade"
@@ -507,19 +624,26 @@ export default function EventDetailsModal({
             <View
               style={[
                 styles.qrModalContent,
-                { backgroundColor: colors.card, borderColor: colors.border },
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                },
               ]}
             >
+              {/* QR Header */}
               <View style={styles.qrModalHeader}>
                 <View>
                   <Text
                     style={[
                       styles.qrModalTag,
-                      { color: colors.primary || "#8B5CF6" },
+                      {
+                        color: colors.primary || "#8B5CF6",
+                      },
                     ]}
                   >
                     CIF 2026 ENTRY PASS
                   </Text>
+
                   <Text
                     style={[styles.qrModalTitle, { color: colors.text }]}
                     numberOfLines={2}
@@ -527,14 +651,21 @@ export default function EventDetailsModal({
                     {event.title}
                   </Text>
                 </View>
+
                 <TouchableOpacity
                   onPress={() => setShowQrPass(false)}
-                  style={[styles.qrCloseBtn, { backgroundColor: colors.bg }]}
+                  style={[
+                    styles.qrCloseBtn,
+                    {
+                      backgroundColor: colors.bg,
+                    },
+                  ]}
                 >
                   <Feather name="x" size={18} color={colors.text} />
                 </TouchableOpacity>
               </View>
 
+              {/* QR Code */}
               <View style={styles.qrCenterBox}>
                 <View style={styles.qrWhiteContainer}>
                   <QRCode
@@ -544,43 +675,74 @@ export default function EventDetailsModal({
                     color="#0f172a"
                   />
                 </View>
-                <Text style={[styles.qrRefText, { color: colors.textMuted }]}>
+
+                <Text
+                  style={[
+                    styles.qrRefText,
+                    {
+                      color: colors.textMuted,
+                    },
+                  ]}
+                >
                   REF: {bookingId.slice(0, 10).toUpperCase()}
                 </Text>
+
                 <Text style={styles.qrScanLabel}>
                   Present code at venue check-in
                 </Text>
               </View>
 
+              {/* QR Meta */}
               <View
-                style={[styles.qrMetaRow, { borderTopColor: colors.border }]}
+                style={[
+                  styles.qrMetaRow,
+                  {
+                    borderTopColor: colors.border,
+                  },
+                ]}
               >
                 <View>
                   <Text
-                    style={[styles.qrMetaLabel, { color: colors.textMuted }]}
+                    style={[
+                      styles.qrMetaLabel,
+                      {
+                        color: colors.textMuted,
+                      },
+                    ]}
                   >
                     DATE & TIME
                   </Text>
+
                   <Text style={[styles.qrMetaVal, { color: colors.text }]}>
                     {fullDateStr.split(",")[0]}, {timeStr}
                   </Text>
                 </View>
+
                 <View>
                   <Text
-                    style={[styles.qrMetaLabel, { color: colors.textMuted }]}
+                    style={[
+                      styles.qrMetaLabel,
+                      {
+                        color: colors.textMuted,
+                      },
+                    ]}
                   >
                     LOCATION
                   </Text>
+
                   <Text style={[styles.qrMetaVal, { color: colors.text }]}>
                     {event.venue ? event.venue.slice(0, 18) : "Festival Hub"}
                   </Text>
                 </View>
               </View>
 
+              {/* Done */}
               <TouchableOpacity
                 style={[
                   styles.qrDoneBtn,
-                  { backgroundColor: colors.primary || "#8B5CF6" },
+                  {
+                    backgroundColor: colors.primary || "#8B5CF6",
+                  },
                 ]}
                 onPress={() => setShowQrPass(false)}
               >
@@ -595,7 +757,10 @@ export default function EventDetailsModal({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: {
+    flex: 1,
+  },
+
   navBar: {
     height: 56,
     paddingHorizontal: 16,
@@ -604,6 +769,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderBottomWidth: 1,
   },
+
   iconCircle: {
     width: 36,
     height: 36,
@@ -611,33 +777,55 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  navActions: { flexDirection: "row", gap: 10, alignItems: "center" },
-  heroImage: { width: "100%", height: 220, resizeMode: "cover" },
-  contentWrap: { padding: 20 },
+
+  navActions: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+  },
+
+  heroImage: {
+    width: "100%",
+    height: 220,
+    resizeMode: "cover",
+  },
+
+  contentWrap: {
+    padding: 20,
+  },
+
   badgeRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 10,
   },
+
   categoryPill: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
   },
+
   categoryText: {
     fontSize: 11,
     fontWeight: "800",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  priceTag: { fontSize: 14, fontWeight: "900" },
+
+  priceTag: {
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
   title: {
     fontSize: 22,
     fontWeight: "800",
     lineHeight: 28,
     marginBottom: 14,
   },
+
   shareRowBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -647,12 +835,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 16,
   },
+
   shareRowLeft: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     flex: 1,
   },
+
   shareIconWrap: {
     width: 36,
     height: 36,
@@ -660,8 +850,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  shareRowTitle: { fontSize: 13, fontWeight: "700" },
-  shareRowSub: { fontSize: 11, marginTop: 1 },
+
+  shareRowTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  shareRowSub: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+
   hostRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -671,6 +870,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 20,
   },
+
   hostAvatar: {
     width: 38,
     height: 38,
@@ -678,12 +878,37 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  hostLabel: { fontSize: 11, fontWeight: "600" },
-  hostName: { fontSize: 14, fontWeight: "700" },
-  section: { marginBottom: 22 },
-  sectionTitle: { fontSize: 17, fontWeight: "800", marginBottom: 10 },
-  infoCard: { gap: 4 },
-  infoItem: { flexDirection: "row", gap: 14, alignItems: "flex-start" },
+
+  hostLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+
+  hostName: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  section: {
+    marginBottom: 22,
+  },
+
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    marginBottom: 10,
+  },
+
+  infoCard: {
+    gap: 4,
+  },
+
+  infoItem: {
+    flexDirection: "row",
+    gap: 14,
+    alignItems: "flex-start",
+  },
+
   iconWrap: {
     width: 40,
     height: 40,
@@ -692,19 +917,56 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  infoHeading: { fontSize: 14, fontWeight: "700", marginBottom: 2 },
-  infoSub: { fontSize: 13, lineHeight: 18 },
-  description: { fontSize: 14, lineHeight: 22, opacity: 0.9 },
-  capacityBox: { padding: 14, borderRadius: 14, borderWidth: 1 },
+
+  infoHeading: {
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+
+  infoSub: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+
+  description: {
+    fontSize: 14,
+    lineHeight: 22,
+    opacity: 0.9,
+  },
+
+  capacityBox: {
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+
   capacityMeta: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 8,
   },
-  capacityTitle: { fontSize: 13, fontWeight: "700" },
-  capacityCount: { fontSize: 12 },
-  barBase: { height: 6, borderRadius: 3, overflow: "hidden" },
-  barFill: { height: "100%", borderRadius: 3 },
+
+  capacityTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  capacityCount: {
+    fontSize: 12,
+  },
+
+  barBase: {
+    height: 6,
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+
+  barFill: {
+    height: "100%",
+    borderRadius: 3,
+  },
+
   bottomCheckoutBar: {
     position: "absolute",
     bottom: 0,
@@ -717,9 +979,23 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  bottomPriceLabel: { fontSize: 11, fontWeight: "600" },
-  bottomPrice: { fontSize: 16, fontWeight: "900" },
-  bottomButtonsGroup: { flexDirection: "row", alignItems: "center", gap: 8 },
+
+  bottomPriceLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+
+  bottomPrice: {
+    fontSize: 16,
+    fontWeight: "900",
+  },
+
+  bottomButtonsGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+
   viewPassBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -727,41 +1003,61 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
   },
-  viewPassBtnText: { color: "#fff", fontSize: 13, fontWeight: "800" },
+
+  viewPassBtnText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
   checkoutBtn: {
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
-  checkoutBtnText: { fontSize: 13, fontWeight: "800" },
 
-  // QR Modal Overlay
+  checkoutBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  // QR Modal
+
   qrModalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.6)",
     justifyContent: "center",
     padding: 20,
   },
+
   qrModalContent: {
     borderRadius: 22,
     borderWidth: 1,
     padding: 20,
     elevation: 6,
   },
+
   qrModalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 16,
   },
-  qrModalTag: { fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
+
+  qrModalTag: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+
   qrModalTitle: {
     fontSize: 18,
     fontWeight: "800",
     marginTop: 2,
     maxWidth: 220,
   },
+
   qrCloseBtn: {
     width: 32,
     height: 32,
@@ -769,19 +1065,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+
   qrCenterBox: {
     alignItems: "center",
     justifyContent: "center",
     marginVertical: 10,
   },
+
   qrWhiteContainer: {
     backgroundColor: "#fff",
     padding: 16,
     borderRadius: 16,
     elevation: 3,
   },
-  qrRefText: { fontSize: 12, fontWeight: "700", marginTop: 10 },
-  qrScanLabel: { fontSize: 12, color: "#64748b", marginTop: 2 },
+
+  qrRefText: {
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 10,
+  },
+
+  qrScanLabel: {
+    fontSize: 12,
+    color: "#64748b",
+    marginTop: 2,
+  },
+
   qrMetaRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -789,13 +1098,28 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     marginTop: 12,
   },
-  qrMetaLabel: { fontSize: 9, fontWeight: "800" },
-  qrMetaVal: { fontSize: 12, fontWeight: "700", marginTop: 2 },
+
+  qrMetaLabel: {
+    fontSize: 9,
+    fontWeight: "800",
+  },
+
+  qrMetaVal: {
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+
   qrDoneBtn: {
     marginTop: 16,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
   },
-  qrDoneBtnText: { color: "#fff", fontSize: 14, fontWeight: "800" },
+
+  qrDoneBtnText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "800",
+  },
 });
