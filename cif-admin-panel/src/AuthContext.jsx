@@ -8,10 +8,6 @@ import {
 import {
   doc,
   getDoc,
-  collection,
-  query,
-  where,
-  getDocs,
   setDoc,
   updateDoc,
   serverTimestamp,
@@ -47,19 +43,19 @@ export function AuthProvider({ children }) {
           { merge: true }
         );
       } catch (e) {
-        console.warn('Super Admin auto-sync failed:', e.message);
+        console.warn('Super Admin auto-sync note:', e.message);
       }
       return { isAdmin: true, role: 'superadmin' };
     }
 
-    // 2. Direct lookup by UID
+    // 2. Direct lookup by UID doc (Complies with match /admins/{uid})
     try {
       const uidSnap = await getDoc(doc(db, 'admins', user.uid));
       if (uidSnap.exists()) {
         const data = uidSnap.data();
         const userRole = data.role === 'superadmin' ? 'superadmin' : 'admin';
 
-        // Update last login without modifying roles
+        // Update last login timestamp safely
         try {
           await updateDoc(doc(db, 'admins', user.uid), {
             lastLogin: serverTimestamp(),
@@ -69,24 +65,7 @@ export function AuthProvider({ children }) {
         return { isAdmin: true, role: userRole };
       }
     } catch (e) {
-      console.warn('UID admin check error:', e.message);
-    }
-
-    // 3. Fallback lookup by email (only if pre-granted by a Super Admin)
-    try {
-      const q = query(
-        collection(db, 'admins'),
-        where('email', '==', normalizedEmail)
-      );
-      const querySnap = await getDocs(q);
-
-      if (!querySnap.empty) {
-        const matchedDoc = querySnap.docs[0].data();
-        const detectedRole = matchedDoc.role === 'superadmin' ? 'superadmin' : 'admin';
-        return { isAdmin: true, role: detectedRole };
-      }
-    } catch (e) {
-      console.warn('Email admin check error:', e.message);
+      console.warn('UID admin verification failed:', e.message);
     }
 
     return { isAdmin: false, role: null };
@@ -121,7 +100,7 @@ export function AuthProvider({ children }) {
       setSession(null);
       setIsAdmin(false);
       setRole(null);
-      throw new Error(`Access Denied: ${user.email} is not authorized by a Super Admin.`);
+      throw new Error(`Access Denied: ${user.email} is not registered as an Admin.`);
     }
 
     setSession(user);

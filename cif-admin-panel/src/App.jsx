@@ -1,4 +1,3 @@
-// cif-admin-panel/src/App.jsx
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./AuthContext";
@@ -9,6 +8,8 @@ import HomeSettings from "./pages/HomeSettings";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Events from "./pages/Events";
+import Opportunities from "./pages/Opportunities";
+import Applications from "./pages/Applications";
 import Venues from "./pages/Venues";
 import Categories from "./pages/Categories";
 import Speakers from "./pages/Speakers";
@@ -17,16 +18,14 @@ import Sponsors from "./pages/Sponsors";
 import Announcements from "./pages/Announcements";
 import Users from "./pages/Users";
 import NotificationsPage from "./pages/NotificationsPage";
-import AdminRolesManager from "./pages/AdminRolesManager"; // 1. IMPORT COMPONENT
+import AdminRolesManager from "./pages/AdminRolesManager";
 
 export default function App() {
   return (
     <AuthProvider>
       <Routes>
-        {/* 1. Public Route */}
         <Route path="/login" element={<Login />} />
 
-        {/* 2. Protected Admin Area */}
         <Route
           element={
             <AdminRoute>
@@ -36,6 +35,8 @@ export default function App() {
         >
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/events" element={<Events />} />
+          <Route path="/opportunities" element={<Opportunities />} />
+          <Route path="/applications" element={<Applications />} />
           <Route path="/venues" element={<Venues />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/speakers" element={<Speakers />} />
@@ -43,13 +44,12 @@ export default function App() {
           <Route path="/sponsors" element={<Sponsors />} />
           <Route path="/announcements" element={<Announcements />} />
           <Route path="/users" element={<Users />} />
-          <Route path="/admin-roles" element={<AdminRolesManager />} /> {/* 2. ADD ROUTE */}
+          <Route path="/admin-roles" element={<AdminRolesManager />} />
           <Route path="/home-settings" element={<HomeSettings />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route index element={<Navigate to="/dashboard" replace />} />
         </Route>
 
-        {/* 3. Fallback Route */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </AuthProvider>

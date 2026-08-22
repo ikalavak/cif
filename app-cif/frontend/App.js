@@ -34,7 +34,7 @@ import { auth, db } from "./src/config/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
-// --- IMPORT YOUR SCREENS ---
+// --- IMPORT SCREENS ---
 import LoginScreen from "./src/screens/LoginScreen";
 import SignUpScreen from "./src/screens/SignUpScreen";
 import SplashScreen from "./src/screens/SplashScreen";
@@ -46,6 +46,7 @@ import NotificationsScreen from "./src/screens/NotificationsScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
 import ForumScreen from "./src/screens/ForumScreen";
 import JobBoard from "./src/screens/JobBoard";
+import JobDetails from "./src/screens/JobDetails"; // <-- Added import
 import PortfolioScreen from "./src/screens/PortfolioScreen";
 import HomeGuest from "./src/screens/HomeGuest";
 import ProfileGuest from "./src/screens/ProfileGuest";
@@ -403,11 +404,10 @@ function AppInner() {
   const { colors, scheme } = useTheme();
   const navigationRef = useRef(null);
 
-  // 1. Auth Sync: Ensures authenticated and verified users exist in Firestore
+  // 1. Auth Sync
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (user && db) {
-        // Skip unverified password-based accounts
         const isPasswordProvider = user.providerData.some(
           (p) => p.providerId === "password",
         );
@@ -548,6 +548,7 @@ function AppInner() {
           <Stack.Screen name="Gallery" component={GalleryScreen} />
           <Stack.Screen name="ForumScreen" component={ForumScreen} />
           <Stack.Screen name="JobBoard" component={JobBoard} />
+          <Stack.Screen name="JobDetails" component={JobDetails} />
           <Stack.Screen name="PortfolioScreen" component={PortfolioScreen} />
           <Stack.Screen
             name="EditProfileScreen"

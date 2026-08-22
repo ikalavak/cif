@@ -1,5 +1,6 @@
+// cif-admin-panel/src/components/CollectionManager.jsx
 import React, { useEffect, useMemo, useState } from 'react';
-import { db } from '../firebaseClient';
+import { db, storage } from '../firebaseClient';
 import {
   collection,
   addDoc,
@@ -11,18 +12,172 @@ import {
   orderBy,
   serverTimestamp,
 } from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
-/**
- * CollectionManager renders a full CRUD table (search, create, edit, delete,
- * quick-toggle boolean fields) for a single Firestore collection.
- *
- * Uses onSnapshot (not a one-off getDocs) so any change — made here, by a
- * teammate in another tab, or written directly to Firestore — appears
- * instantly for everyone with this page open, and is what your mobile app /
- * website should also subscribe to for the same live behaviour.
- *
- * Usage: see src/pages/Events.jsx for a full example config.
- */
+// --- Reusable Gallery Picker Modal ---
+function GalleryPickerModal({ isOpen, onClose, onSelect }) {
+  const [images, setImages] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setLoading(true);
+    const q = query(collection(db, 'gallery'), orderBy('created_at', 'desc'));
+    const unsubscribe = onSnapshot(q, (snap) => {
+      setImages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.65)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+    }}>
+      <div style={{
+        background: '#fff', padding: 24, borderRadius: 10, maxWidth: 680, width: '92%',
+        maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ margin: 0, fontSize: 18 }}>Select from Media Gallery</h3>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>✕</button>
+        </div>
+
+        {loading ? (
+          <p className="muted" style={{ textAlign: 'center', padding: 40 }}>Loading media...</p>
+        ) : images.length === 0 ? (
+          <p className="muted" style={{ textAlign: 'center', padding: 40 }}>No images found in gallery. Upload one first.</p>
+        ) : (
+          <div style={{
+            overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+            gap: 12, padding: 4
+          }}>
+            {images.map((img) => (
+              <div
+                key={img.id}
+                onClick={() => { onSelect(img.image_url); onClose(); }}
+                style={{
+                  cursor: 'pointer', border: '2px solid transparent', borderRadius: 6,
+                  overflow: 'hidden', transition: 'all 0.15s ease', background: '#f5f5f5'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.borderColor = '#0066cc'}
+                onMouseLeave={(e) => e.currentTarget.style.borderColor = 'transparent'}
+              >
+                <img
+                  src={img.image_url}
+                  alt={img.caption || 'Asset'}
+                  style={{ width: '100%', height: 100, objectFit: 'cover', display: 'block' }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// --- Image Field with Direct Upload & Picker ---
+function ImageFieldInput({ value, onChange, required }) {
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    const storagePath = `uploads/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+    const storageRef = ref(storage, storagePath);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on(
+      'state_changed',
+      (snap) => setProgress(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
+      (err) => {
+        console.error('Storage upload error:', err);
+        setUploading(false);
+      },
+      async () => {
+        const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+        onChange(downloadUrl);
+        // Also register upload in the gallery collection automatically
+        await addDoc(collection(db, 'gallery'), {
+          image_url: downloadUrl,
+          storage_path: storagePath,
+          caption: file.name,
+          created_at: serverTimestamp(),
+        }).catch(() => {});
+
+        setUploading(false);
+        setProgress(0);
+      }
+    );
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <input
+          type="text"
+          value={value ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Paste URL or upload image"
+          required={required}
+          style={{ flex: 1 }}
+        />
+        <label className="btn-secondary" style={{ cursor: 'pointer', margin: 0, whiteSpace: 'nowrap' }}>
+          {uploading ? `${progress}%` : 'Upload File'}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            disabled={uploading}
+            style={{ display: 'none' }}
+          />
+        </label>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => setIsPickerOpen(true)}
+          style={{ whiteSpace: 'nowrap' }}
+        >
+          Pick from Gallery
+        </button>
+      </div>
+
+      {value && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <img
+            src={value}
+            alt="Preview"
+            style={{ width: 120, height: 75, objectFit: 'cover', borderRadius: 6, border: '1px solid #e0e0e0' }}
+          />
+          <button
+            type="button"
+            className="link-btn danger"
+            onClick={() => onChange('')}
+            style={{ fontSize: 12 }}
+          >
+            Remove Image
+          </button>
+        </div>
+      )}
+
+      <GalleryPickerModal
+        isOpen={isPickerOpen}
+        onClose={() => setIsPickerOpen(false)}
+        onSelect={(url) => onChange(url)}
+      />
+    </div>
+  );
+}
+
+// --- Main CollectionManager ---
 export default function CollectionManager({
   collectionName,
   title,
@@ -37,7 +192,7 @@ export default function CollectionManager({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [editingId, setEditingId] = useState(null); // null | 'new' | doc id
+  const [editingId, setEditingId] = useState(null);
 
   const emptyForm = useMemo(() => {
     const obj = {};
@@ -148,11 +303,17 @@ export default function CollectionManager({
           <h3>{editingId === 'new' ? `New ${title.replace(/s$/, '')}` : `Edit ${title.replace(/s$/, '')}`}</h3>
           <div className="form-grid">
             {fields.map((f) => {
-              if (f.type === 'checkbox') return null; // rendered separately below
+              if (f.type === 'checkbox') return null;
               return (
-                <div key={f.key} style={f.wide ? { gridColumn: '1 / -1' } : undefined}>
+                <div key={f.key} style={f.wide || f.type === 'image' ? { gridColumn: '1 / -1' } : undefined}>
                   <label>{f.label}</label>
-                  {f.type === 'textarea' ? (
+                  {f.type === 'image' ? (
+                    <ImageFieldInput
+                      value={form[f.key]}
+                      onChange={(url) => setForm({ ...form, [f.key]: url })}
+                      required={f.required}
+                    />
+                  ) : f.type === 'textarea' ? (
                     <textarea
                       rows={4}
                       value={form[f.key] ?? ''}
@@ -218,7 +379,13 @@ export default function CollectionManager({
               <tr key={item.id}>
                 {tableFields.map((f) => (
                   <td key={f.key}>
-                    {f.type === 'checkbox' ? (
+                    {f.type === 'image' && item[f.key] ? (
+                      <img
+                        src={item[f.key]}
+                        alt="Thumbnail"
+                        style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 4, display: 'block' }}
+                      />
+                    ) : f.type === 'checkbox' ? (
                       <button className="toggle-btn" onClick={() => toggleField(item, f.key)}>
                         {item[f.key] ? 'Yes' : 'No'}
                       </button>

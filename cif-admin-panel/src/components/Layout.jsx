@@ -3,36 +3,47 @@ import React from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 
-const NAV_GROUPS = [
-  {
-    label: "MAIN",
-    links: [{ to: "/dashboard", label: "Dashboard" }],
-  },
-  {
-    label: "CONTENT MANAGEMENT",
-    links: [
-      { to: "/events", label: "Events" },
-      { to: "/venues", label: "Venues" },
-      { to: "/categories", label: "Categories" },
-      { to: "/speakers", label: "Speakers" },
-      { to: "/gallery", label: "Gallery" },
-      { to: "/sponsors", label: "Sponsors" },
-      { to: "/announcements", label: "Announcements" },
-      { to: "/home-settings", label: "Home Settings" },
-      { to: "/notifications", label: "Notifications" },
-    ],
-  },
-  {
-    label: "USER MANAGEMENT",
-    links: [
-      { to: "/users", label: "Users" },
-      { to: "/admin-roles", label: "Admin Roles" }, // Added here
-    ],
-  },
-];
-
 export default function Layout() {
-  const { signOut, session } = useAuth();
+  const { signOut, session, isSuperAdmin } = useAuth();
+
+  const NAV_GROUPS = [
+    {
+      label: "MAIN",
+      links: [{ to: "/dashboard", label: "Dashboard" }],
+    },
+    {
+      label: "CONTENT MANAGEMENT",
+      links: [
+        { to: "/events", label: "Events" },
+        { to: "/opportunities", label: "Opportunities" }, // <-- Added Opportunities
+        { to: "/venues", label: "Venues" },
+        { to: "/categories", label: "Categories" },
+        { to: "/speakers", label: "Speakers" },
+        { to: "/gallery", label: "Gallery" },
+        { to: "/sponsors", label: "Sponsors" },
+        { to: "/announcements", label: "Announcements" },
+        { to: "/home-settings", label: "Home Settings" },
+        { to: "/notifications", label: "Notifications" },
+      ],
+    },
+    {
+      label: "USER & ENGAGEMENT",
+      links: [
+        { to: "/users", label: "Users" },
+        { to: "/applications", label: "Job Applications" }, // <-- Candidate submissions
+        { to: "/admin-roles", label: "Admin Roles", superAdminOnly: true },
+      ],
+    },
+    // System & Governance Group
+    ...(isSuperAdmin
+      ? [
+          {
+            label: "SYSTEM",
+            links: [{ to: "/audit-logs", label: "Audit Logs", superAdminOnly: true }],
+          },
+        ]
+      : []),
+  ];
 
   return (
     <div className="app-shell">
@@ -46,17 +57,20 @@ export default function Layout() {
           {NAV_GROUPS.map((group) => (
             <div key={group.label} className="nav-group">
               <div className="nav-group-label">{group.label}</div>
-              {group.links.map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  className={({ isActive }) =>
-                    isActive ? "nav-link active" : "nav-link"
-                  }
-                >
-                  {link.label}
-                </NavLink>
-              ))}
+              {group.links.map((link) => {
+                if (link.superAdminOnly && !isSuperAdmin) return null;
+                return (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    className={({ isActive }) =>
+                      isActive ? "nav-link active" : "nav-link"
+                    }
+                  >
+                    {link.label}
+                  </NavLink>
+                );
+              })}
             </div>
           ))}
         </nav>
