@@ -159,6 +159,19 @@ export default function EventsScreen({ navigation }) {
           });
           transaction.update(eventRef, { booked_count: currentCount + 1 });
         });
+
+        // Booking succeeded — show confirmation with the ticket reference
+        Alert.alert(
+          "Booking Confirmed!",
+          `Ticket Ref: ${bookingId}\n\nYou can view your barcode and ticket details in your profile or tickets tab.`,
+          [
+            { text: "OK" },
+            {
+              text: "View Tickets",
+              onPress: () => navigation?.navigate?.("MyTickets"),
+            },
+          ],
+        );
       }
     } catch (err) {
       if (err.message === "FULL") {
@@ -177,6 +190,18 @@ export default function EventsScreen({ navigation }) {
       style={[styles.screen, { backgroundColor: colors.bg }]}
       contentContainerStyle={{ paddingBottom: 20, paddingTop: 8 }}
     >
+      {/* Back button row — matches ForumScreen's header pattern */}
+      <View style={styles.backRow}>
+        <TouchableOpacity
+          onPress={() => navigation?.goBack?.()}
+          style={styles.backButton}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Feather name="arrow-left" size={20} color={colors.text} />
+          <Text style={[styles.backText, { color: colors.text }]}>Events</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.headerRow}>
         <View>
           <Text style={[styles.pageTitle, { color: colors.text }]}>Events</Text>
@@ -419,6 +444,21 @@ export default function EventsScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  backText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
   pageTitle: { fontSize: 26, fontWeight: "bold", marginBottom: 4 },
   pageSubtitle: { fontSize: 14 },
   headerRow: {
