@@ -1,3 +1,4 @@
+// cif-admin-panel/src/pages/Bookings.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import { db } from "../firebaseClient";
 import {
@@ -8,6 +9,7 @@ import {
   doc,
   runTransaction,
   updateDoc,
+  getDoc,
 } from "firebase/firestore";
 
 export default function Bookings() {
@@ -16,6 +18,7 @@ export default function Bookings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [eventFilter, setEventFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [cancellingId, setCancellingId] = useState(null);
 
@@ -23,7 +26,7 @@ export default function Bookings() {
   const [verifyInput, setVerifyInput] = useState("");
   const [verifyResult, setVerifyResult] = useState(null);
 
-  // Live bookings
+  // 1. Live bookings listener
   useEffect(() => {
     const q = query(collection(db, "bookings"), orderBy("created_at", "desc"));
     const unsubscribe = onSnapshot(
@@ -33,14 +36,14 @@ export default function Bookings() {
         setLoading(false);
       },
       (err) => {
-        setError(err.message);
+        setError("Error loading bookings: " + err.message);
         setLoading(false);
       }
     );
     return unsubscribe;
   }, []);
 
-  // Live events
+  // 2. Live events listener
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "events"), (snapshot) => {
       setEvents(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
@@ -56,34 +59,62 @@ export default function Bookings() {
     return map;
   }, [events]);
 
+  // 3. Enriched dataset with formatted timestamps & event details
   const enriched = useMemo(() => {
     return bookings.map((b) => {
       const parentEvent = eventMap[b.eventId];
+
+      let formattedDate = b.eventDate || parentEvent?.date || "—";
+      let formattedTime = b.eventTime || parentEvent?.time || "—";
+
+      if (b.created_at?.toDate) {
+        formattedDate = b.eventDate || b.created_at.toDate().toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+        });
+      }
+
       return {
         ...b,
-        eventTitle: parentEvent?.title || "(deleted event)",
-        eventDate: b.eventDate || parentEvent?.date || "—",
-        eventTime: b.eventTime || parentEvent?.time || "—",
+        attendeeEmail: b.userEmail || b.email || `UID: ${b.userId?.substring(0, 8)}...`,
+        attendeeName: b.userName || b.name || "Attendee",
+        eventTitle: b.eventTitle || parentEvent?.title || "(Event not found)",
+        eventDate: formattedDate,
+        eventTime: formattedTime,
+        venue: parentEvent?.venue || parentEvent?.location || "—",
         quantity: b.quantity || 1,
         status: b.status || "Valid",
       };
     });
   }, [bookings, eventMap]);
 
-  const filtered = enriched.filter((b) => {
-    const matchesEvent = eventFilter === "all" || b.eventId === eventFilter;
-    const matchesSearch =
-      !search ||
-      b.userEmail?.toLowerCase().includes(search.toLowerCase()) ||
-      b.eventTitle?.toLowerCase().includes(search.toLowerCase()) ||
-      b.id.toLowerCase().includes(search.toLowerCase());
-    return matchesEvent && matchesSearch;
-  });
+  // 4. Search and filter query evaluation
+  const filtered = useMemo(() => {
+    return enriched.filter((b) => {
+      const matchesEvent = eventFilter === "all" || b.eventId === eventFilter;
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "valid" && b.status !== "Checked-In") ||
+        (statusFilter === "checked_in" && b.status === "Checked-In");
 
+      const term = search.toLowerCase().trim();
+      const matchesSearch =
+        !term ||
+        b.attendeeEmail.toLowerCase().includes(term) ||
+        b.attendeeName.toLowerCase().includes(term) ||
+        b.eventTitle.toLowerCase().includes(term) ||
+        b.id.toLowerCase().includes(term) ||
+        (b.userId && b.userId.toLowerCase().includes(term));
+
+      return matchesEvent && matchesStatus && matchesSearch;
+    });
+  }, [enriched, eventFilter, statusFilter, search]);
+
+  // 5. Atomic Cancellation & Capacity Decrement
   const cancelBooking = async (booking) => {
     if (
       !window.confirm(
-        `Cancel ${booking.userEmail}'s booking for "${booking.eventTitle}"?`
+        `Cancel ${booking.attendeeEmail}'s booking for "${booking.eventTitle}"?`
       )
     )
       return;
@@ -103,34 +134,46 @@ export default function Bookings() {
         }
         transaction.delete(doc(db, "bookings", booking.id));
       });
+
+      if (verifyResult?.id === booking.id) {
+        setVerifyResult(null);
+      }
     } catch (err) {
-      setError(err.message);
+      setError("Cancellation failed: " + err.message);
     } finally {
       setCancellingId(null);
     }
   };
 
-  // Ticket Verification Check
-  const handleVerify = async (e) => {
+  // 6. Ticket Verification / Check-In Handler
+  const handleVerify = (e) => {
     e.preventDefault();
-    if (!verifyInput.trim()) return;
+    const queryTerm = verifyInput.trim().toLowerCase();
+    if (!queryTerm) return;
 
-    const matched = enriched.find(
-      (b) => b.id.toLowerCase() === verifyInput.trim().toLowerCase()
-    );
+    // Remove QR prefixes like "CIF-USER-" if scanned directly from mobile
+    const cleanTerm = queryTerm.replace(/^cif-user-/, "");
+
+    const matched = enriched.find((b) => {
+      return (
+        b.id.toLowerCase() === cleanTerm ||
+        b.id.toLowerCase().startsWith(cleanTerm) ||
+        (b.userId && b.userId.toLowerCase() === cleanTerm)
+      );
+    });
 
     if (matched) {
       setVerifyResult(matched);
     } else {
-      setVerifyResult({ error: "Ticket ID not found." });
+      setVerifyResult({ error: `No active reservation found for code: "${verifyInput}"` });
     }
   };
 
-  const markAsCheckedIn = async (bookingId) => {
+  const updateBookingStatus = async (bookingId, newStatus) => {
     try {
       const bookingRef = doc(db, "bookings", bookingId);
-      await updateDoc(bookingRef, { status: "Checked-In" });
-      setVerifyResult((prev) => ({ ...prev, status: "Checked-In" }));
+      await updateDoc(bookingRef, { status: newStatus });
+      setVerifyResult((prev) => (prev ? { ...prev, status: newStatus } : null));
     } catch (err) {
       setError("Failed to update ticket status: " + err.message);
     }
@@ -142,12 +185,12 @@ export default function Bookings() {
   }, [events, bookings]);
 
   return (
-    <div>
-      <div className="page-header">
+    <div style={{ padding: "24px", maxWidth: 1200, margin: "0 auto" }}>
+      <div className="page-header" style={{ marginBottom: 20 }}>
         <div>
-          <h1>Bookings</h1>
-          <p className="muted">
-            Manage attendee bookings & verify ticket validity — {bookings.length} total.
+          <h1 style={{ margin: "0 0 6px 0" }}>Attendee Bookings</h1>
+          <p className="muted" style={{ margin: 0 }}>
+            Inspect real-time event passes, check-in attendees, and manage festival capacity ({bookings.length} total).
           </p>
         </div>
       </div>
@@ -155,79 +198,158 @@ export default function Bookings() {
       {/* Ticket Verification Tool */}
       <div
         style={{
-          background: "#f4f5f8",
-          padding: 16,
-          borderRadius: 8,
+          background: "#f8fafc",
+          padding: 18,
+          borderRadius: 10,
           marginBottom: 24,
-          border: "1px solid #e0e2e8",
+          border: "1px solid #e2e8f0",
         }}
       >
-        <h3>Verify Ticket / Check-In</h3>
-        <form onSubmit={handleVerify} style={{ display: "flex", gap: 10, marginTop: 10 }}>
+        <h3 style={{ margin: "0 0 4px 0", fontSize: 16 }}>Verify Ticket / Door Check-In</h3>
+        <p className="muted" style={{ fontSize: 12, margin: "0 0 12px 0" }}>
+          Scan attendee QR code or enter booking reference ID.
+        </p>
+
+        <form onSubmit={handleVerify} style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <input
             className="search-input"
-            style={{ marginBottom: 0, maxWidth: 360 }}
-            placeholder="Enter Ticket ID / Booking Ref..."
+            style={{ margin: 0, flex: 1, minWidth: 260, maxWidth: 420 }}
+            placeholder="Scan or enter Ticket ID / User UID..."
             value={verifyInput}
             onChange={(e) => setVerifyInput(e.target.value)}
           />
-          <button className="btn primary" type="submit">Verify</button>
+          <button className="btn-primary" type="submit" style={{ padding: "8px 20px" }}>
+            Verify Pass
+          </button>
+          {verifyResult && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setVerifyResult(null);
+                setVerifyInput("");
+              }}
+            >
+              Clear
+            </button>
+          )}
         </form>
 
         {verifyResult && (
-          <div style={{ marginTop: 14, padding: 12, borderRadius: 6, background: "#fff", border: "1px solid #ccc" }}>
+          <div
+            style={{
+              marginTop: 14,
+              padding: 16,
+              borderRadius: 8,
+              background: "#ffffff",
+              border: verifyResult.error ? "1px solid #fca5a5" : "1px solid #cbd5e1",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.04)",
+            }}
+          >
             {verifyResult.error ? (
-              <p style={{ color: "red", margin: 0 }}>❌ {verifyResult.error}</p>
+              <div style={{ color: "#dc2626", fontWeight: 600, fontSize: 14 }}>
+                ❌ {verifyResult.error}
+              </div>
             ) : (
               <div>
-                <p style={{ margin: "0 0 6px 0" }}>
-                  <strong>Attendee:</strong> {verifyResult.userEmail} | <strong>Event:</strong> {verifyResult.eventTitle}
-                </p>
-                <p style={{ margin: "0 0 6px 0" }}>
-                  <strong>Date & Time:</strong> {verifyResult.eventDate} at {verifyResult.eventTime} | <strong>Qty:</strong> {verifyResult.quantity}
-                </p>
-                <p style={{ margin: "0 0 10px 0" }}>
-                  <strong>Status:</strong>{" "}
-                  <span style={{ color: verifyResult.status === "Checked-In" ? "orange" : "green", fontWeight: "bold" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div style={{ fontWeight: 800, fontSize: 16, color: "#0f172a" }}>
+                    {verifyResult.eventTitle}
+                  </div>
+                  <span
+                    style={{
+                      backgroundColor: verifyResult.status === "Checked-In" ? "#fef3c7" : "#dcfce7",
+                      color: verifyResult.status === "Checked-In" ? "#92400e" : "#166534",
+                      padding: "4px 10px",
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
                     {verifyResult.status}
                   </span>
-                </p>
-                {verifyResult.status !== "Checked-In" && (
+                </div>
+
+                <div style={{ fontSize: 13, color: "#334155", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <div><strong>Attendee:</strong> {verifyResult.attendeeName} ({verifyResult.attendeeEmail})</div>
+                  <div><strong>Schedule:</strong> {verifyResult.eventDate} at {verifyResult.eventTime}</div>
+                  <div><strong>Quantity:</strong> {verifyResult.quantity} Pass(es)</div>
+                  <div><strong>Ticket ID:</strong> <code>{verifyResult.id}</code></div>
+                </div>
+
+                <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
+                  {verifyResult.status !== "Checked-In" ? (
+                    <button
+                      className="btn-primary"
+                      type="button"
+                      onClick={() => updateBookingStatus(verifyResult.id, "Checked-In")}
+                    >
+                      ✓ Mark as Checked-In
+                    </button>
+                  ) : (
+                    <button
+                      className="btn-secondary"
+                      type="button"
+                      onClick={() => updateBookingStatus(verifyResult.id, "Valid")}
+                    >
+                      Revert to Valid
+                    </button>
+                  )}
                   <button
-                    className="btn primary"
-                    onClick={() => markAsCheckedIn(verifyResult.id)}
+                    className="link-btn danger"
+                    type="button"
+                    onClick={() => cancelBooking(verifyResult)}
                   >
-                    Mark as Checked-In
+                    Cancel Booking
                   </button>
-                )}
+                </div>
               </div>
             )}
           </div>
         )}
       </div>
 
-      {/* Search & Filter Bar */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+      {/* Search & Filter Controls */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
         <input
           className="search-input"
-          style={{ marginBottom: 0, maxWidth: 320 }}
-          placeholder="Search email, event, or Ticket Ref..."
+          style={{ margin: 0, flex: 1, minWidth: 260, maxWidth: 360 }}
+          placeholder="Search by attendee, email, event, or Ticket ID..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+
         <select
           value={eventFilter}
           onChange={(e) => setEventFilter(e.target.value)}
-          style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #d5d7de", fontSize: 14 }}
+          className="search-input"
+          style={{ width: 220, margin: 0 }}
         >
-          <option value="all">All events</option>
+          <option value="all">All Events ({eventsWithBookings.length})</option>
           {eventsWithBookings.map((e) => (
-            <option key={e.id} value={e.id}>{e.title}</option>
+            <option key={e.id} value={e.id}>
+              {e.title}
+            </option>
           ))}
+        </select>
+
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="search-input"
+          style={{ width: 170, margin: 0 }}
+        >
+          <option value="all">All Statuses</option>
+          <option value="valid">Valid (Unchecked)</option>
+          <option value="checked_in">Checked-In Only</option>
         </select>
       </div>
 
-      {error && <div className="form-error" style={{ marginBottom: 16 }}>{error}</div>}
+      {error && (
+        <div style={{ padding: 12, background: "#fee2e2", color: "#991b1b", borderRadius: 8, marginBottom: 16, fontWeight: 600 }}>
+          {error}
+        </div>
+      )}
 
       {loading ? (
         <p className="muted">Loading bookings...</p>
@@ -238,27 +360,67 @@ export default function Bookings() {
               <th>Ticket Ref</th>
               <th>Attendee</th>
               <th>Event</th>
-              <th>Event Date & Time</th>
+              <th>Event Schedule</th>
               <th>Qty</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th style={{ textAlign: "right" }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((b) => (
               <tr key={b.id}>
-                <td><code>{b.id.substring(0, 8).toUpperCase()}</code></td>
-                <td>{b.userEmail || b.userId}</td>
-                <td>{b.eventTitle}</td>
+                <td>
+                  <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>
+                    {b.id.substring(0, 8).toUpperCase()}
+                  </code>
+                </td>
+                <td>
+                  <div style={{ fontWeight: 600 }}>{b.attendeeName}</div>
+                  <div className="muted" style={{ fontSize: 11 }}>{b.attendeeEmail}</div>
+                </td>
+                <td>
+                  <div style={{ fontWeight: 600 }}>{b.eventTitle}</div>
+                  {b.venue && <div className="muted" style={{ fontSize: 11 }}>{b.venue}</div>}
+                </td>
                 <td>{b.eventDate} @ {b.eventTime}</td>
                 <td>{b.quantity}</td>
                 <td>
-                  <span className={`badge ${b.status === "Checked-In" ? "warning" : "success"}`}>
+                  <span
+                    style={{
+                      backgroundColor: b.status === "Checked-In" ? "#fef3c7" : "#dcfce7",
+                      color: b.status === "Checked-In" ? "#92400e" : "#166534",
+                      padding: "3px 8px",
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      display: "inline-block",
+                    }}
+                  >
                     {b.status}
                   </span>
                 </td>
-                <td>
+                <td className="actions-cell" style={{ textAlign: "right" }}>
+                  {b.status !== "Checked-In" ? (
+                    <button
+                      type="button"
+                      className="link-btn"
+                      style={{ marginRight: 8, color: "#2563eb" }}
+                      onClick={() => updateBookingStatus(b.id, "Checked-In")}
+                    >
+                      Check-In
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="link-btn"
+                      style={{ marginRight: 8, color: "#64748b" }}
+                      onClick={() => updateBookingStatus(b.id, "Valid")}
+                    >
+                      Revert
+                    </button>
+                  )}
                   <button
+                    type="button"
                     className="link-btn danger"
                     disabled={cancellingId === b.id}
                     onClick={() => cancelBooking(b)}
@@ -270,8 +432,8 @@ export default function Bookings() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="muted" style={{ textAlign: "center", padding: 24 }}>
-                  No bookings found.
+                <td colSpan={7} className="muted" style={{ textAlign: "center", padding: 32 }}>
+                  No bookings found matching your search.
                 </td>
               </tr>
             )}
