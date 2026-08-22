@@ -339,7 +339,7 @@ export default function EventsScreen({ navigation }) {
                       )}
 
                       <View style={{ flex: 1 }}>
-                        {event.image_url && (
+                        {!!event.image_url && (
                           <Text
                             style={[
                               styles.timeTextSmall,
@@ -351,6 +351,7 @@ export default function EventsScreen({ navigation }) {
                               .toLocaleTimeString("en-GB", TIME_FORMAT)}
                           </Text>
                         )}
+
                         <Text
                           style={[styles.eventTitle, { color: colors.text }]}
                           numberOfLines={2}
