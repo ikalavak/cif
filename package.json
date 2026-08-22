@@ -6,7 +6,8 @@
   },
   "dependencies": {
     "expo": "^57.0.8",
-    "firebase-admin": "^14.2.0"
+    "firebase-admin": "^14.2.0",
+    "react-feather": "^2.0.10"
   },
   "name": "cif",
   "version": "1.0.0",
