@@ -71,7 +71,7 @@ export default function Layout() {
 
         <div className="sidebar-footer">
           <div className="user-email">{session?.email}</div>
-          <button className="btn-secondary" onClick={signOut}>
+          <button className="btn-signout" onClick={signOut}>
             Sign out
           </button>
         </div>
