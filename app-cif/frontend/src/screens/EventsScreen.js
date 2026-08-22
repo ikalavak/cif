@@ -173,9 +173,7 @@ export default function EventsScreen({ navigation }) {
         </View>
         <TouchableOpacity
           style={[styles.iconButton, { backgroundColor: colors.card }]}
-        >
-          <Ionicons name="settings-sharp" size={18} color={colors.text} />
-        </TouchableOpacity>
+        ></TouchableOpacity>
       </View>
 
       <View style={[styles.searchContainer, { backgroundColor: colors.input }]}>
