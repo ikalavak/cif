@@ -1,33 +1,104 @@
 // cif-admin-panel/src/AuthContext.jsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
-import { auth } from './firebaseClient';
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+} from 'firebase/auth';
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { auth, db } from './firebaseClient';
 
 const AuthContext = createContext(null);
+
+// Primary Root Super Admin email
+const ROOT_SUPERADMIN_EMAIL = 'nonye_c@hotmail.co.uk';
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [role, setRole] = useState(null);
+  const [role, setRole] = useState(null); // 'admin' | 'superadmin' | null
   const [loading, setLoading] = useState(true);
+
+  const resolveAdminRole = async (user) => {
+    if (!user || !user.email) return { isAdmin: false, role: null };
+
+    const normalizedEmail = user.email.trim().toLowerCase();
+
+    // 1. Root Super Admin bootstrap check
+    if (normalizedEmail === ROOT_SUPERADMIN_EMAIL) {
+      try {
+        await setDoc(
+          doc(db, 'admins', user.uid),
+          {
+            email: normalizedEmail,
+            role: 'superadmin',
+            lastLogin: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } catch (e) {
+        console.warn('Super Admin auto-sync failed:', e.message);
+      }
+      return { isAdmin: true, role: 'superadmin' };
+    }
+
+    // 2. Direct lookup by UID
+    try {
+      const uidSnap = await getDoc(doc(db, 'admins', user.uid));
+      if (uidSnap.exists()) {
+        const data = uidSnap.data();
+        const userRole = data.role === 'superadmin' ? 'superadmin' : 'admin';
+
+        // Update last login without modifying roles
+        try {
+          await updateDoc(doc(db, 'admins', user.uid), {
+            lastLogin: serverTimestamp(),
+          });
+        } catch (_) {}
+
+        return { isAdmin: true, role: userRole };
+      }
+    } catch (e) {
+      console.warn('UID admin check error:', e.message);
+    }
+
+    // 3. Fallback lookup by email (only if pre-granted by a Super Admin)
+    try {
+      const q = query(
+        collection(db, 'admins'),
+        where('email', '==', normalizedEmail)
+      );
+      const querySnap = await getDocs(q);
+
+      if (!querySnap.empty) {
+        const matchedDoc = querySnap.docs[0].data();
+        const detectedRole = matchedDoc.role === 'superadmin' ? 'superadmin' : 'admin';
+        return { isAdmin: true, role: detectedRole };
+      }
+    } catch (e) {
+      console.warn('Email admin check error:', e.message);
+    }
+
+    return { isAdmin: false, role: null };
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        try {
-          const tokenResult = await user.getIdTokenResult(true);
-          const userRole = tokenResult.claims.role || null;
-          const hasAdminAccess = tokenResult.claims.admin === true || userRole === 'admin';
-
-          setSession(user);
-          setIsAdmin(hasAdminAccess);
-          setRole(userRole);
-        } catch (error) {
-          console.error('Error fetching custom claims:', error);
-          setSession(user);
-          setIsAdmin(false);
-          setRole(null);
-        }
+        const status = await resolveAdminRole(user);
+        setSession(user);
+        setIsAdmin(status.isAdmin);
+        setRole(status.role);
       } else {
         setSession(null);
         setIsAdmin(false);
@@ -39,11 +110,45 @@ export function AuthProvider({ children }) {
     return () => unsubscribe();
   }, []);
 
-  const signIn = (email, password) => signInWithEmailAndPassword(auth, email, password);
-  const signOut = () => firebaseSignOut(auth);
+  const signIn = async (email, password) => {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    const status = await resolveAdminRole(user);
+
+    if (!status.isAdmin) {
+      await firebaseSignOut(auth);
+      setSession(null);
+      setIsAdmin(false);
+      setRole(null);
+      throw new Error(`Access Denied: ${user.email} is not authorized by a Super Admin.`);
+    }
+
+    setSession(user);
+    setIsAdmin(true);
+    setRole(status.role);
+    return user;
+  };
+
+  const signOut = async () => {
+    await firebaseSignOut(auth);
+    setSession(null);
+    setIsAdmin(false);
+    setRole(null);
+  };
 
   return (
-    <AuthContext.Provider value={{ session, isAdmin, role, loading, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        isAdmin,
+        role,
+        isSuperAdmin: role === 'superadmin',
+        loading,
+        signIn,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

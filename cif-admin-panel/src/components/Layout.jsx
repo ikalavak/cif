@@ -1,3 +1,4 @@
+// cif-admin-panel/src/components/Layout.jsx
 import React from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../AuthContext";
@@ -23,7 +24,10 @@ const NAV_GROUPS = [
   },
   {
     label: "USER MANAGEMENT",
-    links: [{ to: "/users", label: "Users" }],
+    links: [
+      { to: "/users", label: "Users" },
+      { to: "/admin-roles", label: "Admin Roles" }, // Added here
+    ],
   },
 ];
 

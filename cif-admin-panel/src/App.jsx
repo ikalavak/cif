@@ -17,6 +17,7 @@ import Sponsors from "./pages/Sponsors";
 import Announcements from "./pages/Announcements";
 import Users from "./pages/Users";
 import NotificationsPage from "./pages/NotificationsPage";
+import AdminRolesManager from "./pages/AdminRolesManager"; // 1. IMPORT COMPONENT
 
 export default function App() {
   return (
@@ -42,12 +43,13 @@ export default function App() {
           <Route path="/sponsors" element={<Sponsors />} />
           <Route path="/announcements" element={<Announcements />} />
           <Route path="/users" element={<Users />} />
+          <Route path="/admin-roles" element={<AdminRolesManager />} /> {/* 2. ADD ROUTE */}
           <Route path="/home-settings" element={<HomeSettings />} />
-          <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/notifications" element={<NotificationsPage />} />
+          <Route index element={<Navigate to="/dashboard" replace />} />
         </Route>
 
-        {/* 3. Fallback Route: send unknown paths to /login to prevent redirect loops */}
+        {/* 3. Fallback Route */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </AuthProvider>

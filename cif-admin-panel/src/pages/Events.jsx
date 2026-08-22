@@ -4,8 +4,6 @@ import {
   addDoc,
   updateDoc,
   onSnapshot,
-  query,
-  orderBy,
   deleteDoc,
   doc,
   Timestamp,
@@ -20,28 +18,75 @@ const emptyForm = {
   venue: "",
   startDate: "",
   status: "Open",
-  capacity: "2", // blank means unlimited
+  capacity: "2",
   isPublished: true,
   isFeatured: false,
 };
 
+// Safe date formatter for table display
+const formatDate = (dateVal) => {
+  if (!dateVal) return "—";
+  if (dateVal && typeof dateVal.toDate === "function") {
+    return dateVal.toDate().toLocaleString();
+  }
+  const parsed = new Date(dateVal);
+  return !isNaN(parsed.getTime()) ? parsed.toLocaleString() : "—";
+};
+
+// Safe date parser for form input (datetime-local format: YYYY-MM-DDTHH:mm)
+const getDatetimeInputString = (dateVal) => {
+  if (!dateVal) return "";
+  try {
+    const d = typeof dateVal.toDate === "function" ? dateVal.toDate() : new Date(dateVal);
+    if (isNaN(d.getTime())) return "";
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 16);
+  } catch {
+    return "";
+  }
+};
+
 export default function EventsAdmin() {
   const [form, setForm] = useState(emptyForm);
-  const [editingId, setEditingId] = useState(null); // null = creating, otherwise editing this doc id
+  const [editingId, setEditingId] = useState(null);
 
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    const q = query(collection(db, "events"), orderBy("created_at", "desc"));
+    // Fetch all events without strict server-side orderBy to include docs missing created_at
     const unsubscribe = onSnapshot(
-      q,
+      collection(db, "events"),
       (snapshot) => {
-        setEvents(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+        const fetchedDocs = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+
+        // Sort client-side safely
+        fetchedDocs.sort((a, b) => {
+          const timeA = a.created_at?.toMillis
+            ? a.created_at.toMillis()
+            : a.start_date?.toMillis
+            ? a.start_date.toMillis()
+            : 0;
+          const timeB = b.created_at?.toMillis
+            ? b.created_at.toMillis()
+            : b.start_date?.toMillis
+            ? b.start_date.toMillis()
+            : 0;
+          return timeB - timeA;
+        });
+
+        setEvents(fetchedDocs);
       },
-      (error) => console.error("Error fetching events:", error),
+      (error) => {
+        console.error("Error fetching events in admin panel:", error);
+      }
     );
+
     return () => unsubscribe();
   }, []);
 
@@ -50,7 +95,6 @@ export default function EventsAdmin() {
     setEditingId(null);
   };
 
-  // Populate the form with an existing event's data and switch to edit mode
   const startEdit = (ev) => {
     setEditingId(ev.id);
     setForm({
@@ -58,13 +102,11 @@ export default function EventsAdmin() {
       imageUrl: ev.image_url || "",
       category: ev.category || "",
       venue: ev.venue || "",
-      startDate: ev.start_date
-        ? new Date(ev.start_date.toDate()).toISOString().slice(0, 16)
-        : "",
+      startDate: getDatetimeInputString(ev.start_date),
       status: ev.status || "Open",
-      capacity: ev.capacity != null ? String(ev.capacity) : "", // ADD THIS
-      isPublished: !!ev.published,
-      isFeatured: !!ev.featured,
+      capacity: ev.capacity != null ? String(ev.capacity) : "",
+      isPublished: ev.published !== undefined ? Boolean(ev.published) : true,
+      isFeatured: ev.featured !== undefined ? Boolean(ev.featured) : false,
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -91,7 +133,7 @@ export default function EventsAdmin() {
         venue: form.venue.trim(),
         start_date: eventStartTimestamp,
         status: form.status,
-        capacity: form.capacity ? Number(form.capacity) : null, // ADD THIS
+        capacity: form.capacity ? Number(form.capacity) : null,
         published: Boolean(form.isPublished),
         featured: Boolean(form.isFeatured),
       };
@@ -102,7 +144,7 @@ export default function EventsAdmin() {
       } else {
         await addDoc(collection(db, "events"), {
           ...payload,
-          booked_count: 0, // ADD THIS — starting point for new events
+          booked_count: 0,
           created_at: serverTimestamp(),
         });
         alert("Event created!");
@@ -121,7 +163,6 @@ export default function EventsAdmin() {
     if (window.confirm("Are you sure you want to delete this event?")) {
       try {
         await deleteDoc(doc(db, "events", id));
-        // If the deleted event was mid-edit, clear the form
         if (editingId === id) resetForm();
       } catch (error) {
         alert("Error deleting event: " + error.message);
@@ -133,7 +174,7 @@ export default function EventsAdmin() {
     (ev) =>
       ev.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ev.venue?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ev.category?.toLowerCase().includes(searchQuery.toLowerCase()),
+      ev.category?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -145,7 +186,7 @@ export default function EventsAdmin() {
 
       <input
         type="text"
-        placeholder="Search..."
+        placeholder="Search by title, venue, or category..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         style={{
@@ -181,7 +222,7 @@ export default function EventsAdmin() {
             value={form.imageUrl}
             onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
             style={styles.input}
-            placeholder="https://res.cloudinary.com/..."
+            placeholder="https://..."
           />
         </div>
 
@@ -208,7 +249,7 @@ export default function EventsAdmin() {
 
         <div style={styles.row}>
           <div style={{ flex: 1 }}>
-            <label style={styles.label}>Start date</label>
+            <label style={styles.label}>Start Date & Time</label>
             <input
               type="datetime-local"
               value={form.startDate}
@@ -350,7 +391,7 @@ export default function EventsAdmin() {
                     color: "#a0aec0",
                   }}
                 >
-                  No items yet.
+                  No items found.
                 </td>
               </tr>
             ) : (
@@ -364,12 +405,8 @@ export default function EventsAdmin() {
                   </td>
                   <td style={styles.td}>{ev.category || "—"}</td>
                   <td style={styles.td}>{ev.venue || "—"}</td>
-                  <td style={styles.td}>
-                    {ev.start_date
-                      ? ev.start_date.toDate().toLocaleString()
-                      : "—"}
-                  </td>
-                  <td style={styles.td}>{ev.status}</td>
+                  <td style={styles.td}>{formatDate(ev.start_date)}</td>
+                  <td style={styles.td}>{ev.status || "Open"}</td>
                   <td style={styles.td}>{ev.capacity ?? "Unlimited"}</td>
                   <td style={styles.td}>{ev.booked_count ?? 0}</td>
                   <td style={styles.td}>{ev.published ? "Yes" : "No"}</td>
