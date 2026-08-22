@@ -20,7 +20,8 @@ import Announcements from "./pages/Announcements";
 import Users from "./pages/Users";
 import NotificationsPage from "./pages/NotificationsPage";
 import AdminRolesManager from "./pages/AdminRolesManager";
-import ForumModeration from "./pages/ForumModeration"; // <-- 1. Import
+import ForumModeration from "./pages/ForumModeration";
+import CampusMaps from "./pages/CampusMaps"; // <-- Ensure imported
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
 
+        {/* Protected Dashboard Layout (Contains Sidebar + <Outlet />) */}
         <Route
           element={
             <AdminRoute>
@@ -41,12 +43,13 @@ export default function App() {
           <Route path="/opportunities" element={<Opportunities />} />
           <Route path="/applications" element={<Applications />} />
           <Route path="/venues" element={<Venues />} />
+          <Route path="/campus-maps" element={<CampusMaps />} /> {/* <-- MUST BE INSIDE HERE */}
           <Route path="/categories" element={<Categories />} />
           <Route path="/speakers" element={<Speakers />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/sponsors" element={<Sponsors />} />
           <Route path="/announcements" element={<Announcements />} />
-          <Route path="/forum-moderation" element={<ForumModeration />} /> {/* <-- 2. Add Route */}
+          <Route path="/forum-moderation" element={<ForumModeration />} />
           <Route path="/users" element={<Users />} />
           <Route path="/admin-roles" element={<AdminRolesManager />} />
           <Route path="/home-settings" element={<HomeSettings />} />

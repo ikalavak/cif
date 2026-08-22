@@ -38,6 +38,41 @@ const NAV_GROUPS = [
 export default function Layout() {
   const { signOut, session, isSuperAdmin } = useAuth();
 
+<<<<<<< HEAD
+=======
+  const NAV_GROUPS = [
+    {
+      label: "MAIN",
+      links: [{ to: "/dashboard", label: "Dashboard" }],
+    },
+    {
+      label: "CONTENT MANAGEMENT",
+      links: [
+        { to: "/events", label: "Events" },
+        { to: "/opportunities", label: "Opportunities" },
+        { to: "/venues", label: "Venues" },
+        { to: "/categories", label: "Categories" },
+        { to: "/speakers", label: "Speakers" },
+        { to: "/gallery", label: "Gallery" },
+        { to: "/sponsors", label: "Sponsors" },
+        { to: "/announcements", label: "Announcements" },
+        { to: "/home-settings", label: "Home Settings" },
+        { to: "/notifications", label: "Notifications" },
+        { to: "/campus-maps", label: "Campus Maps" },
+      ],
+    },
+    {
+      label: "USER & ENGAGEMENT",
+      links: [
+        { to: "/users", label: "Users" },
+        { to: "/forum-moderation", label: "Forum Moderation" },
+        { to: "/applications", label: "Job Applications" },
+        { to: "/admin-roles", label: "Admin Roles", superAdminOnly: true },
+      ],
+    },
+  ];
+
+>>>>>>> c0df7a9 (feat: implement Campus Maps management and enhance MapsScreen with real-time updates)
   return (
     <div className="app-shell">
       <aside className="sidebar">
