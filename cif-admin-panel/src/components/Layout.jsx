@@ -3,39 +3,40 @@ import React from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 
+const NAV_GROUPS = [
+  {
+    label: "MAIN",
+    links: [{ to: "/dashboard", label: "Dashboard" }],
+  },
+  {
+    label: "CONTENT MANAGEMENT",
+    links: [
+      { to: "/bookings", label: "Bookings" },
+      { to: "/events", label: "Events" },
+      { to: "/opportunities", label: "Opportunities" },
+      { to: "/venues", label: "Venues" },
+      { to: "/categories", label: "Categories" },
+      { to: "/speakers", label: "Speakers" },
+      { to: "/gallery", label: "Gallery" },
+      { to: "/sponsors", label: "Sponsors" },
+      { to: "/announcements", label: "Announcements" },
+      { to: "/home-settings", label: "Home Settings" },
+      { to: "/notifications", label: "Notifications" },
+    ],
+  },
+  {
+    label: "USER & ENGAGEMENT",
+    links: [
+      { to: "/users", label: "Users" },
+      { to: "/forum-moderation", label: "Forum Moderation" },
+      { to: "/applications", label: "Job Applications" },
+      { to: "/admin-roles", label: "Admin Roles", superAdminOnly: true },
+    ],
+  },
+];
+
 export default function Layout() {
   const { signOut, session, isSuperAdmin } = useAuth();
-
-  const NAV_GROUPS = [
-    {
-      label: "MAIN",
-      links: [{ to: "/dashboard", label: "Dashboard" }],
-    },
-    {
-      label: "CONTENT MANAGEMENT",
-      links: [
-        { to: "/events", label: "Events" },
-        { to: "/opportunities", label: "Opportunities" },
-        { to: "/venues", label: "Venues" },
-        { to: "/categories", label: "Categories" },
-        { to: "/speakers", label: "Speakers" },
-        { to: "/gallery", label: "Gallery" },
-        { to: "/sponsors", label: "Sponsors" },
-        { to: "/announcements", label: "Announcements" },
-        { to: "/home-settings", label: "Home Settings" },
-        { to: "/notifications", label: "Notifications" },
-      ],
-    },
-    {
-      label: "USER & ENGAGEMENT",
-      links: [
-        { to: "/users", label: "Users" },
-        { to: "/forum-moderation", label: "Forum Moderation" },
-        { to: "/applications", label: "Job Applications" },
-        { to: "/admin-roles", label: "Admin Roles", superAdminOnly: true },
-      ],
-    },
-  ];
 
   return (
     <div className="app-shell">
@@ -49,8 +50,10 @@ export default function Layout() {
           {NAV_GROUPS.map((group) => (
             <div key={group.label} className="nav-group">
               <div className="nav-group-label">{group.label}</div>
+
               {group.links.map((link) => {
                 if (link.superAdminOnly && !isSuperAdmin) return null;
+
                 return (
                   <NavLink
                     key={link.to}
@@ -69,6 +72,7 @@ export default function Layout() {
 
         <div className="sidebar-footer">
           <div className="user-email">{session?.email}</div>
+
           <button className="btn-secondary" onClick={signOut}>
             Sign out
           </button>

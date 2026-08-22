@@ -4,7 +4,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./AuthContext";
 import AdminRoute from "./components/AdminRoute";
 import Layout from "./components/Layout";
-
+import Bookings from "./pages/Bookings";
 import HomeSettings from "./pages/HomeSettings";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -35,6 +35,7 @@ export default function App() {
             </AdminRoute>
           }
         >
+          <Route path="/bookings" element={<Bookings />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/events" element={<Events />} />
           <Route path="/opportunities" element={<Opportunities />} />
