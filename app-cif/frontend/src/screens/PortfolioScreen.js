@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -34,6 +35,7 @@ export default function PortfolioScreen({ navigation }) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -43,18 +45,23 @@ export default function PortfolioScreen({ navigation }) {
   // ==================================================
   // LOAD PORTFOLIOS
   // ==================================================
-  const loadPortfolios = async () => {
+  const loadPortfolios = async (isPullToRefresh = false) => {
     try {
-      setLoading(true);
+      if (isPullToRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
 
-      const usersSnapshot = await getDocs(collection(db, "users"));
       const loadedPortfolios = [];
 
-      for (const userDoc of usersSnapshot.docs) {
-        try {
-          const userId = userDoc.id;
+      // Fetch all registered users
+      const usersSnapshot = await getDocs(collection(db, "users"));
 
-          // Fetch the user's primary portfolio profile
+      for (const userDoc of usersSnapshot.docs) {
+        const userId = userDoc.id;
+        try {
+          // Direct read on the specific subcollection profile doc
           const profileRef = doc(db, "users", userId, "portfolio", "profile");
           const profileSnap = await getDoc(profileRef);
 
@@ -74,17 +81,22 @@ export default function PortfolioScreen({ navigation }) {
             }
           }
         } catch (err) {
-          console.warn("Skipped reading user portfolio:", userDoc.id, err.message);
+          // Gracefully continue without interrupting remaining items
         }
       }
 
       setPortfolios(loadedPortfolios);
     } catch (error) {
       console.error("Error loading portfolios:", error);
-      Alert.alert("Error", "Could not load portfolios.");
+      Alert.alert("Notice", "Could not load portfolios.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    loadPortfolios(true);
   };
 
   // ==================================================
@@ -103,7 +115,7 @@ export default function PortfolioScreen({ navigation }) {
   });
 
   // ==================================================
-  // SAVE PORTFOLIO (Fixed schema matching FestivalProfileScreen)
+  // SAVE PORTFOLIO (Saves to saved_portfolios matching rules)
   // ==================================================
   const handleSavePortfolio = async (person) => {
     try {
@@ -129,13 +141,12 @@ export default function PortfolioScreen({ navigation }) {
 
       setSaving(true);
 
-      // Saves to: users/{currentUser.uid}/portfolio/{person.id}
       const savedPortfolioRef = doc(
         db,
         "users",
         user.uid,
-        "portfolio",
-        `saved_${person.id}`
+        "saved_portfolios",
+        person.id
       );
 
       await setDoc(
@@ -165,10 +176,7 @@ export default function PortfolioScreen({ navigation }) {
       );
     } catch (error) {
       console.error("Error saving portfolio:", error);
-      Alert.alert(
-        "Save Failed",
-        `Could not save portfolio: ${error.message}`
-      );
+      Alert.alert("Save Failed", `Could not save portfolio: ${error.message}`);
     } finally {
       setSaving(false);
     }
@@ -239,7 +247,19 @@ export default function PortfolioScreen({ navigation }) {
   }
 
   return (
-    <SafeScreen scroll style={styles.screen} contentContainerStyle={styles.content}>
+    <SafeScreen
+      scroll
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={colors.primary || "#8B5CF6"}
+          colors={[colors.primary || "#8B5CF6"]}
+        />
+      }
+    >
       {/* HEADER */}
       <View style={styles.headerRow}>
         <TouchableOpacity
