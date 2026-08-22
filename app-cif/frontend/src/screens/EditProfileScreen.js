@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
+
 
 import SafeScreen from "../components/SafeScreen";
 import { Feather } from "@expo/vector-icons";
@@ -129,62 +130,88 @@ export default function EditProfileScreen({ navigation }) {
    *
    * Send a REAL Firebase verification email.
    */
-  const handleVerification = async () => {
-    const user = getUser();
+ const handleVerification = async () => {
+  const user = auth.currentUser;
 
-    if (!user) {
-      Alert.alert(
-        "Error",
-        "No user is currently signed in."
-      );
-      return;
-    }
+  if (!user) {
+    Alert.alert(
+      "Error",
+      "No user is currently signed in."
+    );
+    return;
+  }
 
-    try {
-      setSendingVerification(true);
+  try {
+    setSendingVerification(true);
 
-      await reload(user);
+    /*
+     * Get the latest Firebase user.
+     */
+    await reload(user);
 
-      const updatedUser = auth.currentUser;
+    const updatedUser = auth.currentUser;
 
-      /*
-       * IMPORTANT:
-       *
-       * We DO NOT check:
-       *
-       * if (updatedUser.emailVerified)
-       *
-       * here.
-       *
-       * Even if Firebase says the account was verified previously,
-       * this Edit Profile visit requires the user to go through
-       * the verification process again.
-       */
-
-      await sendEmailVerification(updatedUser);
-
-      /*
-       * Sending the email does NOT mean verification is complete.
-       */
+    /*
+     * Firebase verification is permanent.
+     *
+     * If the account is already verified, we don't
+     * need to send another verification email.
+     *
+     * We simply start a new Edit Profile verification
+     * session.
+     */
+    if (updatedUser?.emailVerified === true) {
       setVerificationSent(true);
+
+      /*
+       * We still keep the Edit Profile fields locked
+       * until the user presses Check Verification.
+       */
       setEmailVerified(false);
 
       Alert.alert(
-        "Verification Email Sent",
-        `A new verification link has been sent to ${updatedUser.email}.\n\nOpen the email and click the verification link. Then return to the app and press "Check Verification".`
+        "Verification Required",
+        "Your email is already verified with Firebase. Press \"Check Verification\" to verify this Edit Profile session."
       );
-    } catch (error) {
-      console.log("Verification email error:", error);
 
+      return;
+    }
+
+    /*
+     * If the email has never been verified,
+     * send the real Firebase verification email.
+     */
+    await sendEmailVerification(updatedUser);
+
+    setVerificationSent(true);
+    setEmailVerified(false);
+
+    Alert.alert(
+      "Verification Email Sent",
+      `A verification link has been sent to ${updatedUser.email}.\n\nOpen the email, click the verification link, return to the app, and press "Check Verification".`
+    );
+  } catch (error) {
+    console.log(
+      "Verification email error:",
+      error
+    );
+
+    if (error?.code === "auth/too-many-requests") {
+      Alert.alert(
+        "Too Many Requests",
+        "Firebase has temporarily limited verification emails. Please wait before requesting another email."
+      );
+    } else {
       Alert.alert(
         "Verification Error",
         error?.message ||
           "Unable to send the verification email."
       );
-    } finally {
-      setSendingVerification(false);
     }
-  };
+  } finally {
+    setSendingVerification(false);
+  }
+};
 
   /*
    * STEP 2
@@ -193,83 +220,82 @@ export default function EditProfileScreen({ navigation }) {
    * the verification link.
    */
   const checkVerification = async () => {
-    if (!verificationSent) {
+  if (!verificationSent) {
+    Alert.alert(
+      "Send Verification First",
+      "Please press the verification button first."
+    );
+    return;
+  }
+
+  const user = auth.currentUser;
+
+  if (!user) {
+    Alert.alert(
+      "Error",
+      "No user is currently signed in."
+    );
+    return;
+  }
+
+  try {
+    setCheckingVerification(true);
+
+    /*
+     * Refresh the Firebase user.
+     *
+     * This gets the latest emailVerified value
+     * after the user clicks the email link.
+     */
+    await reload(user);
+
+    const updatedUser = auth.currentUser;
+
+    console.log(
+      "Firebase emailVerified:",
+      updatedUser?.emailVerified
+    );
+
+    /*
+     * Firebase says the email is verified.
+     *
+     * Now we unlock this Edit Profile session.
+     */
+    if (updatedUser?.emailVerified === true) {
+      setEmailVerified(true);
+
       Alert.alert(
-        "Send Verification First",
-        "Please send the verification email before checking."
+        "Email Verified",
+        "Your email has been verified. You can now edit your profile."
       );
 
-      return false;
+      return;
     }
 
-    const user = getUser();
+    /*
+     * Firebase still says the email is not verified.
+     */
+    setEmailVerified(false);
 
-    if (!user) {
-      Alert.alert(
-        "Error",
-        "No user is currently signed in."
-      );
+    Alert.alert(
+      "Not Verified",
+      "Your email has not been verified yet. Please open the verification email, click the verification link, and then press Check Verification again."
+    );
+  } catch (error) {
+    console.log(
+      "Verification check error:",
+      error
+    );
 
-      return false;
-    }
-
-    try {
-      setCheckingVerification(true);
-
-      /*
-       * Get the latest Firebase user information.
-       */
-      await reload(user);
-
-      const updatedUser = auth.currentUser;
-
-      console.log(
-        "Firebase emailVerified:",
-        updatedUser?.emailVerified
-      );
-
-      /*
-       * Now we check the REAL Firebase status.
-       */
-      if (updatedUser?.emailVerified === true) {
-        setEmailVerified(true);
-
-        Alert.alert(
-          "Email Verified",
-          "Your email has been verified. You can now edit your profile."
-        );
-
-        return true;
-      }
-
-      /*
-       * Still not verified.
-       */
-      setEmailVerified(false);
-
-      Alert.alert(
-        "Not Verified",
-        "Your email has not been verified yet. Please open the verification email, click the link, and then check again."
-      );
-
-      return false;
-    } catch (error) {
-      console.log(
-        "Verification check error:",
-        error
-      );
-
-      Alert.alert(
-        "Verification Error",
-        error?.message || "Unable to check verification."
-      );
-
-      return false;
-    } finally {
-      setCheckingVerification(false);
-    }
-  };
-
+    Alert.alert(
+      "Verification Error",
+      error?.message ||
+        "Unable to check verification."
+    );
+  } finally {
+    setCheckingVerification(false);
+  }
+}; 
   /*
    * SAVE PROFILE
    */
