@@ -10,7 +10,7 @@ import {
   Alert,
 } from "react-native";
 import SafeScreen from "../components/SafeScreen";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import { auth, db } from "../config/firebase";
 import {
@@ -21,14 +21,22 @@ import {
   where,
   doc,
   runTransaction,
-  deleteDoc,
 } from "firebase/firestore";
 
-const DAY_FORMAT = { weekday: "short", day: "numeric", month: "short" };
-const TIME_FORMAT = { hour: "2-digit", minute: "2-digit" };
+const DAY_FORMAT = {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+};
+
+const TIME_FORMAT = {
+  hour: "2-digit",
+  minute: "2-digit",
+};
 
 export default function EventsScreen({ navigation }) {
   const { colors } = useTheme();
+
   const [events, setEvents] = useState([]);
   const [myBookingIds, setMyBookingIds] = useState(new Set());
   const [bookingInProgress, setBookingInProgress] = useState(null);
@@ -38,114 +46,151 @@ export default function EventsScreen({ navigation }) {
 
   const user = auth.currentUser;
 
-  // Live events, published only (matches Firestore rules for public reads)
+  // Live events, published only
   useEffect(() => {
     const q = query(collection(db, "events"), orderBy("start_date", "asc"));
+
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
         const data = snapshot.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
+          .map((d) => ({
+            id: d.id,
+            ...d.data(),
+          }))
           .filter((e) => e.published && e.start_date);
+
         setEvents(data);
         setLoading(false);
       },
       () => setLoading(false),
     );
+
     return unsubscribe;
   }, []);
 
-  // Live list of THIS user's own bookings, so the button state stays correct
-  // across devices/re-renders without extra reads per event.
+  // Live list of this user's bookings
   useEffect(() => {
     if (!user) {
       setMyBookingIds(new Set());
       return;
     }
+
     const q = query(
       collection(db, "bookings"),
       where("userId", "==", user.uid),
     );
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setMyBookingIds(new Set(snapshot.docs.map((d) => d.data().eventId)));
     });
+
     return unsubscribe;
   }, [user?.uid]);
 
+  // Group events by day
   const { days, eventsByDay } = useMemo(() => {
     const grouped = {};
     const order = [];
+
     events.forEach((event) => {
       const date = event.start_date.toDate();
       const key = date.toDateString();
+
       if (!grouped[key]) {
         grouped[key] = {
           label: date.toLocaleDateString("en-GB", DAY_FORMAT),
           items: [],
         };
+
         order.push(key);
       }
+
       grouped[key].items.push(event);
     });
-    return { days: order, eventsByDay: grouped };
+
+    return {
+      days: order,
+      eventsByDay: grouped,
+    };
   }, [events]);
 
+  // Automatically select first available day
   useEffect(() => {
-    if (!activeDay && days.length > 0) setActiveDay(days[0]);
+    if (!activeDay && days.length > 0) {
+      setActiveDay(days[0]);
+    }
   }, [days, activeDay]);
 
   const dayEvents = activeDay ? eventsByDay[activeDay]?.items || [] : [];
+
   const filteredEvents = query_
-    ? dayEvents.filter((e) =>
-        e.title?.toLowerCase().includes(query_.toLowerCase()),
+    ? dayEvents.filter((event) =>
+        event.title?.toLowerCase().includes(query_.toLowerCase()),
       )
     : dayEvents;
 
+  // Book / cancel event
   const handleBook = async (event) => {
     if (!user) {
       Alert.alert("Sign in required", "Please log in to book events.", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Log in", onPress: () => navigation?.navigate?.("Login") },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Log in",
+          onPress: () => navigation?.navigate?.("Login"),
+        },
       ]);
+
       return;
     }
 
     const bookingId = `${event.id}_${user.uid}`;
     const alreadyBooked = myBookingIds.has(event.id);
+
     setBookingInProgress(event.id);
 
-    // Format event date & time strings to save inside the booking document
+    // Event date and time saved to booking
     const eventDateStr = event.start_date?.toDate
       ? event.start_date.toDate().toLocaleDateString("en-GB", DAY_FORMAT)
       : "—";
+
     const eventTimeStr = event.start_date?.toDate
       ? event.start_date.toDate().toLocaleTimeString("en-GB", TIME_FORMAT)
       : "—";
 
     try {
       if (alreadyBooked) {
-        // Cancel: delete booking, decrement count via transaction
+        // Cancel booking
         await runTransaction(db, async (transaction) => {
           const eventRef = doc(db, "events", event.id);
           const eventSnap = await transaction.get(eventRef);
+
           const currentCount = eventSnap.data()?.booked_count || 0;
+
           transaction.update(eventRef, {
             booked_count: Math.max(0, currentCount - 1),
           });
+
           transaction.delete(doc(db, "bookings", bookingId));
         });
       } else {
-        // Book: check capacity, create booking with details & status, increment count — all atomic
+        // Create booking
         await runTransaction(db, async (transaction) => {
           const eventRef = doc(db, "events", event.id);
           const eventSnap = await transaction.get(eventRef);
+
           const data = eventSnap.data();
           const currentCount = data?.booked_count || 0;
 
+          // Check capacity
           if (data?.capacity != null && currentCount >= data.capacity) {
             throw new Error("FULL");
           }
 
+          // Create booking
           transaction.set(doc(db, "bookings", bookingId), {
             eventId: event.id,
             userId: user.uid,
@@ -157,15 +202,21 @@ export default function EventsScreen({ navigation }) {
             status: "Valid",
             created_at: new Date(),
           });
-          transaction.update(eventRef, { booked_count: currentCount + 1 });
+
+          // Increase booked count
+          transaction.update(eventRef, {
+            booked_count: currentCount + 1,
+          });
         });
 
-        // Booking succeeded — show confirmation with the ticket reference
+        // Booking confirmation
         Alert.alert(
           "Booking Confirmed!",
           `Ticket Ref: ${bookingId}\n\nYou can view your barcode and ticket details in your profile or tickets tab.`,
           [
-            { text: "OK" },
+            {
+              text: "OK",
+            },
             {
               text: "View Tickets",
               onPress: () => navigation?.navigate?.("MyTickets"),
@@ -187,40 +238,81 @@ export default function EventsScreen({ navigation }) {
   return (
     <SafeScreen
       scroll
-      style={[styles.screen, { backgroundColor: colors.bg }]}
-      contentContainerStyle={{ paddingBottom: 20, paddingTop: 8 }}
+      style={[
+        styles.screen,
+        {
+          backgroundColor: colors.bg,
+        },
+      ]}
+      contentContainerStyle={{
+        paddingBottom: 20,
+        paddingTop: 8,
+      }}
     >
-      {/* Back button row — matches ForumScreen's header pattern */}
+      {/* BACK BUTTON - SAME STYLE AS FORUM */}
       <View style={styles.backRow}>
         <TouchableOpacity
           onPress={() => navigation?.goBack?.()}
           style={styles.backButton}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          hitSlop={{
+            top: 8,
+            bottom: 8,
+            left: 8,
+            right: 8,
+          }}
         >
           <Feather name="arrow-left" size={20} color={colors.text} />
-          <Text style={[styles.backText, { color: colors.text }]}>Events</Text>
+
+          <Text
+            style={[
+              styles.backText,
+              {
+                color: colors.text,
+              },
+            ]}
+          >
+            Events
+          </Text>
         </TouchableOpacity>
       </View>
 
+      {/* PAGE HEADER */}
       <View style={styles.headerRow}>
-        <View>
-          <Text style={[styles.pageTitle, { color: colors.text }]}>Events</Text>
-          
-        </View>
-        <TouchableOpacity
-          style={[styles.iconButton, { backgroundColor: colors.card }]}
-        ></TouchableOpacity>
+        <Text
+          style={[
+            styles.pageTitle,
+            {
+              color: colors.text,
+            },
+          ]}
+        >
+          Events
+        </Text>
       </View>
 
-      <View style={[styles.searchContainer, { backgroundColor: colors.input }]}>
+      {/* SEARCH */}
+      <View
+        style={[
+          styles.searchContainer,
+          {
+            backgroundColor: colors.input,
+          },
+        ]}
+      >
         <Feather
           name="search"
           size={20}
           color={colors.textMuted}
           style={styles.searchIcon}
         />
+
         <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
+          style={[
+            styles.searchInput,
+            {
+              color: colors.text,
+            },
+          ]}
           placeholder="Search this day's events..."
           placeholderTextColor={colors.textMuted}
           value={query_}
@@ -228,16 +320,32 @@ export default function EventsScreen({ navigation }) {
         />
       </View>
 
+      {/* EVENTS */}
       {loading ? (
-        <Text style={{ color: colors.textMuted, paddingHorizontal: 20 }}>
+        <Text
+          style={[
+            styles.statusText,
+            {
+              color: colors.textMuted,
+            },
+          ]}
+        >
           Loading events...
         </Text>
       ) : days.length === 0 ? (
-        <Text style={{ color: colors.textMuted, paddingHorizontal: 20 }}>
+        <Text
+          style={[
+            styles.statusText,
+            {
+              color: colors.textMuted,
+            },
+          ]}
+        >
           No events published yet — check back soon.
         </Text>
       ) : (
         <>
+          {/* DAY SELECTOR */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -245,6 +353,7 @@ export default function EventsScreen({ navigation }) {
           >
             {days.map((key) => {
               const active = key === activeDay;
+
               return (
                 <TouchableOpacity
                   key={key}
@@ -253,6 +362,7 @@ export default function EventsScreen({ navigation }) {
                     styles.dayPill,
                     {
                       borderColor: active ? colors.primary : colors.border,
+
                       backgroundColor: active
                         ? colors.primary + "22"
                         : undefined,
@@ -264,6 +374,7 @@ export default function EventsScreen({ navigation }) {
                       styles.dayText,
                       {
                         color: active ? colors.primary : colors.textMuted,
+
                         fontWeight: active ? "700" : "500",
                       },
                     ]}
@@ -275,18 +386,31 @@ export default function EventsScreen({ navigation }) {
             })}
           </ScrollView>
 
-          <View style={{ paddingHorizontal: 20, marginTop: 8 }}>
+          {/* EVENT LIST */}
+          <View
+            style={{
+              paddingHorizontal: 20,
+              marginTop: 8,
+            }}
+          >
             {filteredEvents.length === 0 ? (
-              <Text style={{ color: colors.textMuted, fontSize: 14 }}>
+              <Text
+                style={{
+                  color: colors.textMuted,
+                  fontSize: 14,
+                }}
+              >
                 No events match your search.
               </Text>
             ) : (
               filteredEvents.map((event) => {
                 const isBooked = myBookingIds.has(event.id);
+
                 const isFull =
                   event.capacity != null &&
                   (event.booked_count || 0) >= event.capacity &&
                   !isBooked;
+
                 const isLoadingThis = bookingInProgress === event.id;
 
                 return (
@@ -300,6 +424,7 @@ export default function EventsScreen({ navigation }) {
                       },
                     ]}
                   >
+                    {/* EVENT INFORMATION */}
                     <View
                       style={{
                         flexDirection: "row",
@@ -307,9 +432,12 @@ export default function EventsScreen({ navigation }) {
                         gap: 12,
                       }}
                     >
+                      {/* EVENT IMAGE / TIME */}
                       {event.image_url ? (
                         <Image
-                          source={{ uri: event.image_url }}
+                          source={{
+                            uri: event.image_url,
+                          }}
                           style={styles.thumb}
                           onError={(e) =>
                             console.log(
@@ -323,11 +451,18 @@ export default function EventsScreen({ navigation }) {
                         <View
                           style={[
                             styles.timeBadge,
-                            { backgroundColor: colors.primary + "18" },
+                            {
+                              backgroundColor: colors.primary + "18",
+                            },
                           ]}
                         >
                           <Text
-                            style={[styles.timeText, { color: colors.primary }]}
+                            style={[
+                              styles.timeText,
+                              {
+                                color: colors.primary,
+                              },
+                            ]}
                           >
                             {event.start_date
                               .toDate()
@@ -336,12 +471,15 @@ export default function EventsScreen({ navigation }) {
                         </View>
                       )}
 
+                      {/* EVENT DETAILS */}
                       <View style={{ flex: 1 }}>
                         {!!event.image_url && (
                           <Text
                             style={[
                               styles.timeTextSmall,
-                              { color: colors.primary },
+                              {
+                                color: colors.primary,
+                              },
                             ]}
                           >
                             {event.start_date
@@ -351,18 +489,30 @@ export default function EventsScreen({ navigation }) {
                         )}
 
                         <Text
-                          style={[styles.eventTitle, { color: colors.text }]}
+                          style={[
+                            styles.eventTitle,
+                            {
+                              color: colors.text,
+                            },
+                          ]}
                           numberOfLines={2}
                         >
                           {event.title}
                         </Text>
+
                         {!!event.category && (
                           <Text
-                            style={[styles.metaText, { color: colors.primary }]}
+                            style={[
+                              styles.metaText,
+                              {
+                                color: colors.primary,
+                              },
+                            ]}
                           >
                             {event.category}
                           </Text>
                         )}
+
                         {!!event.venue && (
                           <View style={styles.metaRow}>
                             <Feather
@@ -370,21 +520,29 @@ export default function EventsScreen({ navigation }) {
                               size={12}
                               color={colors.textMuted}
                             />
+
                             <Text
                               style={[
                                 styles.metaText,
-                                { color: colors.textMuted },
+                                {
+                                  color: colors.textMuted,
+                                },
                               ]}
                             >
                               {event.venue}
                             </Text>
                           </View>
                         )}
+
+                        {/* SPOTS LEFT */}
                         {event.capacity != null && (
                           <Text
                             style={[
                               styles.metaText,
-                              { color: colors.textMuted, marginTop: 2 },
+                              {
+                                color: colors.textMuted,
+                                marginTop: 2,
+                              },
                             ]}
                           >
                             {Math.max(
@@ -397,6 +555,7 @@ export default function EventsScreen({ navigation }) {
                       </View>
                     </View>
 
+                    {/* BOOK BUTTON */}
                     <TouchableOpacity
                       onPress={() => handleBook(event)}
                       disabled={isLoadingThis || (isFull && !isBooked)}
@@ -408,10 +567,13 @@ export default function EventsScreen({ navigation }) {
                             : isFull
                               ? colors.border
                               : colors.primary,
+
                           borderColor: isBooked
                             ? colors.primary
                             : "transparent",
+
                           borderWidth: isBooked ? 1 : 0,
+
                           opacity: isLoadingThis ? 0.6 : 1,
                         },
                       ]}
@@ -449,39 +611,42 @@ export default function EventsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
+  screen: {
+    flex: 1,
+  },
+
+  // Back button - matches Forum
   backRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 8,
   },
+
   backButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
+
   backText: {
     fontSize: 15,
     fontWeight: "600",
   },
-  pageTitle: { fontSize: 26, fontWeight: "bold", marginBottom: 4 },
-  pageSubtitle: { fontSize: 14 },
+
+  // Page header
   headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 16,
   },
-  iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
+
+  pageTitle: {
+    fontSize: 26,
+    fontWeight: "bold",
   },
+
+  // Search
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -491,10 +656,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 50,
   },
-  searchIcon: { marginRight: 12 },
-  searchInput: { flex: 1, fontSize: 15 },
 
-  dayScroll: { paddingLeft: 20, marginBottom: 16, flexGrow: 0 },
+  searchIcon: {
+    marginRight: 12,
+  },
+
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+  },
+
+  // Status text
+  statusText: {
+    paddingHorizontal: 20,
+  },
+
+  // Day selector
+  dayScroll: {
+    paddingLeft: 20,
+    marginBottom: 16,
+    flexGrow: 0,
+  },
+
   dayPill: {
     borderWidth: 1,
     paddingHorizontal: 16,
@@ -504,14 +687,19 @@ const styles = StyleSheet.create({
     height: 36,
     justifyContent: "center",
   },
-  dayText: { fontSize: 13 },
 
+  dayText: {
+    fontSize: 13,
+  },
+
+  // Event card
   eventRow: {
     borderWidth: 1,
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
   },
+
   timeBadge: {
     borderRadius: 8,
     paddingHorizontal: 8,
@@ -519,18 +707,52 @@ const styles = StyleSheet.create({
     minWidth: 52,
     alignItems: "center",
   },
-  timeText: { fontSize: 12, fontWeight: "700" },
-  timeTextSmall: { fontSize: 11, fontWeight: "700", marginBottom: 2 },
-  thumb: { width: 56, height: 56, borderRadius: 10 },
-  eventTitle: { fontSize: 14, fontWeight: "600", lineHeight: 19 },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-  metaText: { fontSize: 12, marginTop: 2 },
 
+  timeText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  timeTextSmall: {
+    fontSize: 11,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+
+  thumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 10,
+  },
+
+  eventTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 19,
+  },
+
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 4,
+  },
+
+  metaText: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+
+  // Booking button
   bookButton: {
     marginTop: 12,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: "center",
   },
-  bookButtonText: { fontSize: 13, fontWeight: "700" },
+
+  bookButtonText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
 });
