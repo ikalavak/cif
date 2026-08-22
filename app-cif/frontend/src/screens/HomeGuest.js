@@ -1,139 +1,56 @@
-// src/screens/HomeScreen.js
-import React, { useState, useEffect } from "react";
+import React from "react";
 import {
   StyleSheet,
   Text,
   View,
+  TextInput,
   TouchableOpacity,
   ScrollView,
-  Image,
-  ImageBackground,
 } from "react-native";
 import SafeScreen from "../components/SafeScreen";
+import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import ThemeToggle from "../components/ThemeToggle";
-import { auth, db } from "../config/firebase";
-import {
-  collection,
-  doc,
-  onSnapshot,
-  query,
-  orderBy,
-  limit,
-} from "firebase/firestore";
-
-const FALLBACK_HERO =
-  "https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=1200&q=80";
+import { auth } from "../config/firebase";
 
 export default function HomeScreen({ navigation }) {
   const { colors } = useTheme();
+
+  // Get the current user from Firebase and extract their name
   const user = auth.currentUser;
-  const firstName = user?.displayName?.trim().split(" ")[0] || "Creative";
-
-  // 1. Dynamic Home Site Settings (Hero, About, Highlights, CTA)
-  const [homeConfig, setHomeConfig] = useState({
-    hero_badge: "FREE FESTIVAL",
-    hero_title: "Creative Industries Festival 2026",
-    hero_subtitle: "Creative Balance: Good Work, Health and Life",
-    hero_dates: "2 – 5 September 2026",
-    hero_locations: "Royal Docks & Stratford",
-    hero_image_url: FALLBACK_HERO,
-    about_text:
-      "Explore how creativity can help us find balance in our work, health and lives. Discover talks, workshops and industry collaborations focused on inclusion, wellbeing, innovation and the future of creative work.",
-    cta_title: "Don't miss the festival",
-    cta_text:
-      "Explore the programme, save your favourite events and connect with the creative community.",
-    cta_button_text: "Explore Events",
-    highlights: [],
-  });
-
-  useEffect(() => {
-    const unsubHome = onSnapshot(
-      doc(db, "site_settings", "home"),
-      (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          setHomeConfig((prev) => ({
-            ...prev,
-            ...data,
-            hero_image_url: data.hero_image_url || FALLBACK_HERO,
-            highlights: Array.isArray(data.highlights) ? data.highlights : [],
-          }));
-        }
-      },
-      (err) => console.warn("Home settings listener notice:", err.message),
-    );
-    return () => unsubHome();
-  }, []);
-
-  // 2. Dynamic Events Collection
-  const [festivalEvents, setFestivalEvents] = useState([]);
-  useEffect(() => {
-    const q = query(
-      collection(db, "events"),
-      orderBy("start_date", "asc"),
-      limit(6),
-    );
-    const unsubEvents = onSnapshot(
-      q,
-      (snapshot) => {
-        setFestivalEvents(
-          snapshot.docs.map((d) => ({ id: d.id, ...d.data() })),
-        );
-      },
-      (err) => console.warn("Events listener notice:", err.message),
-    );
-    return () => unsubEvents();
-  }, []);
-
-  // 3. Dynamic Venues Collection
-  const [venuesList, setVenuesList] = useState([]);
-  useEffect(() => {
-    const unsubVenues = onSnapshot(
-      collection(db, "venues"),
-      (snapshot) => {
-        setVenuesList(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-      },
-      (err) => console.warn("Venues listener notice:", err.message),
-    );
-    return () => unsubVenues();
-  }, []);
+  const userName = user?.displayName || "User";
 
   return (
     <SafeScreen
       scroll
       style={[styles.screen, { backgroundColor: colors.bg }]}
-      contentContainerStyle={{ paddingBottom: 40 }}
+      contentContainerStyle={{ paddingBottom: 20 }}
     >
-      {/* HEADER */}
+      {/* Header */}
       <View style={styles.headerRow}>
-        <View style={styles.headerTextContainer}>
+        <View>
           <Text style={[styles.greetingText, { color: colors.textMuted }]}>
-            Hi {firstName} 👋
+            Good Morning,
           </Text>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>
-            {homeConfig.hero_title}
+          <Text style={[styles.nameText, { color: colors.text }]}>
+            {userName} 👋
           </Text>
         </View>
-
         <View style={styles.headerIcons}>
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => {
               const parent = navigation.getParent && navigation.getParent();
-              if (parent?.navigate) {
-                parent.navigate("Notifications");
-              } else {
-                navigation.navigate("Notifications");
-              }
+              if (parent && parent.navigate) parent.navigate("Notifications");
+              else navigation.navigate("Notifications");
             }}
           >
-            <Feather name="bell" size={20} color={colors.text} />
+            <Feather name="bell" size={18} color={colors.text} />
             <View
               style={[
                 styles.notificationDot,
-                { backgroundColor: colors.error || "#EF4444" },
+                { backgroundColor: colors.error },
               ]}
             />
           </TouchableOpacity>
@@ -141,268 +58,109 @@ export default function HomeScreen({ navigation }) {
         </View>
       </View>
 
-      {/* DYNAMIC HERO CARD */}
+      {/* Search */}
+      <View style={[styles.searchContainer, { backgroundColor: colors.input }]}>
+        <Feather
+          name="search"
+          size={20}
+          color={colors.textMuted}
+          style={styles.searchIcon}
+        />
+        <TextInput
+          style={[styles.searchInput, { color: colors.text }]}
+          placeholder="Search events..."
+          placeholderTextColor={colors.textMuted}
+        />
+        <TouchableOpacity>
+          <Feather name="sliders" size={18} color={colors.primary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Hero Card */}
       <View
         style={[
           styles.heroCard,
           { backgroundColor: colors.card, borderColor: colors.border },
         ]}
       >
-        <ImageBackground
-          source={{ uri: homeConfig.hero_image_url }}
-          resizeMode="cover"
-          style={styles.heroImage}
-          imageStyle={styles.heroImageRadius}
-        >
-          <View style={styles.heroFallbackBg} />
-          <View style={styles.heroOverlay} />
-
-          <View style={styles.heroContent}>
-            {!!homeConfig.hero_badge && (
-              <View
-                style={[styles.freeBadge, { backgroundColor: colors.primary }]}
-              >
-                <Text style={styles.freeBadgeText}>
-                  {homeConfig.hero_badge}
-                </Text>
-              </View>
-            )}
-
-            <Text style={styles.heroTitle}>{homeConfig.hero_title}</Text>
-            <Text style={styles.heroSubtitle}>{homeConfig.hero_subtitle}</Text>
-
-            {!!homeConfig.hero_dates && (
-              <View style={styles.heroInfoRow}>
-                <Feather name="calendar" size={16} color="#FFFFFF" />
-                <Text style={styles.heroInfoText}>{homeConfig.hero_dates}</Text>
-              </View>
-            )}
-
-            {!!homeConfig.hero_locations && (
-              <View style={styles.heroInfoRow}>
-                <Feather name="map-pin" size={16} color="#FFFFFF" />
-                <Text style={styles.heroInfoText}>
-                  {homeConfig.hero_locations}
-                </Text>
-              </View>
-            )}
-          </View>
-        </ImageBackground>
-      </View>
-
-      {/* DYNAMIC ABOUT FESTIVAL */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          About the Festival
+        <LinearGradient
+          colors={["rgba(139,92,246,0.1)", "transparent"]}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <Text style={[styles.heroTitle, { color: colors.text }]}>
+          Creative Industries Festival
         </Text>
-        <Text style={[styles.bodyText, { color: colors.textMuted }]}>
-          {homeConfig.about_text}
+        <Text style={[styles.heroSubtitle, { color: colors.textMuted }]}>
+          Coming Soon
+        </Text>
+        <Text style={[styles.heroDesc, { color: colors.text }]}>
+          Stay tuned for exciting announcements.
         </Text>
       </View>
 
-      {/* QUICK ACTIONS */}
       <View style={styles.quickActionsRow}>
         <ActionBtn
           icon="message-circle"
-          color={colors.accent}
+          color={colors.primary}
           label="Forum"
           colors={colors}
-          onPress={() => navigation.navigate("ForumScreen")}
         />
         <ActionBtn
           icon="briefcase"
-          color={colors.success}
-          label="Jobs"
+          color={colors.accent}
+          label="Job Board"
           colors={colors}
-          onPress={() => navigation.navigate("JobBoard")}
         />
         <ActionBtn
           icon="user"
-          color={colors.primary}
+          color={colors.success}
           label="Portfolio"
           colors={colors}
-          onPress={() => navigation.navigate("PortfolioScreen")}
         />
       </View>
 
-      {/* DYNAMIC FESTIVAL EVENTS */}
+      {/* Featured Events Header */}
       <View style={styles.sectionHeader}>
-        <View>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Festival Events
-          </Text>
-          <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>
-            Discover what's happening
-          </Text>
-        </View>
-        <TouchableOpacity onPress={() => navigation.navigate("Events")}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          Featured Events
+        </Text>
+        <TouchableOpacity>
           <Text style={[styles.seeAllText, { color: colors.primary }]}>
             See All
           </Text>
         </TouchableOpacity>
       </View>
 
-      {festivalEvents.length === 0 ? (
-        <Text
-          style={{
-            color: colors.textMuted,
-            fontSize: 13,
-            paddingHorizontal: 20,
-            marginBottom: 20,
-          }}
+      {/* Horizontal Scroll Placeholder */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ paddingLeft: 20 }}
+      >
+        <View
+          style={[styles.featuredMiniCard, { backgroundColor: colors.accent }]}
         >
-          No events published yet — check back soon.
-        </Text>
-      ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.eventsScroll}
-        >
-          {festivalEvents.map((event) => (
-            <TouchableOpacity
-              key={event.id}
-              activeOpacity={0.9}
-              style={[
-                styles.eventCard,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                },
-              ]}
-              onPress={() => navigation.navigate("Events")}
-            >
-              <Image
-                source={{ uri: event.image_url || homeConfig.hero_image_url }}
-                style={styles.eventImage}
-              />
-              <View style={styles.eventContent}>
-                <View style={styles.eventDateRow}>
-                  <Feather name="calendar" size={13} color={colors.primary} />
-                  <Text style={[styles.eventDate, { color: colors.primary }]}>
-                    {event.start_date?.toDate
-                      ? event.start_date.toDate().toLocaleDateString("en-GB", {
-                          day: "numeric",
-                          month: "long",
-                        })
-                      : event.start_date || ""}
-                  </Text>
-                </View>
-                <Text
-                  style={[styles.eventTitle, { color: colors.text }]}
-                  numberOfLines={2}
-                >
-                  {event.title}
-                </Text>
-                {!!event.category && (
-                  <Text
-                    style={[
-                      styles.eventDescription,
-                      { color: colors.textMuted },
-                    ]}
-                    numberOfLines={2}
-                  >
-                    {event.category}
-                  </Text>
-                )}
-                {!!event.venue && (
-                  <View style={styles.locationRow}>
-                    <Feather
-                      name="map-pin"
-                      size={13}
-                      color={colors.textMuted}
-                    />
-                    <Text
-                      style={[styles.locationText, { color: colors.textMuted }]}
-                    >
-                      {event.venue}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
-
-      {/* DYNAMIC FESTIVAL HIGHLIGHTS */}
-      {homeConfig.highlights && homeConfig.highlights.length > 0 && (
-        <>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Festival Highlights
-            </Text>
-          </View>
-          <View style={styles.highlightsGrid}>
-            {homeConfig.highlights.map((hl, index) => (
-              <HighlightCard
-                key={hl.id || index}
-                icon={hl.icon}
-                title={hl.title}
-                text={hl.text}
-                colors={colors}
-              />
-            ))}
-          </View>
-        </>
-      )}
-
-      {/* DYNAMIC FESTIVAL VENUES */}
-      {venuesList.length > 0 && (
-        <>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Festival Venues
-            </Text>
-          </View>
-          {venuesList.map((venue) => (
-            <View
-              key={venue.id}
-              style={[
-                styles.venueCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-            >
-              <View
-                style={[styles.venueIcon, { backgroundColor: colors.input }]}
-              >
-                <Feather name="map-pin" size={22} color={colors.primary} />
-              </View>
-              <View style={styles.venueTextContainer}>
-                <Text style={[styles.venueTitle, { color: colors.text }]}>
-                  {venue.name || venue.title}
-                </Text>
-                <Text
-                  style={[styles.venueDescription, { color: colors.textMuted }]}
-                >
-                  {venue.address || venue.location || venue.description}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </>
-      )}
-
-      {/* DYNAMIC CTA BANNER */}
-      <View style={[styles.ctaCard, { backgroundColor: colors.primary }]}>
-        <Feather
-          name="star"
-          size={26}
-          color="#FFFFFF"
-          style={{ marginBottom: 10 }}
-        />
-        <Text style={styles.ctaTitle}>{homeConfig.cta_title}</Text>
-        <Text style={styles.ctaText}>{homeConfig.cta_text}</Text>
-        <TouchableOpacity
-          style={styles.ctaButton}
-          onPress={() => navigation.navigate("Events")}
-        >
-          <Text style={[styles.ctaButtonText, { color: colors.primary }]}>
-            {homeConfig.cta_button_text || "Explore Events"}
+          <Feather
+            name="heart"
+            size={20}
+            color={colors.white}
+            style={styles.heartIconAbs}
+          />
+          <Text style={[styles.placeholderText, { color: colors.white }]}>
+            AI Exhibition
           </Text>
-          <Feather name="arrow-right" size={17} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
+        </View>
+        <View
+          style={[
+            styles.featuredMiniCard,
+            { backgroundColor: colors.accent2, marginRight: 40 },
+          ]}
+        >
+          <Text style={[styles.placeholderText, { color: colors.white }]}>
+            VR Demo
+          </Text>
+        </View>
+      </ScrollView>
     </SafeScreen>
   );
 }
@@ -419,249 +177,97 @@ const ActionBtn = ({ icon, color, label, colors, onPress }) => (
         { backgroundColor: colors.card, borderColor: colors.border },
       ]}
     >
-      <Feather name={icon} size={21} color={color} />
+      <Feather name={icon} size={22} color={color} />
     </View>
     <Text style={[styles.actionLabel, { color: colors.text }]}>{label}</Text>
   </TouchableOpacity>
 );
 
-const HighlightCard = ({ icon, title, text, colors }) => {
-  const safeIcon =
-    typeof icon === "string" && icon.trim()
-      ? icon.trim().toLowerCase().replace(/_/g, "-")
-      : "star";
-
-  return (
-    <View
-      style={[
-        styles.highlightCard,
-        { backgroundColor: colors.card, borderColor: colors.border },
-      ]}
-    >
-      <Feather name={safeIcon} size={22} color={colors.primary} />
-      <Text style={[styles.highlightTitle, { color: colors.text }]}>
-        {title}
-      </Text>
-      <Text style={[styles.highlightText, { color: colors.textMuted }]}>
-        {text}
-      </Text>
-    </View>
-  );
-};
-
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  greetingText: { fontSize: 14, marginBottom: 2 },
+  nameText: { fontSize: 18, fontWeight: "bold" },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 18,
+    paddingBottom: 16,
   },
-  headerTextContainer: { flex: 1 },
-  greetingText: { fontSize: 13, marginBottom: 4 },
-  headerTitle: { fontSize: 16, fontWeight: "700", maxWidth: 240 },
-  headerIcons: { flexDirection: "row", alignItems: "center", gap: 10 },
+  headerIcons: { flexDirection: "row", gap: 12 },
   iconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
   },
   notificationDot: {
     position: "absolute",
-    top: 7,
-    right: 8,
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    top: 8,
+    right: 10,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 50,
+  },
+  searchIcon: { marginRight: 12 },
+  searchInput: { flex: 1, fontSize: 15 },
   heroCard: {
     marginHorizontal: 20,
-    marginBottom: 26,
-    borderRadius: 22,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
     borderWidth: 1,
     overflow: "hidden",
-    elevation: 4,
+    marginBottom: 24,
   },
-  heroImage: {
-    width: "100%",
-    height: 310,
-    justifyContent: "flex-end",
-    backgroundColor: "#1a1a2e",
+  heroTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 8 },
+  heroSubtitle: { fontSize: 14, marginBottom: 12 },
+  heroDesc: { fontSize: 13, textAlign: "center" },
+  quickActionsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
-  heroImageRadius: { borderRadius: 22 },
-  heroFallbackBg: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#15161f",
-    borderRadius: 22,
+  actionBtn: { alignItems: "center", flex: 1 },
+  actionIconBg: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+    borderWidth: 1,
   },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.52)",
-    zIndex: 1,
-    borderRadius: 22,
-  },
-  heroContent: { padding: 22, zIndex: 2 },
-  freeBadge: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginBottom: 11,
-  },
-  freeBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-  },
-  heroTitle: {
-    color: "#FFFFFF",
-    fontSize: 27,
-    lineHeight: 32,
-    fontWeight: "800",
-    marginBottom: 9,
-  },
-  heroSubtitle: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: "500",
-    marginBottom: 15,
-  },
-  heroInfoRow: { flexDirection: "row", alignItems: "center", marginTop: 6 },
-  heroInfoText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    marginLeft: 8,
-    fontWeight: "600",
-  },
-  section: { paddingHorizontal: 20, marginBottom: 25 },
+  actionLabel: { fontSize: 12, fontWeight: "500" },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    marginBottom: 15,
+    marginBottom: 16,
   },
-  sectionTitle: { fontSize: 19, fontWeight: "800" },
-  sectionSubtitle: { fontSize: 12, marginTop: 3 },
-  bodyText: { fontSize: 14, lineHeight: 22, marginTop: 8 },
-  seeAllText: { fontSize: 13, fontWeight: "700" },
-  quickActionsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    marginBottom: 30,
-  },
-  actionBtn: { alignItems: "center", flex: 1 },
-  actionIconBg: {
-    width: 56,
-    height: 56,
+  sectionTitle: { fontSize: 18, fontWeight: "bold" },
+  seeAllText: { fontSize: 14, fontWeight: "600" },
+  featuredMiniCard: {
+    width: 220,
+    height: 120,
     borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 7,
-    borderWidth: 1,
-  },
-  actionLabel: { fontSize: 11, fontWeight: "600" },
-  eventsScroll: { paddingLeft: 20, paddingRight: 20, paddingBottom: 10 },
-  eventCard: {
-    width: 275,
-    borderRadius: 18,
-    borderWidth: 1,
-    marginRight: 14,
-    overflow: "hidden",
-    elevation: 2,
-  },
-  eventImage: { width: "100%", height: 145 },
-  eventContent: { padding: 15 },
-  eventDateRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 7,
-  },
-  eventDate: { fontSize: 11, fontWeight: "700", marginLeft: 5 },
-  eventTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    lineHeight: 21,
-    marginBottom: 7,
-  },
-  eventDescription: { fontSize: 12, lineHeight: 18, marginBottom: 10 },
-  locationRow: { flexDirection: "row", alignItems: "center" },
-  locationText: { fontSize: 11, marginLeft: 5 },
-  highlightsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 20,
-    gap: 10,
-    marginBottom: 25,
-  },
-  highlightCard: {
-    width: "48%",
-    minHeight: 145,
     padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
+    justifyContent: "flex-end",
+    marginRight: 16,
   },
-  highlightTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    marginTop: 12,
-    marginBottom: 6,
-  },
-  highlightText: { fontSize: 11, lineHeight: 17 },
-  venueCard: {
-    marginHorizontal: 20,
-    borderRadius: 15,
-    borderWidth: 1,
-    padding: 15,
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  venueIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  venueTextContainer: { flex: 1, marginLeft: 13 },
-  venueTitle: { fontSize: 14, fontWeight: "700", marginBottom: 4 },
-  venueDescription: { fontSize: 11, lineHeight: 16 },
-  ctaCard: {
-    marginHorizontal: 20,
-    marginTop: 18,
-    padding: 22,
-    borderRadius: 20,
-  },
-  ctaTitle: {
-    color: "#FFFFFF",
-    fontSize: 21,
-    fontWeight: "800",
-    marginBottom: 8,
-  },
-  ctaText: {
-    color: "#FFFFFF",
-    opacity: 0.9,
-    fontSize: 13,
-    lineHeight: 20,
-    marginBottom: 18,
-  },
-  ctaButton: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    height: 46,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  ctaButtonText: { fontSize: 13, fontWeight: "800" },
+  heartIconAbs: { position: "absolute", top: 12, right: 12 },
+  placeholderText: { fontSize: 18, fontWeight: "bold" },
 });
