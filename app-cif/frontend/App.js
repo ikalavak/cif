@@ -5,6 +5,7 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import {
@@ -391,36 +392,48 @@ function GuestTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeGuest} />
- 
-      {/* Guests can browse events, but EventsScreen checks the isGuest
-          param to skip the "log in?" prompt and redirect straight to
-          Login instead when they try to book. */}
+
+      {/* GUEST RESTRICTION: EventsScreen receives isGuest via route params.
+          EventsScreen checks this and redirects straight to Login instead
+          of allowing a booking attempt — no other behavior changes. */}
       <Tab.Screen
         name="Events"
         component={EventsScreen}
         initialParams={{ isGuest: true }}
       />
- 
+
       <Tab.Screen name="Maps" component={MapsScreen} />
- 
-      {/* Guests never see a Profile screen at all — tapping the tab
-          intercepts navigation and sends them straight to Login instead. */}
+
+      {/* GUEST RESTRICTION: tapping the Profile tab never renders
+          ProfileGuest — tabPress is intercepted and the guest is sent
+          straight back to Login instead. */}
       <Tab.Screen
         name="Profile"
         component={ProfileGuest}
         listeners={({ navigation }) => ({
           tabPress: (e) => {
             e.preventDefault();
-            const parent = navigation.getParent();
-            if (parent?.replace) {
-              parent.replace("Login");
-            } else {
-              navigation.replace("Login");
-            }
+            Alert.alert(
+              "Create an account",
+              "You'll need an account to view a profile. Sign up first — it only takes a minute.",
+              [
+                { text: "Not now", style: "cancel" },
+                {
+                  text: "Continue",
+                  onPress: () => {
+                    const parent = navigation.getParent();
+                    if (parent?.replace) {
+                      parent.replace("Login");
+                    } else {
+                      navigation.replace("Login");
+                    }
+                  },
+                },
+              ],
+            );
           },
         })}
       />
- 
     </Tab.Navigator>
   );
 }
