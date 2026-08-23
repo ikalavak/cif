@@ -414,18 +414,18 @@ function GuestTabs() {
           tabPress: (e) => {
             e.preventDefault();
             Alert.alert(
-              "Create an account",
-              "You'll need an account to view a profile. Sign up first — it only takes a minute.",
+              "Sign up required",
+              "You need an account to view a profile. Create one now — it only takes a minute.",
               [
                 { text: "Not now", style: "cancel" },
                 {
-                  text: "Continue",
+                  text: "Sign Up",
                   onPress: () => {
                     const parent = navigation.getParent();
                     if (parent?.replace) {
-                      parent.replace("Login");
+                      parent.replace("SignUp");
                     } else {
-                      navigation.replace("Login");
+                      navigation.replace("SignUp");
                     }
                   },
                 },

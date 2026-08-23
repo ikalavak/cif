@@ -56,13 +56,6 @@ export default function HomeGuest({ navigation }) {
     return unsubscribe;
   }, []);
 
-  const goToLoginPrompt = (reason) => {
-    // Navigate within the guest tab navigator to Events, which already
-    // shows the "create an account" prompt for booking — reused here so
-    // the message stays consistent app-wide instead of duplicating it.
-    navigation.navigate("Events");
-  };
-
   return (
     <SafeScreen
       scroll
@@ -140,22 +133,8 @@ export default function HomeGuest({ navigation }) {
         </Text>
       </View>
 
-      {/* QUICK ACTIONS — no Portfolio for guests */}
+      {/* QUICK ACTIONS — Events, Gallery, and Portfolio are account-only for guests */}
       <View style={styles.quickActionsRow}>
-        <ActionBtn
-          icon="calendar"
-          color={colors.primary}
-          label="Events"
-          colors={colors}
-          onPress={() => navigation.navigate("Events")}
-        />
-        <ActionBtn
-          icon="image"
-          color={colors.accent}
-          label="Gallery"
-          colors={colors}
-          onPress={() => navigation.navigate("Gallery")}
-        />
         <ActionBtn
           icon="message-circle"
           color={colors.accent}

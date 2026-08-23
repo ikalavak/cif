@@ -104,20 +104,20 @@ export default function EventsScreen({ navigation, route }) {
 
   const handleBook = async (event) => {
     if (isGuest) {
-      // Guests can't book — explain why, then send them to Login.
+      // Guests can't book — explain why, then send them to Sign Up.
       Alert.alert(
-        "Create an account",
-        "You'll need an account to book events. Sign up first — it only takes a minute.",
+        "Sign up required",
+        "You need an account to book events. Create one now — it only takes a minute.",
         [
           { text: "Not now", style: "cancel" },
           {
-            text: "Continue",
+            text: "Sign Up",
             onPress: () => {
               const parent = navigation?.getParent?.();
               if (parent?.replace) {
-                parent.replace("Login");
+                parent.replace("SignUp");
               } else {
-                navigation?.replace?.("Login");
+                navigation?.replace?.("SignUp");
               }
             },
           },
