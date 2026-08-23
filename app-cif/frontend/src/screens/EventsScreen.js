@@ -219,9 +219,6 @@ export default function EventsScreen({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation?.goBack?.()}>
           <Text style={[styles.pageTitle, { color: colors.text }]}>← Events</Text>
         </TouchableOpacity>
-        <Text style={[styles.pageSubtitle, { color: colors.textMuted }]}>
-          Festival schedule, day by day
-        </Text>
       </View>
 
       <View style={[styles.searchContainer, { backgroundColor: colors.input }]}>
