@@ -7,13 +7,13 @@ import {
   ScrollView,
   Image,
   ImageBackground,
-  Alert,
+  TextInput,
 } from "react-native";
 import SafeScreen from "../components/SafeScreen";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import ThemeToggle from "../components/ThemeToggle";
-import { db } from "../config/firebase";
+import { auth, db } from "../config/firebase";
 import {
   collection,
   doc,
@@ -26,11 +26,8 @@ import {
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=1200&q=80";
 
-// Defaults match what used to be hardcoded — used until Firestore loads.
-// Note: the CTA card stays guest-specific ("Create your account") and is
-// NOT driven by the admin panel's cta_* fields — those control the
-// logged-in "Explore Events" CTA on HomeScreen.js, which doesn't make
-// sense for a guest who can't book anything yet.
+// Defaults match what used to be hardcoded — used until Firestore loads,
+// and as a fallback for any field an admin hasn't filled in yet.
 const DEFAULT_SETTINGS = {
   hero_badge: "FREE FESTIVAL",
   hero_title: "Creative Industries Festival 2026",
@@ -40,6 +37,10 @@ const DEFAULT_SETTINGS = {
   hero_image_url: FALLBACK_IMAGE,
   about_text:
     "Explore how creativity can help us find balance in our work, health and lives. Discover talks, workshops and industry collaborations focused on inclusion, wellbeing, innovation and the future of creative work.",
+  cta_title: "Don't miss the festival",
+  cta_text:
+    "Explore the programme, save your favourite events and connect with the creative community.",
+  cta_button_text: "Explore Events",
   highlights: [
     {
       id: "1",
@@ -68,20 +69,24 @@ const DEFAULT_SETTINGS = {
   ],
 };
 
-export default function HomeGuest({ navigation }) {
+export default function HomeScreen({ navigation }) {
   const { colors } = useTheme();
 
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const user = auth.currentUser;
 
-  const promptSignUp = () => {
-    Alert.alert(
-      "Sign up required",
-      "You need an account to view a portfolio. Create one now — it only takes a minute.",
-      [
-        { text: "Not now", style: "cancel" },
-        { text: "Sign Up", onPress: () => navigation.navigate("SignUp") },
-      ],
-    );
+  const fullName = user?.displayName || "";
+  const firstName = fullName.trim().split(" ")[0] || "Creative";
+
+  // Live site settings — everything on the admin panel's Home Settings page
+  // (hero badge/title/subtitle/dates/location/image, about text, highlights,
+  // CTA card) flows through this single listener.
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const submitSearch = () => {
+    if (searchQuery.trim()) {
+      navigation.navigate("Events", { initialSearch: searchQuery.trim() });
+    }
   };
 
   useEffect(() => {
@@ -105,6 +110,8 @@ export default function HomeGuest({ navigation }) {
     return unsubscribe;
   }, []);
 
+  // Live festival events, synced from the admin panel's Events page —
+  // each event now carries its own image_url, set individually per event.
   const [festivalEvents, setFestivalEvents] = useState([]);
 
   useEffect(() => {
@@ -122,34 +129,113 @@ export default function HomeGuest({ navigation }) {
   return (
     <SafeScreen
       scroll
-      style={[styles.screen, { backgroundColor: colors.bg }]}
-      contentContainerStyle={{ paddingBottom: 40 }}
+      style={[
+        styles.screen,
+        {
+          backgroundColor: colors.bg,
+        },
+      ]}
+      contentContainerStyle={{
+        paddingBottom: 40,
+      }}
     >
-      {/* HEADER */}
+      {/* ==================================================
+          HEADER
+      ================================================== */}
+
       <View style={styles.headerRow}>
         <View style={styles.headerTextContainer}>
-          <Text style={[styles.greetingText, { color: colors.textMuted }]}>
-            Welcome, Guest 👋
+          <Text
+            style={[
+              styles.greetingText,
+              {
+                color: colors.textMuted,
+              },
+            ]}
+          >
+            Hi {firstName} 👋
           </Text>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>
+
+          <Text
+            style={[
+              styles.headerTitle,
+              {
+                color: colors.text,
+              },
+            ]}
+          >
             Creative Industries Festival
           </Text>
         </View>
 
         <View style={styles.headerIcons}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => {
+              const parent = navigation.getParent && navigation.getParent();
+
+              if (parent && parent.navigate) {
+                parent.navigate("Notifications");
+              } else {
+                navigation.navigate("Notifications");
+              }
+            }}
+          >
+            <Feather name="bell" size={20} color={colors.text} />
+
+            <View
+              style={[
+                styles.notificationDot,
+                {
+                  backgroundColor: colors.error,
+                },
+              ]}
+            />
+          </TouchableOpacity>
+
           <ThemeToggle />
         </View>
       </View>
 
-      {/* HERO CARD */}
+      {/* SEARCH BAR */}
+      <View style={[styles.searchContainer, { backgroundColor: colors.input }]}>
+        <Feather
+          name="search"
+          size={20}
+          color={colors.textMuted}
+          style={styles.searchIcon}
+        />
+        <TextInput
+          style={[styles.searchInput, { color: colors.text }]}
+          placeholder="Search events..."
+          placeholderTextColor={colors.textMuted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSubmitEditing={submitSearch}
+          returnKeyType="search"
+        />
+        <TouchableOpacity onPress={() => navigation.navigate("Events")}>
+          <Feather name="sliders" size={18} color={colors.primary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* ==================================================
+          HERO CARD
+      ================================================== */}
+
       <View
         style={[
           styles.heroCard,
-          { backgroundColor: colors.card, borderColor: colors.border },
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+          },
         ]}
       >
         <ImageBackground
-          source={{ uri: settings.hero_image_url }}
+          source={{
+            uri: settings.hero_image_url,
+          }}
           resizeMode="cover"
           style={styles.heroImage}
           imageStyle={styles.heroImageRadius}
@@ -159,18 +245,25 @@ export default function HomeGuest({ navigation }) {
 
           <View style={styles.heroContent}>
             <View
-              style={[styles.freeBadge, { backgroundColor: colors.primary }]}
+              style={[
+                styles.freeBadge,
+                {
+                  backgroundColor: colors.primary,
+                },
+              ]}
             >
               <Text style={styles.freeBadgeText}>{settings.hero_badge}</Text>
             </View>
 
             <Text style={styles.heroTitle}>{settings.hero_title}</Text>
+
             <Text style={styles.heroSubtitle}>{settings.hero_subtitle}</Text>
 
             <View style={styles.heroInfoRow}>
               <Feather name="calendar" size={16} color="#FFFFFF" />
               <Text style={styles.heroInfoText}>{settings.hero_dates}</Text>
             </View>
+
             <View style={styles.heroInfoRow}>
               <Feather name="map-pin" size={16} color="#FFFFFF" />
               <Text style={styles.heroInfoText}>{settings.hero_locations}</Text>
@@ -179,20 +272,41 @@ export default function HomeGuest({ navigation }) {
         </ImageBackground>
       </View>
 
-      {/* ABOUT */}
+      {/* ==================================================
+          ABOUT FESTIVAL
+      ================================================== */}
+
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
           About the Festival
         </Text>
+
         <Text style={[styles.bodyText, { color: colors.textMuted }]}>
           {settings.about_text}
         </Text>
       </View>
 
-      {/* QUICK ACTIONS — Events and Gallery are still account-only for guests.
-          Portfolio is included but guarded: tapping it prompts sign-up
-          instead of navigating, since portfolios belong to a real account. */}
+      {/* ==================================================
+          QUICK ACTIONS
+      ================================================== */}
+
       <View style={styles.quickActionsRow}>
+        <ActionBtn
+          icon="calendar"
+          color={colors.primary}
+          label="Events"
+          colors={colors}
+          onPress={() => navigation.navigate("Events")}
+        />
+
+        <ActionBtn
+          icon="image"
+          color={colors.accent}
+          label="Gallery"
+          colors={colors}
+          onPress={() => navigation.navigate("Gallery")}
+        />
+
         <ActionBtn
           icon="message-circle"
           color={colors.accent}
@@ -200,6 +314,7 @@ export default function HomeGuest({ navigation }) {
           colors={colors}
           onPress={() => navigation.navigate("ForumScreen")}
         />
+
         <ActionBtn
           icon="briefcase"
           color={colors.success}
@@ -207,16 +322,20 @@ export default function HomeGuest({ navigation }) {
           colors={colors}
           onPress={() => navigation.navigate("JobBoard")}
         />
+
         <ActionBtn
           icon="user"
           color={colors.primary}
           label="Portfolio"
           colors={colors}
-          onPress={promptSignUp}
+          onPress={() => navigation.navigate("PortfolioScreen")}
         />
       </View>
 
-      {/* FESTIVAL EVENTS */}
+      {/* ==================================================
+          FESTIVAL EVENTS
+      ================================================== */}
+
       <View style={styles.sectionHeader}>
         <View>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -226,6 +345,7 @@ export default function HomeGuest({ navigation }) {
             Discover what's happening
           </Text>
         </View>
+
         <TouchableOpacity onPress={() => navigation.navigate("Events")}>
           <Text style={[styles.seeAllText, { color: colors.primary }]}>
             See All
@@ -256,14 +376,20 @@ export default function HomeGuest({ navigation }) {
               activeOpacity={0.9}
               style={[
                 styles.eventCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                },
               ]}
               onPress={() => navigation.navigate("Events")}
             >
               <Image
-                source={{ uri: event.image_url || settings.hero_image_url }}
+                source={{
+                  uri: event.image_url || settings.hero_image_url,
+                }}
                 style={styles.eventImage}
               />
+
               <View style={styles.eventContent}>
                 <View style={styles.eventDateRow}>
                   <Feather name="calendar" size={13} color={colors.primary} />
@@ -278,23 +404,26 @@ export default function HomeGuest({ navigation }) {
                       : ""}
                   </Text>
                 </View>
+
                 <Text
                   style={[styles.eventTitle, { color: colors.text }]}
                   numberOfLines={2}
                 >
                   {event.title}
                 </Text>
+
                 {!!event.category && (
                   <Text
                     style={[
                       styles.eventDescription,
                       { color: colors.textMuted },
                     ]}
-                    numberOfLines={2}
+                    numberOfLines={3}
                   >
                     {event.category}
                   </Text>
                 )}
+
                 {!!event.venue && (
                   <View style={styles.locationRow}>
                     <Feather
@@ -315,12 +444,16 @@ export default function HomeGuest({ navigation }) {
         </ScrollView>
       )}
 
-      {/* FESTIVAL HIGHLIGHTS */}
+      {/* ==================================================
+          FESTIVAL HIGHLIGHTS
+      ================================================== */}
+
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
           Festival Highlights
         </Text>
       </View>
+
       <View style={styles.highlightsGrid}>
         {settings.highlights.map((hl, i) => (
           <HighlightCard
@@ -333,12 +466,16 @@ export default function HomeGuest({ navigation }) {
         ))}
       </View>
 
-      {/* VENUES */}
+      {/* ==================================================
+          VENUES
+      ================================================== */}
+
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
           Festival Venues
         </Text>
       </View>
+
       <View
         style={[
           styles.venueCard,
@@ -348,6 +485,7 @@ export default function HomeGuest({ navigation }) {
         <View style={[styles.venueIcon, { backgroundColor: colors.input }]}>
           <Feather name="map-pin" size={22} color={colors.primary} />
         </View>
+
         <View style={styles.venueTextContainer}>
           <Text style={[styles.venueTitle, { color: colors.text }]}>
             Royal Docks Centre for Sustainability
@@ -357,6 +495,7 @@ export default function HomeGuest({ navigation }) {
           </Text>
         </View>
       </View>
+
       <View
         style={[
           styles.venueCard,
@@ -366,6 +505,7 @@ export default function HomeGuest({ navigation }) {
         <View style={[styles.venueIcon, { backgroundColor: colors.input }]}>
           <Feather name="map-pin" size={22} color={colors.accent} />
         </View>
+
         <View style={styles.venueTextContainer}>
           <Text style={[styles.venueTitle, { color: colors.text }]}>
             The Source, Stratford
@@ -376,25 +516,28 @@ export default function HomeGuest({ navigation }) {
         </View>
       </View>
 
-      {/* CTA — sign up, instead of the logged-in "Explore Events" CTA */}
+      {/* ==================================================
+          CTA
+      ================================================== */}
+
       <View style={[styles.ctaCard, { backgroundColor: colors.primary }]}>
         <Feather
-          name="user-plus"
+          name="star"
           size={26}
           color="#FFFFFF"
           style={{ marginBottom: 10 }}
         />
-        <Text style={styles.ctaTitle}>Create your account</Text>
-        <Text style={styles.ctaText}>
-          Sign up to book events, save your favourites and connect with the
-          creative community.
-        </Text>
+
+        <Text style={styles.ctaTitle}>{settings.cta_title}</Text>
+
+        <Text style={styles.ctaText}>{settings.cta_text}</Text>
+
         <TouchableOpacity
           style={styles.ctaButton}
-          onPress={() => navigation.navigate("SignUp")}
+          onPress={() => navigation.navigate("Events")}
         >
           <Text style={[styles.ctaButtonText, { color: colors.primary }]}>
-            Sign Up
+            {settings.cta_button_text}
           </Text>
           <Feather name="arrow-right" size={17} color={colors.primary} />
         </TouchableOpacity>
@@ -402,6 +545,10 @@ export default function HomeGuest({ navigation }) {
     </SafeScreen>
   );
 }
+
+/* ======================================================
+   ACTION BUTTON
+====================================================== */
 
 const ActionBtn = ({ icon, color, label, colors, onPress }) => (
   <TouchableOpacity
@@ -421,6 +568,10 @@ const ActionBtn = ({ icon, color, label, colors, onPress }) => (
   </TouchableOpacity>
 );
 
+/* ======================================================
+   HIGHLIGHT CARD
+====================================================== */
+
 const HighlightCard = ({ icon, title, text, colors }) => (
   <View
     style={[
@@ -436,8 +587,13 @@ const HighlightCard = ({ icon, title, text, colors }) => (
   </View>
 );
 
+/* ======================================================
+   STYLES
+====================================================== */
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -450,6 +606,33 @@ const styles = StyleSheet.create({
   greetingText: { fontSize: 13, marginBottom: 4 },
   headerTitle: { fontSize: 16, fontWeight: "700", maxWidth: 240 },
   headerIcons: { flexDirection: "row", alignItems: "center", gap: 10 },
+  iconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  notificationDot: {
+    position: "absolute",
+    top: 7,
+    right: 8,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 50,
+  },
+  searchIcon: { marginRight: 12 },
+  searchInput: { flex: 1, fontSize: 15 },
 
   heroCard: {
     marginHorizontal: 20,

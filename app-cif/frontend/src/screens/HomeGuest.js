@@ -8,6 +8,7 @@ import {
   Image,
   ImageBackground,
   Alert,
+  TextInput,
 } from "react-native";
 import SafeScreen from "../components/SafeScreen";
 import { Feather } from "@expo/vector-icons";
@@ -72,6 +73,16 @@ export default function HomeGuest({ navigation }) {
   const { colors } = useTheme();
 
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const submitSearch = () => {
+    if (searchQuery.trim()) {
+      navigation.navigate("Events", {
+        isGuest: true,
+        initialSearch: searchQuery.trim(),
+      });
+    }
+  };
 
   const promptSignUp = () => {
     Alert.alert(
@@ -139,6 +150,30 @@ export default function HomeGuest({ navigation }) {
         <View style={styles.headerIcons}>
           <ThemeToggle />
         </View>
+      </View>
+
+      {/* SEARCH BAR */}
+      <View style={[styles.searchContainer, { backgroundColor: colors.input }]}>
+        <Feather
+          name="search"
+          size={20}
+          color={colors.textMuted}
+          style={styles.searchIcon}
+        />
+        <TextInput
+          style={[styles.searchInput, { color: colors.text }]}
+          placeholder="Search events..."
+          placeholderTextColor={colors.textMuted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSubmitEditing={submitSearch}
+          returnKeyType="search"
+        />
+        <TouchableOpacity
+          onPress={() => navigation.navigate("Events", { isGuest: true })}
+        >
+          <Feather name="sliders" size={18} color={colors.primary} />
+        </TouchableOpacity>
       </View>
 
       {/* HERO CARD */}
@@ -450,6 +485,18 @@ const styles = StyleSheet.create({
   greetingText: { fontSize: 13, marginBottom: 4 },
   headerTitle: { fontSize: 16, fontWeight: "700", maxWidth: 240 },
   headerIcons: { flexDirection: "row", alignItems: "center", gap: 10 },
+
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 50,
+  },
+  searchIcon: { marginRight: 12 },
+  searchInput: { flex: 1, fontSize: 15 },
 
   heroCard: {
     marginHorizontal: 20,
