@@ -72,7 +72,8 @@ export default function PortfolioScreen({ navigation }) {
               loadedPortfolios.push({
                 id: userId,
                 name: data.name || data.fullName || "Festival Attendee",
-                education: data.education || data.role || "Creative Professional",
+                education:
+                  data.education || data.role || "Creative Professional",
                 role: data.role || data.education || "Creative Professional",
                 bio: data.bio || "No biography provided.",
                 category: data.category || "Creative Industries",
@@ -124,7 +125,7 @@ export default function PortfolioScreen({ navigation }) {
       if (!user) {
         Alert.alert(
           "Sign In Required",
-          "Please sign in before saving a portfolio."
+          "Please sign in before saving a portfolio.",
         );
         return;
       }
@@ -146,7 +147,7 @@ export default function PortfolioScreen({ navigation }) {
         "users",
         user.uid,
         "saved_portfolios",
-        person.id
+        person.id,
       );
 
       await setDoc(
@@ -161,7 +162,7 @@ export default function PortfolioScreen({ navigation }) {
           savedBy: user.uid,
           createdAt: serverTimestamp(),
         },
-        { merge: true }
+        { merge: true },
       );
 
       Alert.alert(
@@ -172,7 +173,7 @@ export default function PortfolioScreen({ navigation }) {
             text: "OK",
             onPress: () => setSelected(null),
           },
-        ]
+        ],
       );
     } catch (error) {
       console.error("Error saving portfolio:", error);
@@ -210,7 +211,7 @@ export default function PortfolioScreen({ navigation }) {
                   "users",
                   user.uid,
                   "portfolio",
-                  "profile"
+                  "profile",
                 );
 
                 await deleteDoc(portfolioRef);
@@ -218,7 +219,7 @@ export default function PortfolioScreen({ navigation }) {
                 Alert.alert(
                   "Portfolio Deleted",
                   "Your public portfolio has been removed.",
-                  [{ text: "OK", onPress: () => loadPortfolios() }]
+                  [{ text: "OK", onPress: () => loadPortfolios() }],
                 );
               } catch (error) {
                 console.error("Delete error:", error);
@@ -228,7 +229,7 @@ export default function PortfolioScreen({ navigation }) {
               }
             },
           },
-        ]
+        ],
       );
     } catch (error) {
       console.error("Delete portfolio error:", error);
@@ -260,7 +261,7 @@ export default function PortfolioScreen({ navigation }) {
         />
       }
     >
-      {/* HEADER */}
+      {/* HEADER — arrow fixed left, title absolutely centered over the row */}
       <View style={styles.headerRow}>
         <TouchableOpacity
           onPress={() => {
@@ -268,15 +269,19 @@ export default function PortfolioScreen({ navigation }) {
               navigation.goBack();
             }
           }}
-          style={styles.backButton}
+          style={styles.backIconBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Feather name="arrow-left" size={24} color={colors.text} />
+          <Feather name="arrow-left" size={22} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.backText}>Portfolios</Text>
+        <Text style={styles.backText} pointerEvents="none">
+          Portfolios
+        </Text>
       </View>
 
       <Text style={styles.subtitle}>
-        Discover talent, collaborators, and creative work from festival attendees.
+        Discover talent, collaborators, and creative work from festival
+        attendees.
       </Text>
 
       {/* CREATE / DELETE ACTIONS */}
@@ -289,7 +294,9 @@ export default function PortfolioScreen({ navigation }) {
         }}
         activeOpacity={0.8}
       >
-        <Text style={styles.createButtonText}>+ Create / Edit My Portfolio</Text>
+        <Text style={styles.createButtonText}>
+          + Create / Edit My Portfolio
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -402,10 +409,7 @@ export default function PortfolioScreen({ navigation }) {
             {/* ACTION BUTTONS */}
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[
-                  styles.saveButton,
-                  { opacity: saving ? 0.6 : 1 },
-                ]}
+                style={[styles.saveButton, { opacity: saving ? 0.6 : 1 }]}
                 onPress={() => handleSavePortfolio(selected)}
                 disabled={saving}
                 activeOpacity={0.85}
@@ -436,23 +440,27 @@ const getStyles = (colors) =>
     headerRow: {
       flexDirection: "row",
       alignItems: "center",
+      position: "relative",
+      minHeight: 32,
       marginBottom: 6,
-      gap: 12,
     },
-    backButton: {
-      padding: 4,
-    },
+    backIconBtn: { zIndex: 2 },
     backText: {
-      fontSize: 26,
+      position: "absolute",
+      left: 0,
+      right: 0,
+      textAlign: "center",
+      fontSize: 20,
       fontWeight: "800",
       color: colors.text,
     },
     subtitle: {
-      marginTop: 4,
+      marginTop: 12,
       marginBottom: 16,
       fontSize: 14,
       color: colors.textMuted,
       lineHeight: 20,
+      textAlign: "center",
     },
     createButton: {
       width: "100%",

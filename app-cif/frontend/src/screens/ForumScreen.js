@@ -406,14 +406,19 @@ export default function ForumScreen({ navigation }) {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
       >
-        {/* Header — matches JobBoard's pattern: back arrow + title combined, subtitle below */}
+        {/* Header — arrow fixed left, title absolutely centered over the row, icons far right */}
         <View style={styles.headerRow}>
-          <View style={{ flex: 1 }}>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Text style={styles.nameText}>← Festival Forum</Text>
-            </TouchableOpacity>
-            <Text style={styles.greetingText}>Live Community</Text>
-          </View>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backIconBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Feather name="arrow-left" size={22} color={colors.text} />
+          </TouchableOpacity>
+
+          <Text style={styles.nameText} pointerEvents="none">
+            Festival Forum
+          </Text>
 
           <View style={styles.headerIcons}>
             <TouchableOpacity
@@ -429,6 +434,15 @@ export default function ForumScreen({ navigation }) {
             <ThemeToggle />
           </View>
         </View>
+
+        <Text
+          style={[
+            styles.greetingText,
+            { textAlign: "center", marginTop: -8, marginBottom: 8 },
+          ]}
+        >
+          Live Community
+        </Text>
 
         {/* Suspended Notice Banner */}
         {isMuted && (
@@ -615,14 +629,25 @@ const getStyles = (colors) =>
     container: { flex: 1 },
     headerRow: {
       flexDirection: "row",
+      alignItems: "center",
+      position: "relative",
       justifyContent: "space-between",
-      alignItems: "flex-start",
       paddingHorizontal: 20,
       paddingTop: 20,
       paddingBottom: 16,
+      minHeight: 40,
     },
+    backIconBtn: { zIndex: 2 },
     greetingText: { fontSize: 15, color: colors.textMuted, marginTop: 8 },
-    nameText: { fontSize: 28, fontWeight: "bold", color: colors.text },
+    nameText: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      textAlign: "center",
+      fontSize: 20,
+      fontWeight: "bold",
+      color: colors.text,
+    },
     headerIcons: { flexDirection: "row", gap: 12, alignItems: "center" },
     iconButton: {
       width: 36,

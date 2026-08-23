@@ -1,21 +1,22 @@
 // src/screens/JobBoard.js
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-} from 'react-native';
-import { collection, query, onSnapshot } from 'firebase/firestore';
-import { db } from '../config/firebase';
-import SafeScreen from '../components/SafeScreen';
-import { useTheme } from '../context/ThemeContext';
+} from "react-native";
+import { collection, query, onSnapshot } from "firebase/firestore";
+import { db } from "../config/firebase";
+import { Feather } from "@expo/vector-icons";
+import SafeScreen from "../components/SafeScreen";
+import { useTheme } from "../context/ThemeContext";
 
 export default function JobBoard({ navigation }) {
   const { colors } = useTheme();
-  const [filter, setFilter] = useState('All');
-  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState("All");
+  const [search, setSearch] = useState("");
   const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(true);
   const styles = useMemo(() => getStyles(colors), [colors]);
@@ -23,7 +24,7 @@ export default function JobBoard({ navigation }) {
   useEffect(() => {
     setLoading(true);
     // Fetch live opportunities from Firestore
-    const q = query(collection(db, 'opportunities'));
+    const q = query(collection(db, "opportunities"));
 
     const unsubscribe = onSnapshot(
       q,
@@ -39,46 +40,69 @@ export default function JobBoard({ navigation }) {
         setLoading(false);
       },
       (err) => {
-        console.error('Error fetching opportunities:', err);
+        console.error("Error fetching opportunities:", err);
         setLoading(false);
-      }
+      },
     );
 
     return () => unsubscribe();
   }, []);
 
-  const results = opportunities.filter((job) =>
-    (filter === 'All' || job.type === filter) &&
-    `${job.title || ''} ${job.company || ''} ${job.location || ''}`
-      .toLowerCase()
-      .includes(search.toLowerCase())
+  const results = opportunities.filter(
+    (job) =>
+      (filter === "All" || job.type === filter) &&
+      `${job.title || ""} ${job.company || ""} ${job.location || ""}`
+        .toLowerCase()
+        .includes(search.toLowerCase()),
   );
 
   return (
-    <SafeScreen scroll style={styles.page} contentContainerStyle={styles.pageContent}>
-      <TouchableOpacity onPress={() => navigation.goBack()}>
-        <Text style={styles.title}>← Job Board</Text>
-      </TouchableOpacity>
-      <Text style={styles.subtitle}>Find jobs and volunteering opportunities</Text>
+    <SafeScreen
+      scroll
+      style={styles.page}
+      contentContainerStyle={styles.pageContent}
+    >
+      {/* Header — arrow fixed left, title absolutely centered over the row */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backIconBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Feather name="arrow-left" size={22} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={styles.title} pointerEvents="none">
+          Job Board
+        </Text>
+      </View>
+      <Text style={styles.subtitle}>
+        Find jobs and volunteering opportunities
+      </Text>
 
       {/* Filter Tabs */}
       <View style={styles.filters}>
-        {['All', 'Job', 'Volunteering', 'Internship'].map((item) => (
+        {["All", "Job", "Volunteering", "Internship"].map((item) => (
           <TouchableOpacity
             key={item}
             onPress={() => setFilter(item)}
             style={[
               styles.filter,
-              { backgroundColor: filter === item ? (colors.primary || '#8B5CF6') : colors.input },
+              {
+                backgroundColor:
+                  filter === item ? colors.primary || "#8B5CF6" : colors.input,
+              },
             ]}
           >
             <Text
               style={[
                 styles.filterText,
-                { color: filter === item ? (colors.onPrimary || '#fff') : colors.text },
+                {
+                  color:
+                    filter === item ? colors.onPrimary || "#fff" : colors.text,
+                },
               ]}
             >
-              {item === 'Job' ? 'Jobs' : item}
+              {item === "Job" ? "Jobs" : item}
             </Text>
           </TouchableOpacity>
         ))}
@@ -93,21 +117,35 @@ export default function JobBoard({ navigation }) {
       />
 
       {loading ? (
-        <ActivityIndicator size="large" color={colors.primary || '#8B5CF6'} style={{ marginTop: 40 }} />
+        <ActivityIndicator
+          size="large"
+          color={colors.primary || "#8B5CF6"}
+          style={{ marginTop: 40 }}
+        />
       ) : results.length === 0 ? (
-        <Text style={{ textAlign: 'center', color: colors.textMuted, marginTop: 40 }}>
+        <Text
+          style={{
+            textAlign: "center",
+            color: colors.textMuted,
+            marginTop: 40,
+          }}
+        >
           No opportunities available right now.
         </Text>
       ) : (
         results.map((job) => (
           <View style={styles.card} key={job.id}>
             <Text style={styles.cardTitle}>{job.title}</Text>
-            <Text style={styles.cardMeta}>{job.company} · {job.location}</Text>
-            <Text style={styles.cardMeta}>{job.type} · {job.salary || 'Competitive'}</Text>
+            <Text style={styles.cardMeta}>
+              {job.company} · {job.location}
+            </Text>
+            <Text style={styles.cardMeta}>
+              {job.type} · {job.salary || "Competitive"}
+            </Text>
 
             <TouchableOpacity
               style={styles.apply}
-              onPress={() => navigation.navigate('JobDetails', { job })}
+              onPress={() => navigation.navigate("JobDetails", { job })}
             >
               <Text style={styles.applyText}>View Details & Apply</Text>
             </TouchableOpacity>
@@ -121,9 +159,30 @@ export default function JobBoard({ navigation }) {
 const getStyles = (colors) => ({
   page: { flex: 1, backgroundColor: colors.bg || colors.background },
   pageContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 20 },
-  title: { fontSize: 28, fontWeight: 'bold', color: colors.text },
-  subtitle: { fontSize: 15, marginTop: 8, marginBottom: 20, color: colors.textMuted },
-  filters: { flexDirection: 'row', gap: 8, marginBottom: 20, flexWrap: 'wrap' },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    position: "relative",
+    minHeight: 32,
+  },
+  backIconBtn: { zIndex: 2 },
+  title: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    textAlign: "center",
+    fontSize: 22,
+    fontWeight: "bold",
+    color: colors.text,
+  },
+  subtitle: {
+    fontSize: 15,
+    marginTop: 12,
+    marginBottom: 20,
+    color: colors.textMuted,
+    textAlign: "center",
+  },
+  filters: { flexDirection: "row", gap: 8, marginBottom: 20, flexWrap: "wrap" },
   filter: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -131,9 +190,9 @@ const getStyles = (colors) => ({
     paddingHorizontal: 16,
     borderRadius: 20,
   },
-  filterText: { fontSize: 13, fontWeight: '600' },
+  filterText: { fontSize: 13, fontWeight: "600" },
   search: {
-    width: '100%',
+    width: "100%",
     padding: 14,
     marginBottom: 20,
     borderWidth: 1,
@@ -150,16 +209,25 @@ const getStyles = (colors) => ({
     marginBottom: 15,
     borderRadius: 10,
   },
-  cardTitle: { fontSize: 18, fontWeight: '700', marginBottom: 6, color: colors.text },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 6,
+    color: colors.text,
+  },
   cardMeta: { fontSize: 14, marginBottom: 4, color: colors.textMuted },
   apply: {
-    backgroundColor: colors.primary || '#8B5CF6',
+    backgroundColor: colors.primary || "#8B5CF6",
     marginTop: 8,
-    alignSelf: 'flex-start',
-    alignItems: 'center',
+    alignSelf: "flex-start",
+    alignItems: "center",
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 6,
   },
-  applyText: { color: colors.onPrimary || '#fff', fontWeight: '600', fontSize: 13 },
+  applyText: {
+    color: colors.onPrimary || "#fff",
+    fontWeight: "600",
+    fontSize: 13,
+  },
 });
