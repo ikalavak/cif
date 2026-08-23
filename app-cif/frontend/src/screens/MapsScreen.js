@@ -23,7 +23,7 @@ const defaultStratfordMap = require('../../assets/stratford-map.png');
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MAP_HEIGHT = SCREEN_HEIGHT * 0.58;
 
-export default function MapsScreen() {
+export default function MapsScreen({ navigation }) {
   const [activeScreen, setActiveScreen] = useState('Docklands');
   const [mapConfig, setMapConfig] = useState({
     docklands_map_url: null,
@@ -180,12 +180,14 @@ export default function MapsScreen() {
 
   return (
     <SafeScreen style={[styles.screen, { backgroundColor: colors.bg }]}>
-      {/* Header */}
+      {/* Header — title made tappable with back arrow, matching Job Board / Forum's pattern */}
       <View style={styles.headerRow}>
         <View>
-          <Text style={[styles.pageTitle, { color: colors.text }]}>
-            Campus Explorer
-          </Text>
+          <TouchableOpacity onPress={() => navigation?.goBack?.()}>
+            <Text style={[styles.pageTitle, { color: colors.text }]}>
+              ← Campus Explorer
+            </Text>
+          </TouchableOpacity>
           <Text style={[styles.pageSubtitle, { color: colors.textMuted }]}>
             {currentSubtitle}
           </Text>
@@ -315,7 +317,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 12,
   },
-  pageTitle: { fontSize: 26, fontWeight: 'bold' },
+  pageTitle: { fontSize: 28, fontWeight: 'bold' },
   pageSubtitle: { fontSize: 13, marginTop: 2 },
   hintBadge: {
     flexDirection: 'row',

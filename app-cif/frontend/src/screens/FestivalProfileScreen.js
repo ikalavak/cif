@@ -77,7 +77,7 @@ export default function FestivalProfileScreen({ navigation }) {
 
     const q = query(
       collection(db, "bookings"),
-      where("userId", "==", currentUser.uid)
+      where("userId", "==", currentUser.uid),
     );
 
     const unsub = onSnapshot(
@@ -91,7 +91,7 @@ export default function FestivalProfileScreen({ navigation }) {
       },
       (error) => {
         console.warn("Bookings listener notice:", error.message);
-      }
+      },
     );
 
     return () => unsub();
@@ -156,7 +156,7 @@ export default function FestivalProfileScreen({ navigation }) {
                   event: null,
                 };
               }
-            })
+            }),
           );
 
           setSchedule(scheduleWithEvents);
@@ -169,7 +169,7 @@ export default function FestivalProfileScreen({ navigation }) {
       (error) => {
         console.warn("Schedule listener notice:", error.message);
         setScheduleLoading(false);
-      }
+      },
     );
 
     return () => unsubSchedule();
@@ -207,7 +207,7 @@ export default function FestivalProfileScreen({ navigation }) {
       (error) => {
         console.warn("Saved portfolios notice:", error.message);
         setSavedPortfolios([]);
-      }
+      },
     );
 
     return () => unsubscribe();
@@ -222,7 +222,7 @@ export default function FestivalProfileScreen({ navigation }) {
         if (status !== "granted") {
           Alert.alert(
             "Permission required",
-            "Permission to access photos is required to update a profile photo."
+            "Permission to access photos is required to update a profile photo.",
           );
           return;
         }
@@ -249,6 +249,16 @@ export default function FestivalProfileScreen({ navigation }) {
       style={[styles.safeArea, { backgroundColor: colors.bg }]}
       contentContainerStyle={{ paddingBottom: 40, paddingTop: 12 }}
     >
+      {/* BACK BUTTON — added for consistency with Job Board / Forum's header pattern */}
+      <TouchableOpacity
+        onPress={() => navigation.goBack()}
+        style={styles.backRow}
+      >
+        <Text style={[styles.backTitle, { color: colors.text }]}>
+          ← Profile
+        </Text>
+      </TouchableOpacity>
+
       {/* HEADER */}
       <View style={styles.headerRow}>
         <View style={styles.avatarWrap}>
@@ -297,10 +307,7 @@ export default function FestivalProfileScreen({ navigation }) {
             ]}
           >
             <Text
-              style={[
-                styles.badgeText,
-                { color: colors.primary || "#8B5CF6" },
-              ]}
+              style={[styles.badgeText, { color: colors.primary || "#8B5CF6" }]}
             >
               Pass Type: VIP
             </Text>
@@ -625,6 +632,14 @@ function SavedPortfolioCard({ item, colors }) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
+  backRow: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  backTitle: {
+    fontSize: 28,
+    fontWeight: "bold",
+  },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
