@@ -217,9 +217,7 @@ export default function EventsScreen({ navigation, route }) {
       {/* Header — matches JobBoard's pattern: back arrow + title combined, one tap target */}
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => navigation?.goBack?.()}>
-          <Text style={[styles.pageTitle, { color: colors.text }]}>
-            ← Events
-          </Text>
+          <Text style={[styles.pageTitle, { color: colors.text }]}>← Events</Text>
         </TouchableOpacity>
         <Text style={[styles.pageSubtitle, { color: colors.textMuted }]}>
           Festival schedule, day by day
