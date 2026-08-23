@@ -11,6 +11,7 @@ import {
   Platform,
 } from "react-native";
 import SafeScreen from "../components/SafeScreen";
+import EventDetailsModal from "../components/EventDetailsModal";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import { auth, db } from "../config/firebase";
@@ -35,6 +36,7 @@ export default function EventsScreen({ navigation, route }) {
   const [events, setEvents] = useState([]);
   const [myBookingIds, setMyBookingIds] = useState(new Set());
   const [savedIds, setSavedIds] = useState(new Set());
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const [bookingInProgress, setBookingInProgress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [query_, setQuery] = useState(route?.params?.initialSearch || "");
@@ -247,332 +249,348 @@ export default function EventsScreen({ navigation, route }) {
   };
 
   return (
-    <SafeScreen
-      scroll
-      style={[styles.screen, { backgroundColor: colors.bg }]}
-      contentContainerStyle={{ paddingBottom: 20, paddingTop: 8 }}
-    >
-      {/* Header — arrow fixed left, title absolutely centered, matching the rest of the app */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity
-          onPress={() => navigation?.goBack?.()}
-          style={styles.backIconBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Feather name="arrow-left" size={22} color={colors.text} />
-        </TouchableOpacity>
-        <Text
-          style={[styles.pageTitle, { color: colors.text }]}
-          pointerEvents="none"
-        >
-          Explore Events
-        </Text>
-      </View>
-      <Text style={[styles.eyebrowText, { color: colors.textMuted }]}>
-        CREATIVE INDUSTRIES FESTIVAL
-      </Text>
-
-      {/* Search bar */}
-      <View
-        style={[
-          styles.searchContainer,
-          { backgroundColor: colors.card, borderColor: colors.border },
-        ]}
+    <>
+      <SafeScreen
+        scroll
+        style={[styles.screen, { backgroundColor: colors.bg }]}
+        contentContainerStyle={{ paddingBottom: 20, paddingTop: 8 }}
       >
-        <Feather
-          name="search"
-          size={20}
-          color={colors.textMuted}
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search by title, venue, or speaker..."
-          placeholderTextColor={colors.textMuted}
-          value={query_}
-          onChangeText={setQuery}
-        />
-      </View>
-
-      {loading ? (
-        <Text style={{ color: colors.textMuted, paddingHorizontal: 20 }}>
-          Loading events...
-        </Text>
-      ) : events.length === 0 ? (
-        <Text style={{ color: colors.textMuted, paddingHorizontal: 20 }}>
-          No events published yet — check back soon.
-        </Text>
-      ) : (
-        <>
-          {/* Day filter pills */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.pillScroll}
+        {/* Header — arrow fixed left, title absolutely centered, matching the rest of the app */}
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            onPress={() => navigation?.goBack?.()}
+            style={styles.backIconBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            {dayLabels.map((label) => {
-              const active = label === activeDay;
-              return (
-                <TouchableOpacity
-                  key={label}
-                  onPress={() => setActiveDay(label)}
-                  style={[
-                    styles.dayPill,
-                    active
-                      ? {
-                          backgroundColor: colors.primary,
-                          borderColor: colors.primary,
-                        }
-                      : {
-                          backgroundColor: colors.card,
-                          borderColor: colors.border,
-                        },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.dayPillText,
-                      {
-                        color: active ? "#fff" : colors.text,
-                        fontWeight: active ? "700" : "500",
-                      },
-                    ]}
-                  >
-                    {label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          {/* Category filter pills */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.pillScrollSmall}
+            <Feather name="arrow-left" size={22} color={colors.text} />
+          </TouchableOpacity>
+          <Text
+            style={[styles.pageTitle, { color: colors.text }]}
+            pointerEvents="none"
           >
-            {categoryLabels.map((label) => {
-              const active = label === activeCategory;
-              return (
-                <TouchableOpacity
-                  key={label}
-                  onPress={() => setActiveCategory(label)}
-                  style={[
-                    styles.categoryPill,
-                    active
-                      ? {
-                          backgroundColor: colors.primary + "1A",
-                          borderColor: colors.primary,
-                        }
-                      : {
-                          backgroundColor: colors.card,
-                          borderColor: colors.border,
-                        },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.categoryPillText,
-                      { color: active ? colors.primary : colors.textMuted },
-                    ]}
-                  >
-                    {label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+            Explore Events
+          </Text>
+        </View>
+        <Text style={[styles.eyebrowText, { color: colors.textMuted }]}>
+          CREATIVE INDUSTRIES FESTIVAL
+        </Text>
 
-          {/* Event cards */}
-          <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
-            {filteredEvents.length === 0 ? (
-              <Text style={{ color: colors.textMuted, fontSize: 14 }}>
-                No events match your filters.
-              </Text>
-            ) : (
-              filteredEvents.map((event) => {
-                const isBooked = myBookingIds.has(event.id);
-                const isSaved = savedIds.has(event.id);
-                const isFull =
-                  event.capacity != null &&
-                  (event.booked_count || 0) >= event.capacity &&
-                  !isBooked;
-                const isLoadingThis = bookingInProgress === event.id;
-                const dateObj = event.start_date.toDate();
+        {/* Search bar */}
+        <View
+          style={[
+            styles.searchContainer,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
+          <Feather
+            name="search"
+            size={20}
+            color={colors.textMuted}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={[styles.searchInput, { color: colors.text }]}
+            placeholder="Search by title, venue, or speaker..."
+            placeholderTextColor={colors.textMuted}
+            value={query_}
+            onChangeText={setQuery}
+          />
+        </View>
 
+        {loading ? (
+          <Text style={{ color: colors.textMuted, paddingHorizontal: 20 }}>
+            Loading events...
+          </Text>
+        ) : events.length === 0 ? (
+          <Text style={{ color: colors.textMuted, paddingHorizontal: 20 }}>
+            No events published yet — check back soon.
+          </Text>
+        ) : (
+          <>
+            {/* Day filter pills */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.pillScroll}
+            >
+              {dayLabels.map((label) => {
+                const active = label === activeDay;
                 return (
-                  <View
-                    key={event.id}
+                  <TouchableOpacity
+                    key={label}
+                    onPress={() => setActiveDay(label)}
                     style={[
-                      styles.card,
-                      {
-                        backgroundColor: colors.card,
-                        borderColor: colors.border,
-                      },
+                      styles.dayPill,
+                      active
+                        ? {
+                            backgroundColor: colors.primary,
+                            borderColor: colors.primary,
+                          }
+                        : {
+                            backgroundColor: colors.card,
+                            borderColor: colors.border,
+                          },
                     ]}
                   >
-                    <View style={styles.cardImageWrap}>
-                      <Image
-                        source={{
-                          uri:
-                            event.image_url ||
-                            "https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=800&q=80",
-                        }}
-                        style={styles.cardImage}
-                      />
+                    <Text
+                      style={[
+                        styles.dayPillText,
+                        {
+                          color: active ? "#fff" : colors.text,
+                          fontWeight: active ? "700" : "500",
+                        },
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
-                      {/* Date badge */}
-                      <View style={styles.dateBadge}>
-                        <Text style={styles.dateBadgeMonth}>
-                          {dateObj
-                            .toLocaleDateString("en-GB", CARD_DATE_MONTH)
-                            .toUpperCase()}
-                        </Text>
-                        <Text style={styles.dateBadgeDay}>
-                          {dateObj.getDate()}
-                        </Text>
-                      </View>
+            {/* Category filter pills */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.pillScrollSmall}
+            >
+              {categoryLabels.map((label) => {
+                const active = label === activeCategory;
+                return (
+                  <TouchableOpacity
+                    key={label}
+                    onPress={() => setActiveCategory(label)}
+                    style={[
+                      styles.categoryPill,
+                      active
+                        ? {
+                            backgroundColor: colors.primary + "1A",
+                            borderColor: colors.primary,
+                          }
+                        : {
+                            backgroundColor: colors.card,
+                            borderColor: colors.border,
+                          },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryPillText,
+                        { color: active ? colors.primary : colors.textMuted },
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
-                      {/* Save/bookmark button */}
-                      <TouchableOpacity
-                        style={styles.bookmarkBtn}
-                        onPress={() => toggleSaved(event.id)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Ionicons
-                          name={isSaved ? "bookmark" : "bookmark-outline"}
-                          size={18}
-                          color={isSaved ? colors.primary : "#1e293b"}
+            {/* Event cards */}
+            <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
+              {filteredEvents.length === 0 ? (
+                <Text style={{ color: colors.textMuted, fontSize: 14 }}>
+                  No events match your filters.
+                </Text>
+              ) : (
+                filteredEvents.map((event) => {
+                  const isBooked = myBookingIds.has(event.id);
+                  const isSaved = savedIds.has(event.id);
+                  const isFull =
+                    event.capacity != null &&
+                    (event.booked_count || 0) >= event.capacity &&
+                    !isBooked;
+                  const isLoadingThis = bookingInProgress === event.id;
+                  const dateObj = event.start_date.toDate();
+
+                  return (
+                    <TouchableOpacity
+                      key={event.id}
+                      activeOpacity={0.9}
+                      onPress={() => setSelectedEvent(event)}
+                      style={[
+                        styles.card,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <View style={styles.cardImageWrap}>
+                        <Image
+                          source={{
+                            uri:
+                              event.image_url ||
+                              "https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=800&q=80",
+                          }}
+                          style={styles.cardImage}
                         />
-                      </TouchableOpacity>
 
-                      {/* Free/price tag */}
-                      <View style={styles.priceTag}>
-                        <Text style={styles.priceTagText}>
-                          {event.price ? `£${event.price}` : "FREE"}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.cardContent}>
-                      <View style={styles.cardTopRow}>
-                        {!!event.category && (
-                          <Text
-                            style={[
-                              styles.categoryLabel,
-                              { color: colors.primary },
-                            ]}
-                          >
-                            {event.category}
+                        {/* Date badge */}
+                        <View style={styles.dateBadge}>
+                          <Text style={styles.dateBadgeMonth}>
+                            {dateObj
+                              .toLocaleDateString("en-GB", CARD_DATE_MONTH)
+                              .toUpperCase()}
                           </Text>
-                        )}
-                        <Text
-                          style={[
-                            styles.timeLabel,
-                            { color: colors.textMuted },
-                          ]}
+                          <Text style={styles.dateBadgeDay}>
+                            {dateObj.getDate()}
+                          </Text>
+                        </View>
+
+                        {/* Save/bookmark button */}
+                        <TouchableOpacity
+                          style={styles.bookmarkBtn}
+                          onPress={() => toggleSaved(event.id)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
-                          {dateObj.toLocaleTimeString("en-GB", TIME_FORMAT)}
-                        </Text>
+                          <Ionicons
+                            name={isSaved ? "bookmark" : "bookmark-outline"}
+                            size={18}
+                            color={isSaved ? colors.primary : "#1e293b"}
+                          />
+                        </TouchableOpacity>
+
+                        {/* Free/price tag */}
+                        <View style={styles.priceTag}>
+                          <Text style={styles.priceTagText}>
+                            {event.price ? `£${event.price}` : "FREE"}
+                          </Text>
+                        </View>
                       </View>
 
-                      <Text
-                        style={[styles.cardTitle, { color: colors.text }]}
-                        numberOfLines={2}
-                      >
-                        {event.title}
-                      </Text>
-
-                      {!!event.venue && (
-                        <View style={styles.venueRow}>
-                          <Feather
-                            name="map-pin"
-                            size={13}
-                            color={colors.textMuted}
-                          />
+                      <View style={styles.cardContent}>
+                        <View style={styles.cardTopRow}>
+                          {!!event.category && (
+                            <Text
+                              style={[
+                                styles.categoryLabel,
+                                { color: colors.primary },
+                              ]}
+                            >
+                              {event.category}
+                            </Text>
+                          )}
                           <Text
                             style={[
-                              styles.venueText,
+                              styles.timeLabel,
                               { color: colors.textMuted },
                             ]}
                           >
-                            {event.venue}
+                            {dateObj.toLocaleTimeString("en-GB", TIME_FORMAT)}
                           </Text>
                         </View>
-                      )}
 
-                      {event.capacity != null && !isBooked && !isFull && (
                         <Text
-                          style={[
-                            styles.spotsText,
-                            { color: colors.textMuted },
-                          ]}
+                          style={[styles.cardTitle, { color: colors.text }]}
+                          numberOfLines={2}
                         >
-                          {Math.max(
-                            0,
-                            event.capacity - (event.booked_count || 0),
-                          )}{" "}
-                          spots left
+                          {event.title}
                         </Text>
-                      )}
 
-                      {/* Booking status / action */}
-                      {isBooked ? (
-                        <TouchableOpacity
-                          onPress={() => navigation?.navigate?.("MyTickets")}
-                          style={styles.registeredRow}
-                        >
-                          <Feather
-                            name="check"
-                            size={15}
-                            color={colors.primary}
-                          />
+                        {!!event.venue && (
+                          <View style={styles.venueRow}>
+                            <Feather
+                              name="map-pin"
+                              size={13}
+                              color={colors.textMuted}
+                            />
+                            <Text
+                              style={[
+                                styles.venueText,
+                                { color: colors.textMuted },
+                              ]}
+                            >
+                              {event.venue}
+                            </Text>
+                          </View>
+                        )}
+
+                        {event.capacity != null && !isBooked && !isFull && (
                           <Text
                             style={[
-                              styles.registeredText,
-                              { color: colors.primary },
+                              styles.spotsText,
+                              { color: colors.textMuted },
                             ]}
                           >
-                            Registered (Tap to view pass)
+                            {Math.max(
+                              0,
+                              event.capacity - (event.booked_count || 0),
+                            )}{" "}
+                            spots left
                           </Text>
-                        </TouchableOpacity>
-                      ) : (
-                        <TouchableOpacity
-                          onPress={() => handleBook(event)}
-                          disabled={isLoadingThis || isFull}
-                          style={[
-                            styles.bookButton,
-                            {
-                              backgroundColor: isFull
-                                ? colors.border
-                                : colors.primary,
-                              opacity: isLoadingThis ? 0.6 : 1,
-                            },
-                          ]}
-                        >
-                          <Text
+                        )}
+
+                        {/* Booking status / action */}
+                        {isBooked ? (
+                          <TouchableOpacity
+                            onPress={() => navigation?.navigate?.("MyTickets")}
+                            style={styles.registeredRow}
+                          >
+                            <Feather
+                              name="check"
+                              size={15}
+                              color={colors.primary}
+                            />
+                            <Text
+                              style={[
+                                styles.registeredText,
+                                { color: colors.primary },
+                              ]}
+                            >
+                              Registered (Tap to view pass)
+                            </Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity
+                            onPress={() => handleBook(event)}
+                            disabled={isLoadingThis || isFull}
                             style={[
-                              styles.bookButtonText,
-                              { color: isFull ? colors.textMuted : "#fff" },
+                              styles.bookButton,
+                              {
+                                backgroundColor: isFull
+                                  ? colors.border
+                                  : colors.primary,
+                                opacity: isLoadingThis ? 0.6 : 1,
+                              },
                             ]}
                           >
-                            {isLoadingThis
-                              ? "..."
-                              : isFull
-                                ? "Fully booked"
-                                : "Book Now"}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </View>
-                );
-              })
-            )}
-          </View>
-        </>
-      )}
-    </SafeScreen>
+                            <Text
+                              style={[
+                                styles.bookButtonText,
+                                { color: isFull ? colors.textMuted : "#fff" },
+                              ]}
+                            >
+                              {isLoadingThis
+                                ? "..."
+                                : isFull
+                                  ? "Fully booked"
+                                  : "Book Now"}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </View>
+          </>
+        )}
+      </SafeScreen>
+
+      <EventDetailsModal
+        visible={!!selectedEvent}
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+        isBooked={selectedEvent ? myBookingIds.has(selectedEvent.id) : false}
+        isSaved={selectedEvent ? savedIds.has(selectedEvent.id) : false}
+        onToggleBookmark={toggleSaved}
+        onBook={handleBook}
+        bookingInProgress={bookingInProgress === selectedEvent?.id}
+        currentUser={user}
+      />
+    </>
   );
 }
 
