@@ -7,8 +7,10 @@ import {
   FlatList,
   ActivityIndicator,
   Dimensions,
+  TouchableOpacity,
 } from "react-native";
 import SafeScreen from "../components/SafeScreen";
+import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import { db } from "../config/firebase";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
@@ -18,7 +20,7 @@ const GAP = 12;
 const COLUMN_COUNT = 2;
 const CARD_WIDTH = (width - 40 - GAP) / COLUMN_COUNT; // 40 = horizontal screen padding (20 each side)
 
-export default function GalleryScreen() {
+export default function GalleryScreen({ navigation }) {
   const { colors } = useTheme();
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,13 +37,24 @@ export default function GalleryScreen() {
       (err) => {
         setError(err.message);
         setLoading(false);
-      },
+      }
     );
     return unsubscribe;
   }, []);
 
   return (
     <SafeScreen style={[styles.screen, { backgroundColor: colors.bg }]}>
+      {/* Back button — icon only, since the page title right below already says "Gallery" */}
+      <View style={styles.backRow}>
+        <TouchableOpacity
+          onPress={() => navigation?.goBack?.()}
+          style={styles.backButton}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Feather name="arrow-left" size={20} color={colors.text} />
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.headerRow}>
         <Text style={[styles.pageTitle, { color: colors.text }]}>Gallery</Text>
         <Text style={[styles.pageSubtitle, { color: colors.textMuted }]}>
@@ -65,22 +78,9 @@ export default function GalleryScreen() {
           keyExtractor={(item) => item.id}
           numColumns={COLUMN_COUNT}
           columnWrapperStyle={{ gap: GAP }}
-          contentContainerStyle={{
-            paddingHorizontal: 20,
-            paddingBottom: 20,
-            gap: GAP,
-          }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20, gap: GAP }}
           renderItem={({ item }) => (
-            <View
-              style={[
-                styles.card,
-                {
-                  width: CARD_WIDTH,
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
+            <View style={[styles.card, { width: CARD_WIDTH, backgroundColor: colors.card, borderColor: colors.border }]}>
               <Image
                 source={{ uri: item.image_url }}
                 style={styles.image}
@@ -104,6 +104,21 @@ export default function GalleryScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  backText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
   headerRow: {
     paddingHorizontal: 20,
     paddingTop: 12,
@@ -111,12 +126,7 @@ const styles = StyleSheet.create({
   },
   pageTitle: { fontSize: 26, fontWeight: "bold", marginBottom: 4 },
   pageSubtitle: { fontSize: 14 },
-  emptyText: {
-    textAlign: "center",
-    marginTop: 40,
-    fontSize: 14,
-    paddingHorizontal: 20,
-  },
+  emptyText: { textAlign: "center", marginTop: 40, fontSize: 14, paddingHorizontal: 20 },
   card: {
     borderRadius: 16,
     borderWidth: 1,

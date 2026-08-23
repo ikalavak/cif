@@ -214,7 +214,7 @@ export default function EventsScreen({ navigation, route }) {
       style={[styles.screen, { backgroundColor: colors.bg }]}
       contentContainerStyle={{ paddingBottom: 20, paddingTop: 8 }}
     >
-      {/* Back button row — matches ForumScreen's header pattern */}
+      {/* Back button — icon only, since the page title right below already says "Events" */}
       <View style={styles.backRow}>
         <TouchableOpacity
           onPress={() => navigation?.goBack?.()}
@@ -222,7 +222,6 @@ export default function EventsScreen({ navigation, route }) {
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Feather name="arrow-left" size={20} color={colors.text} />
-          <Text style={[styles.backText, { color: colors.text }]}>Events</Text>
         </TouchableOpacity>
       </View>
 
