@@ -204,12 +204,10 @@ export default function HomeGuest({ navigation }) {
                   <Feather name="calendar" size={13} color={colors.primary} />
                   <Text style={[styles.eventDate, { color: colors.primary }]}>
                     {event.start_date
-                      ? event.start_date
-                          .toDate()
-                          .toLocaleDateString("en-GB", {
-                            day: "numeric",
-                            month: "long",
-                          })
+                      ? event.start_date.toDate().toLocaleDateString("en-GB", {
+                          day: "numeric",
+                          month: "long",
+                        })
                       : ""}
                   </Text>
                 </View>
