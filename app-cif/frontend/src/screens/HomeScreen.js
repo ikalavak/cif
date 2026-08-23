@@ -292,22 +292,6 @@ export default function HomeScreen({ navigation }) {
 
       <View style={styles.quickActionsRow}>
         <ActionBtn
-          icon="calendar"
-          color={colors.primary}
-          label="Events"
-          colors={colors}
-          onPress={() => navigation.navigate("Events")}
-        />
-
-        <ActionBtn
-          icon="image"
-          color={colors.accent}
-          label="Gallery"
-          colors={colors}
-          onPress={() => navigation.navigate("Gallery")}
-        />
-
-        <ActionBtn
           icon="message-circle"
           color={colors.accent}
           label="Forum"
