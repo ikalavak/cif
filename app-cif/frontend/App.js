@@ -391,7 +391,7 @@ function GuestTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeGuest} />
-
+ 
       {/* Guests can browse events, but EventsScreen checks the isGuest
           param to skip the "log in?" prompt and redirect straight to
           Login instead when they try to book. */}
@@ -400,9 +400,9 @@ function GuestTabs() {
         component={EventsScreen}
         initialParams={{ isGuest: true }}
       />
-
+ 
       <Tab.Screen name="Maps" component={MapsScreen} />
-
+ 
       {/* Guests never see a Profile screen at all — tapping the tab
           intercepts navigation and sends them straight to Login instead. */}
       <Tab.Screen
@@ -420,6 +420,7 @@ function GuestTabs() {
           },
         })}
       />
+ 
     </Tab.Navigator>
   );
 }
