@@ -1,5 +1,5 @@
 // src/screens/MapsScreen.js
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -10,26 +10,26 @@ import {
   Animated,
   PanResponder,
   Dimensions,
-} from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../config/firebase';
-import SafeScreen from '../components/SafeScreen';
-import { useTheme } from '../context/ThemeContext';
+} from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "../config/firebase";
+import SafeScreen from "../components/SafeScreen";
+import { useTheme } from "../context/ThemeContext";
 
-const defaultDocklandsMap = require('../../assets/docklands-map.png');
-const defaultStratfordMap = require('../../assets/stratford-map.png');
+const defaultDocklandsMap = require("../../assets/docklands-map.png");
+const defaultStratfordMap = require("../../assets/stratford-map.png");
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const MAP_HEIGHT = SCREEN_HEIGHT * 0.58;
 
 export default function MapsScreen({ navigation }) {
-  const [activeScreen, setActiveScreen] = useState('Docklands');
+  const [activeScreen, setActiveScreen] = useState("Docklands");
   const [mapConfig, setMapConfig] = useState({
     docklands_map_url: null,
     stratford_map_url: null,
-    docklands_description: 'University Way, Royal Docks, London E16 2RD',
-    stratford_description: 'Water Lane, Stratford, London E15 4LZ',
+    docklands_description: "University Way, Royal Docks, London E16 2RD",
+    stratford_description: "Water Lane, Stratford, London E15 4LZ",
   });
   const [imageLoading, setImageLoading] = useState(false);
 
@@ -38,7 +38,7 @@ export default function MapsScreen({ navigation }) {
   // Animated Transformations (Scale & Pan)
   const scale = useRef(new Animated.Value(1)).current;
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
-  
+
   // Tracking values for gestures
   const currentScale = useRef(1);
   const currentPan = useRef({ x: 0, y: 0 });
@@ -47,7 +47,9 @@ export default function MapsScreen({ navigation }) {
 
   // Sync animation state
   useEffect(() => {
-    const scaleListener = scale.addListener((v) => (currentScale.current = v.value));
+    const scaleListener = scale.addListener(
+      (v) => (currentScale.current = v.value),
+    );
     const panListener = pan.addListener((v) => (currentPan.current = v));
     return () => {
       scale.removeListener(scaleListener);
@@ -58,21 +60,23 @@ export default function MapsScreen({ navigation }) {
   // 1. Real-time subscription to Campus Maps configuration
   useEffect(() => {
     const unsub = onSnapshot(
-      doc(db, 'site_settings', 'campus_maps'),
+      doc(db, "site_settings", "campus_maps"),
       (snap) => {
         if (snap.exists()) {
           const data = snap.data();
           setMapConfig({
             docklands_map_url: data.docklands_map_url || null,
             stratford_map_url: data.stratford_map_url || null,
-            docklands_description: data.docklands_description || 'Royal Docks Campus',
-            stratford_description: data.stratford_description || 'Stratford Campus',
+            docklands_description:
+              data.docklands_description || "Royal Docks Campus",
+            stratford_description:
+              data.stratford_description || "Stratford Campus",
           });
         }
       },
       (err) => {
-        console.warn('Campus maps listener notice:', err.message);
-      }
+        console.warn("Campus maps listener notice:", err.message);
+      },
     );
 
     return () => unsub();
@@ -93,7 +97,10 @@ export default function MapsScreen({ navigation }) {
 
   const handleZoomIn = () => {
     const targetScale = Math.min(currentScale.current + 0.75, 4.0);
-    Animated.spring(scale, { toValue: targetScale, useNativeDriver: true }).start();
+    Animated.spring(scale, {
+      toValue: targetScale,
+      useNativeDriver: true,
+    }).start();
   };
 
   const handleZoomOut = () => {
@@ -101,7 +108,10 @@ export default function MapsScreen({ navigation }) {
     if (targetScale === 1) {
       resetTransform();
     } else {
-      Animated.spring(scale, { toValue: targetScale, useNativeDriver: true }).start();
+      Animated.spring(scale, {
+        toValue: targetScale,
+        useNativeDriver: true,
+      }).start();
     }
   };
 
@@ -122,7 +132,10 @@ export default function MapsScreen({ navigation }) {
           if (currentScale.current > 1.2) {
             resetTransform();
           } else {
-            Animated.spring(scale, { toValue: 2.2, useNativeDriver: true }).start();
+            Animated.spring(scale, {
+              toValue: 2.2,
+              useNativeDriver: true,
+            }).start();
           }
         }
         lastTapTime.current = now;
@@ -144,7 +157,7 @@ export default function MapsScreen({ navigation }) {
             scale.setValue(nextScale);
           }
           lastTouchDistance.current = distance;
-        } 
+        }
         // 1-Finger Pan (Enabled only when zoomed in)
         else if (touches.length === 1 && currentScale.current > 1.05) {
           pan.setValue({ x: gestureState.dx, y: gestureState.dy });
@@ -160,19 +173,19 @@ export default function MapsScreen({ navigation }) {
           resetTransform();
         }
       },
-    })
+    }),
   ).current;
 
-  const isDocklands = activeScreen === 'Docklands';
+  const isDocklands = activeScreen === "Docklands";
   const customUrl = isDocklands
     ? mapConfig.docklands_map_url
     : mapConfig.stratford_map_url;
 
   const imageSource = customUrl
-    ? { uri: customUrl, cache: 'reload' }
+    ? { uri: customUrl, cache: "reload" }
     : isDocklands
-    ? defaultDocklandsMap
-    : defaultStratfordMap;
+      ? defaultDocklandsMap
+      : defaultStratfordMap;
 
   const currentSubtitle = isDocklands
     ? mapConfig.docklands_description
@@ -194,8 +207,14 @@ export default function MapsScreen({ navigation }) {
         </View>
 
         <View style={styles.hintBadge}>
-          <Feather name="maximize-2" size={12} color={colors.primary || '#8B5CF6'} />
-          <Text style={[styles.hintText, { color: colors.primary || '#8B5CF6' }]}>
+          <Feather
+            name="maximize-2"
+            size={12}
+            color={colors.primary || "#8B5CF6"}
+          />
+          <Text
+            style={[styles.hintText, { color: colors.primary || "#8B5CF6" }]}
+          >
             Pinch or tap +/−
           </Text>
         </View>
@@ -205,10 +224,13 @@ export default function MapsScreen({ navigation }) {
       <View
         style={[
           styles.toggleContainer,
-          { backgroundColor: colors.input || '#E2E8F0', borderColor: colors.border },
+          {
+            backgroundColor: colors.input || "#E2E8F0",
+            borderColor: colors.border,
+          },
         ]}
       >
-        {['Docklands', 'Stratford'].map((tab) => {
+        {["Docklands", "Stratford"].map((tab) => {
           const active = tab === activeScreen;
 
           return (
@@ -218,7 +240,7 @@ export default function MapsScreen({ navigation }) {
                 styles.toggleButton,
                 active && {
                   backgroundColor: colors.card,
-                  shadowColor: '#000',
+                  shadowColor: "#000",
                   shadowOpacity: 0.1,
                   shadowOffset: { width: 0, height: 2 },
                   shadowRadius: 6,
@@ -231,8 +253,10 @@ export default function MapsScreen({ navigation }) {
                 style={[
                   styles.toggleText,
                   {
-                    color: active ? (colors.primary || '#8B5CF6') : colors.textMuted,
-                    fontWeight: active ? '800' : '600',
+                    color: active
+                      ? colors.primary || "#8B5CF6"
+                      : colors.textMuted,
+                    fontWeight: active ? "800" : "600",
                   },
                 ]}
               >
@@ -244,10 +268,18 @@ export default function MapsScreen({ navigation }) {
       </View>
 
       {/* Interactive Map Canvas */}
-      <View style={[styles.canvasContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View
+        style={[
+          styles.canvasContainer,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+      >
         {imageLoading && (
           <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color={colors.primary || '#8B5CF6'} />
+            <ActivityIndicator
+              size="large"
+              color={colors.primary || "#8B5CF6"}
+            />
           </View>
         )}
 
@@ -265,7 +297,7 @@ export default function MapsScreen({ navigation }) {
             ]}
           >
             <Image
-              key={`${activeScreen}-${customUrl || 'bundled'}`}
+              key={`${activeScreen}-${customUrl || "bundled"}`}
               source={imageSource}
               style={styles.mapImage}
               resizeMode="contain"
@@ -279,7 +311,10 @@ export default function MapsScreen({ navigation }) {
         {/* Floating Manual Controls (+, −, Reset) */}
         <View style={styles.floatingControlsWrapper}>
           <TouchableOpacity
-            style={[styles.controlBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+            style={[
+              styles.controlBtn,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
             onPress={handleZoomIn}
             activeOpacity={0.8}
           >
@@ -287,7 +322,10 @@ export default function MapsScreen({ navigation }) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.controlBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+            style={[
+              styles.controlBtn,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
             onPress={handleZoomOut}
             activeOpacity={0.8}
           >
@@ -295,7 +333,10 @@ export default function MapsScreen({ navigation }) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.controlBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+            style={[
+              styles.controlBtn,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
             onPress={resetTransform}
             activeOpacity={0.8}
           >
@@ -310,27 +351,27 @@ export default function MapsScreen({ navigation }) {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 12,
   },
-  pageTitle: { fontSize: 28, fontWeight: 'bold' },
+  pageTitle: { fontSize: 28, fontWeight: "bold" },
   pageSubtitle: { fontSize: 13, marginTop: 2 },
   hintBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 12,
   },
-  hintText: { fontSize: 11, fontWeight: '700' },
+  hintText: { fontSize: 11, fontWeight: "700" },
   toggleContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     borderRadius: 999,
     padding: 4,
     marginHorizontal: 20,
@@ -339,8 +380,8 @@ const styles = StyleSheet.create({
   },
   toggleButton: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 10,
     borderRadius: 999,
   },
@@ -351,35 +392,35 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 20,
     borderWidth: 1,
-    overflow: 'hidden',
-    position: 'relative',
+    overflow: "hidden",
+    position: "relative",
   },
   gestureWrapper: {
     flex: 1,
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
   },
   animatedImageWrapper: {
     width: SCREEN_WIDTH - 36,
     height: MAP_HEIGHT,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   mapImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.15)",
     zIndex: 5,
   },
   floatingControlsWrapper: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 16,
     right: 16,
     gap: 8,
@@ -390,9 +431,9 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOpacity: 0.12,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,

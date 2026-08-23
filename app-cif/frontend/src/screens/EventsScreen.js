@@ -105,7 +105,8 @@ export default function EventsScreen({ navigation, route }) {
       const eventDayLabel = event.start_date
         .toDate()
         .toLocaleDateString("en-GB", DAY_FORMAT);
-      const matchesDay = activeDay === "All Days" || eventDayLabel === activeDay;
+      const matchesDay =
+        activeDay === "All Days" || eventDayLabel === activeDay;
       const matchesCategory =
         activeCategory === "All" || event.category === activeCategory;
       const matchesSearch = query_
@@ -221,13 +222,17 @@ export default function EventsScreen({ navigation, route }) {
             navigation?.navigate?.("MyTickets");
           }
         } else {
-          Alert.alert("Booking Confirmed! 🎉", confirmMessage.replace("Booking Confirmed! 🎉\n\n", ""), [
-            { text: "OK" },
-            {
-              text: "View Tickets",
-              onPress: () => navigation?.navigate?.("MyTickets"),
-            },
-          ]);
+          Alert.alert(
+            "Booking Confirmed! 🎉",
+            confirmMessage.replace("Booking Confirmed! 🎉\n\n", ""),
+            [
+              { text: "OK" },
+              {
+                text: "View Tickets",
+                onPress: () => navigation?.navigate?.("MyTickets"),
+              },
+            ],
+          );
         }
       }
     } catch (err) {
@@ -247,26 +252,39 @@ export default function EventsScreen({ navigation, route }) {
       style={[styles.screen, { backgroundColor: colors.bg }]}
       contentContainerStyle={{ paddingBottom: 20, paddingTop: 8 }}
     >
-      {/* Back button — icon only, consistent with the rest of the app */}
-      <TouchableOpacity
-        onPress={() => navigation?.goBack?.()}
-        style={styles.backRow}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        <Feather name="arrow-left" size={20} color={colors.textMuted} />
-      </TouchableOpacity>
-
-      {/* Header */}
+      {/* Header — arrow fixed left, title absolutely centered, matching the rest of the app */}
       <View style={styles.headerRow}>
-        <Text style={[styles.eyebrowText, { color: colors.textMuted }]}>
-          CREATIVE INDUSTRIES FESTIVAL
+        <TouchableOpacity
+          onPress={() => navigation?.goBack?.()}
+          style={styles.backIconBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Feather name="arrow-left" size={22} color={colors.text} />
+        </TouchableOpacity>
+        <Text
+          style={[styles.pageTitle, { color: colors.text }]}
+          pointerEvents="none"
+        >
+          Explore Events
         </Text>
-        <Text style={[styles.pageTitle, { color: colors.text }]}>Explore Events</Text>
       </View>
+      <Text style={[styles.eyebrowText, { color: colors.textMuted }]}>
+        CREATIVE INDUSTRIES FESTIVAL
+      </Text>
 
       {/* Search bar */}
-      <View style={[styles.searchContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Feather name="search" size={20} color={colors.textMuted} style={styles.searchIcon} />
+      <View
+        style={[
+          styles.searchContainer,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+      >
+        <Feather
+          name="search"
+          size={20}
+          color={colors.textMuted}
+          style={styles.searchIcon}
+        />
         <TextInput
           style={[styles.searchInput, { color: colors.text }]}
           placeholder="Search by title, venue, or speaker..."
@@ -301,14 +319,23 @@ export default function EventsScreen({ navigation, route }) {
                   style={[
                     styles.dayPill,
                     active
-                      ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                      : { backgroundColor: colors.card, borderColor: colors.border },
+                      ? {
+                          backgroundColor: colors.primary,
+                          borderColor: colors.primary,
+                        }
+                      : {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
                   ]}
                 >
                   <Text
                     style={[
                       styles.dayPillText,
-                      { color: active ? "#fff" : colors.text, fontWeight: active ? "700" : "500" },
+                      {
+                        color: active ? "#fff" : colors.text,
+                        fontWeight: active ? "700" : "500",
+                      },
                     ]}
                   >
                     {label}
@@ -333,8 +360,14 @@ export default function EventsScreen({ navigation, route }) {
                   style={[
                     styles.categoryPill,
                     active
-                      ? { backgroundColor: colors.primary + "1A", borderColor: colors.primary }
-                      : { backgroundColor: colors.card, borderColor: colors.border },
+                      ? {
+                          backgroundColor: colors.primary + "1A",
+                          borderColor: colors.primary,
+                        }
+                      : {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                        },
                   ]}
                 >
                   <Text
@@ -372,7 +405,10 @@ export default function EventsScreen({ navigation, route }) {
                     key={event.id}
                     style={[
                       styles.card,
-                      { backgroundColor: colors.card, borderColor: colors.border },
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                      },
                     ]}
                   >
                     <View style={styles.cardImageWrap}>
@@ -388,9 +424,13 @@ export default function EventsScreen({ navigation, route }) {
                       {/* Date badge */}
                       <View style={styles.dateBadge}>
                         <Text style={styles.dateBadgeMonth}>
-                          {dateObj.toLocaleDateString("en-GB", CARD_DATE_MONTH).toUpperCase()}
+                          {dateObj
+                            .toLocaleDateString("en-GB", CARD_DATE_MONTH)
+                            .toUpperCase()}
                         </Text>
-                        <Text style={styles.dateBadgeDay}>{dateObj.getDate()}</Text>
+                        <Text style={styles.dateBadgeDay}>
+                          {dateObj.getDate()}
+                        </Text>
                       </View>
 
                       {/* Save/bookmark button */}
@@ -417,31 +457,62 @@ export default function EventsScreen({ navigation, route }) {
                     <View style={styles.cardContent}>
                       <View style={styles.cardTopRow}>
                         {!!event.category && (
-                          <Text style={[styles.categoryLabel, { color: colors.primary }]}>
+                          <Text
+                            style={[
+                              styles.categoryLabel,
+                              { color: colors.primary },
+                            ]}
+                          >
                             {event.category}
                           </Text>
                         )}
-                        <Text style={[styles.timeLabel, { color: colors.textMuted }]}>
+                        <Text
+                          style={[
+                            styles.timeLabel,
+                            { color: colors.textMuted },
+                          ]}
+                        >
                           {dateObj.toLocaleTimeString("en-GB", TIME_FORMAT)}
                         </Text>
                       </View>
 
-                      <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>
+                      <Text
+                        style={[styles.cardTitle, { color: colors.text }]}
+                        numberOfLines={2}
+                      >
                         {event.title}
                       </Text>
 
                       {!!event.venue && (
                         <View style={styles.venueRow}>
-                          <Feather name="map-pin" size={13} color={colors.textMuted} />
-                          <Text style={[styles.venueText, { color: colors.textMuted }]}>
+                          <Feather
+                            name="map-pin"
+                            size={13}
+                            color={colors.textMuted}
+                          />
+                          <Text
+                            style={[
+                              styles.venueText,
+                              { color: colors.textMuted },
+                            ]}
+                          >
                             {event.venue}
                           </Text>
                         </View>
                       )}
 
                       {event.capacity != null && !isBooked && !isFull && (
-                        <Text style={[styles.spotsText, { color: colors.textMuted }]}>
-                          {Math.max(0, event.capacity - (event.booked_count || 0))} spots left
+                        <Text
+                          style={[
+                            styles.spotsText,
+                            { color: colors.textMuted },
+                          ]}
+                        >
+                          {Math.max(
+                            0,
+                            event.capacity - (event.booked_count || 0),
+                          )}{" "}
+                          spots left
                         </Text>
                       )}
 
@@ -451,8 +522,17 @@ export default function EventsScreen({ navigation, route }) {
                           onPress={() => navigation?.navigate?.("MyTickets")}
                           style={styles.registeredRow}
                         >
-                          <Feather name="check" size={15} color={colors.primary} />
-                          <Text style={[styles.registeredText, { color: colors.primary }]}>
+                          <Feather
+                            name="check"
+                            size={15}
+                            color={colors.primary}
+                          />
+                          <Text
+                            style={[
+                              styles.registeredText,
+                              { color: colors.primary },
+                            ]}
+                          >
                             Registered (Tap to view pass)
                           </Text>
                         </TouchableOpacity>
@@ -463,7 +543,9 @@ export default function EventsScreen({ navigation, route }) {
                           style={[
                             styles.bookButton,
                             {
-                              backgroundColor: isFull ? colors.border : colors.primary,
+                              backgroundColor: isFull
+                                ? colors.border
+                                : colors.primary,
                               opacity: isLoadingThis ? 0.6 : 1,
                             },
                           ]}
@@ -474,7 +556,11 @@ export default function EventsScreen({ navigation, route }) {
                               { color: isFull ? colors.textMuted : "#fff" },
                             ]}
                           >
-                            {isLoadingThis ? "..." : isFull ? "Fully booked" : "Book Now"}
+                            {isLoadingThis
+                              ? "..."
+                              : isFull
+                                ? "Fully booked"
+                                : "Book Now"}
                           </Text>
                         </TouchableOpacity>
                       )}
@@ -493,16 +579,31 @@ export default function EventsScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
 
-  backRow: {
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    position: "relative",
+    minHeight: 32,
     paddingHorizontal: 20,
     paddingTop: 12,
-    marginBottom: 4,
-    alignSelf: "flex-start",
   },
-
-  headerRow: { paddingHorizontal: 20, marginBottom: 16 },
-  eyebrowText: { fontSize: 11, fontWeight: "700", letterSpacing: 0.6, marginBottom: 4 },
-  pageTitle: { fontSize: 28, fontWeight: "800" },
+  backIconBtn: { zIndex: 2 },
+  eyebrowText: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    textAlign: "center",
+    marginTop: 6,
+    marginBottom: 8,
+  },
+  pageTitle: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    textAlign: "center",
+    fontSize: 22,
+    fontWeight: "800",
+  },
 
   searchContainer: {
     flexDirection: "row",
@@ -560,8 +661,18 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     alignItems: "center",
   },
-  dateBadgeMonth: { fontSize: 9, fontWeight: "800", color: "#ef4444", letterSpacing: 0.5 },
-  dateBadgeDay: { fontSize: 17, fontWeight: "800", color: "#0f172a", lineHeight: 20 },
+  dateBadgeMonth: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: "#ef4444",
+    letterSpacing: 0.5,
+  },
+  dateBadgeDay: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#0f172a",
+    lineHeight: 20,
+  },
 
   bookmarkBtn: {
     position: "absolute",
@@ -584,7 +695,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 4,
   },
-  priceTagText: { color: "#fff", fontSize: 11, fontWeight: "800", letterSpacing: 0.3 },
+  priceTagText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
 
   cardContent: { padding: 16 },
   cardTopRow: {
@@ -596,9 +712,19 @@ const styles = StyleSheet.create({
   categoryLabel: { fontSize: 12, fontWeight: "700" },
   timeLabel: { fontSize: 12, fontWeight: "600" },
 
-  cardTitle: { fontSize: 19, fontWeight: "800", lineHeight: 24, marginBottom: 8 },
+  cardTitle: {
+    fontSize: 19,
+    fontWeight: "800",
+    lineHeight: 24,
+    marginBottom: 8,
+  },
 
-  venueRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 4 },
+  venueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginBottom: 4,
+  },
   venueText: { fontSize: 13 },
 
   spotsText: { fontSize: 12, marginTop: 2, marginBottom: 10 },
