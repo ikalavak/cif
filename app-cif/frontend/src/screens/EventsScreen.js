@@ -521,54 +521,27 @@ export default function EventsScreen({ navigation, route }) {
                           </Text>
                         )}
 
-                        {/* Booking status / action */}
-                        {isBooked ? (
-                          <TouchableOpacity
-                            onPress={() => navigation?.navigate?.("MyTickets")}
-                            style={styles.registeredRow}
-                          >
-                            <Feather
-                              name="check"
-                              size={15}
-                              color={colors.primary}
-                            />
-                            <Text
-                              style={[
-                                styles.registeredText,
-                                { color: colors.primary },
-                              ]}
-                            >
-                              Registered (Tap to view pass)
-                            </Text>
-                          </TouchableOpacity>
-                        ) : (
-                          <TouchableOpacity
-                            onPress={() => handleBook(event)}
-                            disabled={isLoadingThis || isFull}
+                        {/* Tapping the card already opens the detail modal — this link
+                          just makes that affordance explicit, matching Job Board's
+                          "View Details & Apply" pattern. Actual booking now only
+                          happens inside the modal, not directly from the list. */}
+                        <TouchableOpacity
+                          onPress={() => setSelectedEvent(event)}
+                          style={styles.viewDetailsRow}
+                        >
+                          <Text
                             style={[
-                              styles.bookButton,
-                              {
-                                backgroundColor: isFull
-                                  ? colors.border
-                                  : colors.primary,
-                                opacity: isLoadingThis ? 0.6 : 1,
-                              },
+                              styles.viewDetailsText,
+                              { color: colors.primary },
                             ]}
                           >
-                            <Text
-                              style={[
-                                styles.bookButtonText,
-                                { color: isFull ? colors.textMuted : "#fff" },
-                              ]}
-                            >
-                              {isLoadingThis
-                                ? "..."
-                                : isFull
-                                  ? "Fully booked"
-                                  : "Book Now"}
-                            </Text>
-                          </TouchableOpacity>
-                        )}
+                            {isBooked
+                              ? "Registered — View Pass →"
+                              : isFull
+                                ? "Fully booked — View Details →"
+                                : "View Details & Register →"}
+                          </Text>
+                        </TouchableOpacity>
                       </View>
                     </TouchableOpacity>
                   );
@@ -747,19 +720,6 @@ const styles = StyleSheet.create({
 
   spotsText: { fontSize: 12, marginTop: 2, marginBottom: 10 },
 
-  registeredRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 12,
-  },
-  registeredText: { fontSize: 14, fontWeight: "700" },
-
-  bookButton: {
-    marginTop: 14,
-    borderRadius: 12,
-    paddingVertical: 13,
-    alignItems: "center",
-  },
-  bookButtonText: { fontSize: 14, fontWeight: "700" },
+  viewDetailsRow: { marginTop: 12 },
+  viewDetailsText: { fontSize: 14, fontWeight: "700" },
 });
