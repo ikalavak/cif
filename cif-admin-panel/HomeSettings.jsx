@@ -6,7 +6,7 @@ import * as FeatherIcons from "react-feather";
 
 // Replace with your own values from Cloudinary → Settings → Upload
 // (unsigned upload preset, so no secret key needed in frontend code)
-const CLOUDINARY_CLOUD_NAME = "YOUR_CLOUD_NAME";
+const CLOUDINARY_CLOUD_NAME = "Chijioke Chiagorom"; // <-- Replace with your Cloudinary cloud name
 const CLOUDINARY_UPLOAD_PRESET = "cif_admin_uploads";
 
 // Expo-compatible Feather icon list
