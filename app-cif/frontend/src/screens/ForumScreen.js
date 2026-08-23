@@ -1,5 +1,5 @@
 // src/screens/ForumScreen.js
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -13,8 +13,8 @@ import {
   Alert,
   RefreshControl,
   ScrollView,
-} from 'react-native';
-import { Feather, Ionicons } from '@expo/vector-icons';
+} from "react-native";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import {
   collection,
   addDoc,
@@ -28,13 +28,13 @@ import {
   arrayUnion,
   arrayRemove,
   serverTimestamp,
-} from 'firebase/firestore';
-import { auth, db } from '../config/firebase';
-import SafeScreen from '../components/SafeScreen';
-import ThemeToggle from '../components/ThemeToggle';
-import { useTheme } from '../context/ThemeContext';
+} from "firebase/firestore";
+import { auth, db } from "../config/firebase";
+import SafeScreen from "../components/SafeScreen";
+import ThemeToggle from "../components/ThemeToggle";
+import { useTheme } from "../context/ThemeContext";
 
-const CHANNELS = ['All', 'General', 'Meetups', 'Q&A', 'Lost & Found'];
+const CHANNELS = ["All", "General", "Meetups", "Q&A", "Lost & Found"];
 
 export default function ForumScreen({ navigation }) {
   const { colors } = useTheme();
@@ -42,31 +42,39 @@ export default function ForumScreen({ navigation }) {
   const currentUser = auth.currentUser;
 
   const [messages, setMessages] = useState([]);
-  const [inputText, setInputText] = useState('');
-  const [selectedChannel, setSelectedChannel] = useState('All');
-  const [postChannel, setPostChannel] = useState('General');
-  const [search, setSearch] = useState('');
+  const [inputText, setInputText] = useState("");
+  const [selectedChannel, setSelectedChannel] = useState("All");
+  const [postChannel, setPostChannel] = useState("General");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [userRole, setUserRole] = useState('Attendee');
+  const [userRole, setUserRole] = useState("Attendee");
 
   // 1. Check User Account Mute & Role Status
   useEffect(() => {
     if (!currentUser) {
       setIsMuted(false);
-      setUserRole('Attendee');
+      setUserRole("Attendee");
       return;
     }
 
-    const unsubUser = onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setIsMuted(!!data.isForumMuted);
-        setUserRole(data.role || (currentUser.email?.toLowerCase().includes('admin') ? 'Organizer' : 'Attendee'));
-      }
-    });
+    const unsubUser = onSnapshot(
+      doc(db, "users", currentUser.uid),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setIsMuted(!!data.isForumMuted);
+          setUserRole(
+            data.role ||
+              (currentUser.email?.toLowerCase().includes("admin")
+                ? "Organizer"
+                : "Attendee"),
+          );
+        }
+      },
+    );
 
     return () => unsubUser();
   }, [currentUser]);
@@ -75,8 +83,8 @@ export default function ForumScreen({ navigation }) {
   useEffect(() => {
     setLoading(true);
     const q = query(
-      collection(db, 'forum_messages'),
-      orderBy('created_at', 'desc')
+      collection(db, "forum_messages"),
+      orderBy("created_at", "desc"),
     );
 
     const unsubscribe = onSnapshot(
@@ -91,10 +99,10 @@ export default function ForumScreen({ navigation }) {
         setRefreshing(false);
       },
       (err) => {
-        console.error('Error fetching forum messages:', err);
+        console.error("Error fetching forum messages:", err);
         setLoading(false);
         setRefreshing(false);
-      }
+      },
     );
 
     return () => unsubscribe();
@@ -110,40 +118,46 @@ export default function ForumScreen({ navigation }) {
     if (!inputText.trim() || sending) return;
 
     if (!currentUser) {
-      Alert.alert('Sign In Required', 'Please sign in to post messages in the community forum.');
+      Alert.alert(
+        "Sign In Required",
+        "Please sign in to post messages in the community forum.",
+      );
       return;
     }
 
     if (isMuted) {
       Alert.alert(
-        'Account Suspended',
-        'Your forum posting privileges have been suspended by an administrator.'
+        "Account Suspended",
+        "Your forum posting privileges have been suspended by an administrator.",
       );
       return;
     }
 
     try {
-      const checkSnap = await getDoc(doc(db, 'users', currentUser.uid));
+      const checkSnap = await getDoc(doc(db, "users", currentUser.uid));
       if (checkSnap.exists() && checkSnap.data().isForumMuted) {
         setIsMuted(true);
         Alert.alert(
-          'Account Suspended',
-          'Your forum posting privileges have been suspended by an administrator.'
+          "Account Suspended",
+          "Your forum posting privileges have been suspended by an administrator.",
         );
         return;
       }
     } catch (_) {}
 
     const textToSend = inputText.trim();
-    setInputText('');
+    setInputText("");
     setSending(true);
 
     try {
-      await addDoc(collection(db, 'forum_messages'), {
+      await addDoc(collection(db, "forum_messages"), {
         text: textToSend,
         channel: postChannel,
         userId: currentUser.uid,
-        userName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Attendee',
+        userName:
+          currentUser.displayName ||
+          currentUser.email?.split("@")[0] ||
+          "Attendee",
         userRole: userRole,
         isPinned: false,
         likes: [],
@@ -151,8 +165,8 @@ export default function ForumScreen({ navigation }) {
         created_at: serverTimestamp(),
       });
     } catch (err) {
-      console.error('Error sending message:', err);
-      Alert.alert('Error', 'Failed to send message: ' + err.message);
+      console.error("Error sending message:", err);
+      Alert.alert("Error", "Failed to send message: " + err.message);
       setInputText(textToSend);
     } finally {
       setSending(false);
@@ -162,79 +176,95 @@ export default function ForumScreen({ navigation }) {
   // 4. Toggle Like Handler
   const handleToggleLike = async (item) => {
     if (!currentUser) {
-      Alert.alert('Sign In Required', 'Please sign in to like messages.');
+      Alert.alert("Sign In Required", "Please sign in to like messages.");
       return;
     }
 
-    const docRef = doc(db, 'forum_messages', item.id);
-    const hasLiked = Array.isArray(item.likes) && item.likes.includes(currentUser.uid);
+    const docRef = doc(db, "forum_messages", item.id);
+    const hasLiked =
+      Array.isArray(item.likes) && item.likes.includes(currentUser.uid);
 
     try {
       await updateDoc(docRef, {
-        likes: hasLiked ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid),
+        likes: hasLiked
+          ? arrayRemove(currentUser.uid)
+          : arrayUnion(currentUser.uid),
       });
     } catch (err) {
-      console.error('Error toggling like:', err);
+      console.error("Error toggling like:", err);
     }
   };
 
   // 5. Report / Flag Handler
   const handleReportMessage = (item) => {
     if (!currentUser) {
-      Alert.alert('Sign In Required', 'Please sign in to report content.');
+      Alert.alert("Sign In Required", "Please sign in to report content.");
       return;
     }
 
     const reportsList = Array.isArray(item.reports) ? item.reports : [];
     if (reportsList.includes(currentUser.uid)) {
-      Alert.alert('Notice', 'You have already flagged this message.');
+      Alert.alert("Notice", "You have already flagged this message.");
       return;
     }
 
-    Alert.alert('Report Message', 'Flag this message as inappropriate or spam?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Report',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await updateDoc(doc(db, 'forum_messages', item.id), {
-              reports: arrayUnion(currentUser.uid),
-            });
-            Alert.alert('Reported', 'Thank you. Our moderation team has been notified.');
-          } catch (err) {
-            console.error('Error reporting message:', err);
-          }
+    Alert.alert(
+      "Report Message",
+      "Flag this message as inappropriate or spam?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Report",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await updateDoc(doc(db, "forum_messages", item.id), {
+                reports: arrayUnion(currentUser.uid),
+              });
+              Alert.alert(
+                "Reported",
+                "Thank you. Our moderation team has been notified.",
+              );
+            } catch (err) {
+              console.error("Error reporting message:", err);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   // 6. Delete Handler (Owner only)
   const handleDeleteMessage = (item) => {
     if (item.userId !== currentUser?.uid) return;
 
-    Alert.alert('Delete Message', 'Are you sure you want to delete this post?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteDoc(doc(db, 'forum_messages', item.id));
-          } catch (err) {
-            Alert.alert('Error', 'Could not delete: ' + err.message);
-          }
+    Alert.alert(
+      "Delete Message",
+      "Are you sure you want to delete this post?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, "forum_messages", item.id));
+            } catch (err) {
+              Alert.alert("Error", "Could not delete: " + err.message);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const filteredAndSortedMessages = useMemo(() => {
     return messages
       .filter((msg) => {
-        const matchesChannel = selectedChannel === 'All' || (msg.channel || 'General') === selectedChannel;
-        const matchesSearch = `${msg.text || ''} ${msg.userName || ''}`
+        const matchesChannel =
+          selectedChannel === "All" ||
+          (msg.channel || "General") === selectedChannel;
+        const matchesSearch = `${msg.text || ""} ${msg.userName || ""}`
           .toLowerCase()
           .includes(search.toLowerCase());
         const isHidden = Array.isArray(msg.reports) && msg.reports.length >= 3;
@@ -250,41 +280,52 @@ export default function ForumScreen({ navigation }) {
   const renderMessageItem = ({ item }) => {
     const isOwner = item.userId === currentUser?.uid;
     const likesList = Array.isArray(item.likes) ? item.likes : [];
-    const isLikedByMe = currentUser ? likesList.includes(currentUser.uid) : false;
-    const role = item.userRole || 'Attendee';
+    const isLikedByMe = currentUser
+      ? likesList.includes(currentUser.uid)
+      : false;
+    const role = item.userRole || "Attendee";
 
     const formattedTime = item.created_at?.toDate
-      ? item.created_at.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      : 'Just now';
+      ? item.created_at
+          .toDate()
+          .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      : "Just now";
 
     return (
-      <View style={[styles.messageCard, item.isPinned && styles.pinnedMessageCard]}>
+      <View
+        style={[styles.messageCard, item.isPinned && styles.pinnedMessageCard]}
+      >
         {item.isPinned && (
           <View style={styles.pinnedBanner}>
-            <Feather name="pin" size={12} color={colors.primary || '#8B5CF6'} />
+            <Feather name="pin" size={12} color={colors.primary || "#8B5CF6"} />
             <Text style={styles.pinnedBannerText}>PINNED ANNOUNCEMENT</Text>
           </View>
         )}
 
-        <View style={{ flexDirection: 'row' }}>
+        <View style={{ flexDirection: "row" }}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
-              {(item.userName || '?').charAt(0).toUpperCase()}
+              {(item.userName || "?").charAt(0).toUpperCase()}
             </Text>
           </View>
 
           <View style={styles.messageContent}>
             <View style={styles.messageHeader}>
-              <Text style={styles.messageUsername}>{item.userName || 'Attendee'}</Text>
+              <Text style={styles.messageUsername}>
+                {item.userName || "Attendee"}
+              </Text>
 
               <View
                 style={[
                   styles.roleBadge,
-                  role === 'Organizer' || role === 'admin'
-                    ? { backgroundColor: '#fef3c7', borderColor: '#fde68a' }
-                    : role === 'Speaker'
-                    ? { backgroundColor: '#e0f2fe', borderColor: '#bae6fd' }
-                    : { backgroundColor: colors.input, borderColor: colors.border },
+                  role === "Organizer" || role === "admin"
+                    ? { backgroundColor: "#fef3c7", borderColor: "#fde68a" }
+                    : role === "Speaker"
+                      ? { backgroundColor: "#e0f2fe", borderColor: "#bae6fd" }
+                      : {
+                          backgroundColor: colors.input,
+                          borderColor: colors.border,
+                        },
                 ]}
               >
                 <Text
@@ -292,11 +333,11 @@ export default function ForumScreen({ navigation }) {
                     styles.roleBadgeText,
                     {
                       color:
-                        role === 'Organizer' || role === 'admin'
-                          ? '#92400e'
-                          : role === 'Speaker'
-                          ? '#0369a1'
-                          : colors.textMuted,
+                        role === "Organizer" || role === "admin"
+                          ? "#92400e"
+                          : role === "Speaker"
+                            ? "#0369a1"
+                            : colors.textMuted,
                     },
                   ]}
                 >
@@ -304,18 +345,24 @@ export default function ForumScreen({ navigation }) {
                 </Text>
               </View>
 
-              {item.channel && item.channel !== 'General' && (
+              {item.channel && item.channel !== "General" && (
                 <Text style={styles.channelTag}>#{item.channel}</Text>
               )}
 
               <Text style={styles.messageTime}>{formattedTime}</Text>
 
               {isOwner ? (
-                <TouchableOpacity onPress={() => handleDeleteMessage(item)} style={styles.iconBtnAction}>
+                <TouchableOpacity
+                  onPress={() => handleDeleteMessage(item)}
+                  style={styles.iconBtnAction}
+                >
                   <Feather name="trash-2" size={13} color={colors.textMuted} />
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity onPress={() => handleReportMessage(item)} style={styles.iconBtnAction}>
+                <TouchableOpacity
+                  onPress={() => handleReportMessage(item)}
+                  style={styles.iconBtnAction}
+                >
                   <Feather name="flag" size={13} color={colors.textMuted} />
                 </TouchableOpacity>
               )}
@@ -330,7 +377,7 @@ export default function ForumScreen({ navigation }) {
                 activeOpacity={0.7}
               >
                 <Ionicons
-                  name={isLikedByMe ? 'heart' : 'heart-outline'}
+                  name={isLikedByMe ? "heart" : "heart-outline"}
                   size={16}
                   color={isLikedByMe ? colors.error : colors.textMuted}
                 />
@@ -356,16 +403,16 @@ export default function ForumScreen({ navigation }) {
     <SafeScreen style={styles.screen}>
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
       >
-        {/* Header */}
+        {/* Header — matches JobBoard's pattern: back arrow + title combined, subtitle below */}
         <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.greetingText}>Live Community</Text>
+          <View style={{ flex: 1 }}>
             <TouchableOpacity onPress={() => navigation.goBack()}>
               <Text style={styles.nameText}>← Festival Forum</Text>
             </TouchableOpacity>
+            <Text style={styles.greetingText}>Live Community</Text>
           </View>
 
           <View style={styles.headerIcons}>
@@ -373,8 +420,8 @@ export default function ForumScreen({ navigation }) {
               style={styles.iconButton}
               onPress={() => {
                 const parent = navigation.getParent && navigation.getParent();
-                if (parent && parent.navigate) parent.navigate('Notifications');
-                else navigation.navigate('Notifications');
+                if (parent && parent.navigate) parent.navigate("Notifications");
+                else navigation.navigate("Notifications");
               }}
             >
               <Feather name="bell" size={18} color={colors.text} />
@@ -395,7 +442,12 @@ export default function ForumScreen({ navigation }) {
 
         {/* Search Field */}
         <View style={styles.searchContainer}>
-          <Feather name="search" size={17} color={colors.textMuted} style={styles.searchIcon} />
+          <Feather
+            name="search"
+            size={17}
+            color={colors.textMuted}
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Search discussions..."
@@ -404,7 +456,7 @@ export default function ForumScreen({ navigation }) {
             onChangeText={setSearch}
           />
           {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
+            <TouchableOpacity onPress={() => setSearch("")}>
               <Feather name="x" size={16} color={colors.textMuted} />
             </TouchableOpacity>
           )}
@@ -425,16 +477,19 @@ export default function ForumScreen({ navigation }) {
                   onPress={() => setSelectedChannel(ch)}
                   style={[
                     styles.channelChip,
-                    active && { backgroundColor: colors.primary || '#8B5CF6', borderColor: colors.primary || '#8B5CF6' },
+                    active && {
+                      backgroundColor: colors.primary || "#8B5CF6",
+                      borderColor: colors.primary || "#8B5CF6",
+                    },
                   ]}
                 >
                   <Text
                     style={[
                       styles.channelChipText,
-                      { color: active ? '#ffffff' : colors.textMuted },
+                      { color: active ? "#ffffff" : colors.textMuted },
                     ]}
                   >
-                    {ch === 'All' ? '🔥 All Topics' : `#${ch}`}
+                    {ch === "All" ? "🔥 All Topics" : `#${ch}`}
                   </Text>
                 </TouchableOpacity>
               );
@@ -444,7 +499,11 @@ export default function ForumScreen({ navigation }) {
 
         {/* Feed */}
         {loading ? (
-          <ActivityIndicator size="large" color={colors.primary || '#8B5CF6'} style={{ marginTop: 40 }} />
+          <ActivityIndicator
+            size="large"
+            color={colors.primary || "#8B5CF6"}
+            style={{ marginTop: 40 }}
+          />
         ) : (
           <FlatList
             data={filteredAndSortedMessages}
@@ -456,13 +515,13 @@ export default function ForumScreen({ navigation }) {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor={colors.primary || '#8B5CF6'}
+                tintColor={colors.primary || "#8B5CF6"}
               />
             }
             ListEmptyComponent={
               <Text style={styles.noComments}>
                 {search
-                  ? 'No matching discussions found.'
+                  ? "No matching discussions found."
                   : `No posts in #${selectedChannel} yet. Be the first to start the conversation!`}
               </Text>
             }
@@ -474,21 +533,27 @@ export default function ForumScreen({ navigation }) {
           {!isMuted && (
             <View style={styles.postChannelSelector}>
               <Text style={styles.postChannelLabel}>Posting to:</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginLeft: 6 }}>
-                {CHANNELS.filter((c) => c !== 'All').map((c) => (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginLeft: 6 }}
+              >
+                {CHANNELS.filter((c) => c !== "All").map((c) => (
                   <TouchableOpacity
                     key={c}
                     onPress={() => setPostChannel(c)}
                     style={[
                       styles.miniChannelBadge,
-                      postChannel === c && { backgroundColor: colors.primary || '#8B5CF6' },
+                      postChannel === c && {
+                        backgroundColor: colors.primary || "#8B5CF6",
+                      },
                     ]}
                   >
                     <Text
                       style={{
                         fontSize: 10,
-                        fontWeight: '700',
-                        color: postChannel === c ? '#fff' : colors.textMuted,
+                        fontWeight: "700",
+                        color: postChannel === c ? "#fff" : colors.textMuted,
                       }}
                     >
                       #{c}
@@ -499,15 +564,18 @@ export default function ForumScreen({ navigation }) {
             </View>
           )}
 
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
             <TextInput
-              style={[styles.input, isMuted && { backgroundColor: colors.input, opacity: 0.6 }]}
+              style={[
+                styles.input,
+                isMuted && { backgroundColor: colors.input, opacity: 0.6 },
+              ]}
               placeholder={
                 isMuted
-                  ? 'Account suspended from posting.'
+                  ? "Account suspended from posting."
                   : currentUser
-                  ? `Message #${postChannel}...`
-                  : 'Sign in to send a message...'
+                    ? `Message #${postChannel}...`
+                    : "Sign in to send a message..."
               }
               placeholderTextColor={colors.textMuted}
               value={inputText}
@@ -522,7 +590,8 @@ export default function ForumScreen({ navigation }) {
             <TouchableOpacity
               style={[
                 styles.sendButton,
-                (!inputText.trim() || sending || !currentUser || isMuted) && styles.sendButtonDisabled,
+                (!inputText.trim() || sending || !currentUser || isMuted) &&
+                  styles.sendButtonDisabled,
               ]}
               onPress={handleSendMessage}
               disabled={!inputText.trim() || sending || !currentUser || isMuted}
@@ -545,40 +614,45 @@ const getStyles = (colors) =>
     screen: { flex: 1, backgroundColor: colors.bg || colors.background },
     container: { flex: 1 },
     headerRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
       paddingHorizontal: 20,
-      paddingTop: 12,
-      paddingBottom: 10,
+      paddingTop: 20,
+      paddingBottom: 16,
     },
-    greetingText: { fontSize: 13, color: colors.textMuted, marginBottom: 2 },
-    nameText: { fontSize: 18, fontWeight: 'bold', color: colors.text },
-    headerIcons: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+    greetingText: { fontSize: 15, color: colors.textMuted, marginTop: 8 },
+    nameText: { fontSize: 28, fontWeight: "bold", color: colors.text },
+    headerIcons: { flexDirection: "row", gap: 12, alignItems: "center" },
     iconButton: {
       width: 36,
       height: 36,
       borderRadius: 18,
-      justifyContent: 'center',
-      alignItems: 'center',
+      justifyContent: "center",
+      alignItems: "center",
     },
     mutedBanner: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 6,
-      backgroundColor: '#fee2e2',
+      backgroundColor: "#fee2e2",
       borderWidth: 1,
-      borderColor: '#fecaca',
+      borderColor: "#fecaca",
       paddingVertical: 6,
       paddingHorizontal: 16,
       marginHorizontal: 16,
       marginBottom: 8,
       borderRadius: 8,
     },
-    mutedBannerText: { fontSize: 11, color: '#b91c1c', fontWeight: '600', flex: 1 },
+    mutedBannerText: {
+      fontSize: 11,
+      color: "#b91c1c",
+      fontWeight: "600",
+      flex: 1,
+    },
     searchContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       marginHorizontal: 16,
       marginBottom: 8,
       borderRadius: 12,
@@ -590,7 +664,7 @@ const getStyles = (colors) =>
     },
     searchIcon: { marginRight: 10 },
     searchInput: { flex: 1, fontSize: 14, color: colors.text },
-    channelsScroll: { paddingHorizontal: 16, gap: 8, alignItems: 'center' },
+    channelsScroll: { paddingHorizontal: 16, gap: 8, alignItems: "center" },
     channelChip: {
       paddingHorizontal: 12,
       paddingVertical: 6,
@@ -599,7 +673,7 @@ const getStyles = (colors) =>
       borderColor: colors.border,
       backgroundColor: colors.card,
     },
-    channelChipText: { fontSize: 12, fontWeight: '700' },
+    channelChipText: { fontSize: 12, fontWeight: "700" },
     listContent: { paddingHorizontal: 16, paddingBottom: 16 },
     messageCard: {
       marginBottom: 12,
@@ -610,12 +684,14 @@ const getStyles = (colors) =>
       padding: 14,
     },
     pinnedMessageCard: {
-      borderColor: colors.primary ? `${colors.primary}60` : '#8B5CF660',
-      backgroundColor: colors.primary ? `${colors.primary}08` : 'rgba(139,92,246,0.05)',
+      borderColor: colors.primary ? `${colors.primary}60` : "#8B5CF660",
+      backgroundColor: colors.primary
+        ? `${colors.primary}08`
+        : "rgba(139,92,246,0.05)",
     },
     pinnedBanner: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 5,
       marginBottom: 8,
       paddingBottom: 6,
@@ -624,55 +700,78 @@ const getStyles = (colors) =>
     },
     pinnedBannerText: {
       fontSize: 10,
-      fontWeight: '800',
+      fontWeight: "800",
       letterSpacing: 0.5,
-      color: colors.primary || '#8B5CF6',
+      color: colors.primary || "#8B5CF6",
     },
     avatar: {
       width: 36,
       height: 36,
       borderRadius: 18,
       backgroundColor: colors.input,
-      justifyContent: 'center',
-      alignItems: 'center',
+      justifyContent: "center",
+      alignItems: "center",
     },
     avatarText: {
       fontSize: 15,
-      fontWeight: '700',
-      color: colors.primary || '#8B5CF6',
+      fontWeight: "700",
+      color: colors.primary || "#8B5CF6",
     },
     messageContent: { flex: 1, marginLeft: 12 },
-    messageHeader: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
-    messageUsername: { fontSize: 14, fontWeight: '700', color: colors.text },
+    messageHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      flexWrap: "wrap",
+      gap: 6,
+    },
+    messageUsername: { fontSize: 14, fontWeight: "700", color: colors.text },
     roleBadge: {
       paddingHorizontal: 6,
       paddingVertical: 2,
       borderRadius: 6,
       borderWidth: 1,
     },
-    roleBadgeText: { fontSize: 10, fontWeight: '700' },
-    channelTag: { fontSize: 11, fontWeight: '600', color: colors.primary || '#8B5CF6' },
+    roleBadgeText: { fontSize: 10, fontWeight: "700" },
+    channelTag: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: colors.primary || "#8B5CF6",
+    },
     messageTime: { fontSize: 11, color: colors.textMuted },
-    iconBtnAction: { marginLeft: 'auto', padding: 2 },
-    messageText: { fontSize: 14, lineHeight: 20, color: colors.text, marginVertical: 6 },
-    messageFooter: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-    likeButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    likeCount: { fontSize: 12, fontWeight: '600' },
-    noComments: { textAlign: 'center', padding: 32, color: colors.textMuted, fontSize: 14 },
+    iconBtnAction: { marginLeft: "auto", padding: 2 },
+    messageText: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: colors.text,
+      marginVertical: 6,
+    },
+    messageFooter: { flexDirection: "row", alignItems: "center", marginTop: 4 },
+    likeButton: { flexDirection: "row", alignItems: "center", gap: 4 },
+    likeCount: { fontSize: 12, fontWeight: "600" },
+    noComments: {
+      textAlign: "center",
+      padding: 32,
+      color: colors.textMuted,
+      fontSize: 14,
+    },
     inputContainer: {
       borderTopWidth: 1,
       borderTopColor: colors.border,
       backgroundColor: colors.card,
       paddingHorizontal: 14,
       paddingTop: 8,
-      paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+      paddingBottom: Platform.OS === "ios" ? 24 : 12,
     },
     postChannelSelector: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       marginBottom: 8,
     },
-    postChannelLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '600' },
+    postChannelLabel: {
+      fontSize: 11,
+      color: colors.textMuted,
+      fontWeight: "600",
+    },
     miniChannelBadge: {
       paddingHorizontal: 8,
       paddingVertical: 3,
@@ -696,9 +795,9 @@ const getStyles = (colors) =>
       width: 42,
       height: 42,
       borderRadius: 21,
-      backgroundColor: colors.primary || '#8B5CF6',
-      justifyContent: 'center',
-      alignItems: 'center',
+      backgroundColor: colors.primary || "#8B5CF6",
+      justifyContent: "center",
+      alignItems: "center",
     },
     sendButtonDisabled: { opacity: 0.4 },
   });

@@ -214,27 +214,16 @@ export default function EventsScreen({ navigation, route }) {
       style={[styles.screen, { backgroundColor: colors.bg }]}
       contentContainerStyle={{ paddingBottom: 20, paddingTop: 8 }}
     >
-      {/* Back button — icon only, since the page title right below already says "Events" */}
-      <View style={styles.backRow}>
-        <TouchableOpacity
-          onPress={() => navigation?.goBack?.()}
-          style={styles.backButton}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Feather name="arrow-left" size={20} color={colors.text} />
-        </TouchableOpacity>
-      </View>
-
+      {/* Header — matches JobBoard's pattern: back arrow + title combined, one tap target */}
       <View style={styles.headerRow}>
-        <View>
-          <Text style={[styles.pageTitle, { color: colors.text }]}>Events</Text>
-          <Text style={[styles.pageSubtitle, { color: colors.textMuted }]}>
-            Festival schedule, day by day
+        <TouchableOpacity onPress={() => navigation?.goBack?.()}>
+          <Text style={[styles.pageTitle, { color: colors.text }]}>
+            ← Events
           </Text>
-        </View>
-        <TouchableOpacity
-          style={[styles.iconButton, { backgroundColor: colors.card }]}
-        ></TouchableOpacity>
+        </TouchableOpacity>
+        <Text style={[styles.pageSubtitle, { color: colors.textMuted }]}>
+          Festival schedule, day by day
+        </Text>
       </View>
 
       <View style={[styles.searchContainer, { backgroundColor: colors.input }]}>
@@ -467,37 +456,12 @@ export default function EventsScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  backText: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  pageTitle: { fontSize: 26, fontWeight: "bold", marginBottom: 4 },
-  pageSubtitle: { fontSize: 14 },
+  pageTitle: { fontSize: 28, fontWeight: "bold" },
+  pageSubtitle: { fontSize: 15, marginTop: 8, marginBottom: 4 },
   headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 20,
     paddingBottom: 16,
-  },
-  iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
   },
   searchContainer: {
     flexDirection: "row",
