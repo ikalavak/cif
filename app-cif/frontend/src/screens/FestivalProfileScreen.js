@@ -14,8 +14,6 @@ import {
 
 import {
   collection,
-  doc,
-  getDoc,
   onSnapshot,
   query,
   where,
@@ -53,8 +51,6 @@ export default function FestivalProfileScreen({ navigation }) {
       .toUpperCase() || "U";
 
   const [photoUri, setPhotoUri] = useState(currentUser?.photoURL || null);
-  const [schedule, setSchedule] = useState([]);
-  const [scheduleLoading, setScheduleLoading] = useState(true);
   const [savedPortfolios, setSavedPortfolios] = useState([]);
   const [myBookings, setMyBookings] = useState([]);
 
@@ -77,7 +73,7 @@ export default function FestivalProfileScreen({ navigation }) {
 
     const q = query(
       collection(db, "bookings"),
-      where("userId", "==", currentUser.uid),
+      where("userId", "==", currentUser.uid)
     );
 
     const unsub = onSnapshot(
@@ -91,91 +87,13 @@ export default function FestivalProfileScreen({ navigation }) {
       },
       (error) => {
         console.warn("Bookings listener notice:", error.message);
-      },
+      }
     );
 
     return () => unsub();
   }, [currentUser?.uid]);
 
-  // 2. Live Schedule Listener
-  useEffect(() => {
-    if (!currentUser?.uid) {
-      setSchedule([]);
-      setScheduleLoading(false);
-      return;
-    }
-
-    setScheduleLoading(true);
-
-    const scheduleRef = collection(db, "users", currentUser.uid, "schedule");
-
-    const unsubSchedule = onSnapshot(
-      scheduleRef,
-      async (scheduleSnapshot) => {
-        try {
-          const scheduleWithEvents = await Promise.all(
-            scheduleSnapshot.docs.map(async (scheduleDoc) => {
-              const scheduleData = scheduleDoc.data();
-              const eventId =
-                scheduleData.eventId ||
-                scheduleData.eventID ||
-                scheduleData.event;
-
-              if (!eventId) {
-                return {
-                  id: scheduleDoc.id,
-                  ...scheduleData,
-                  event: null,
-                };
-              }
-
-              try {
-                const eventRef = doc(db, "events", eventId);
-                const eventSnapshot = await getDoc(eventRef);
-
-                if (!eventSnapshot.exists()) {
-                  return {
-                    id: scheduleDoc.id,
-                    ...scheduleData,
-                    event: null,
-                  };
-                }
-
-                return {
-                  id: scheduleDoc.id,
-                  ...scheduleData,
-                  event: {
-                    id: eventSnapshot.id,
-                    ...eventSnapshot.data(),
-                  },
-                };
-              } catch (e) {
-                return {
-                  id: scheduleDoc.id,
-                  ...scheduleData,
-                  event: null,
-                };
-              }
-            }),
-          );
-
-          setSchedule(scheduleWithEvents);
-        } catch (error) {
-          console.warn("Schedule processing notice:", error.message);
-        } finally {
-          setScheduleLoading(false);
-        }
-      },
-      (error) => {
-        console.warn("Schedule listener notice:", error.message);
-        setScheduleLoading(false);
-      },
-    );
-
-    return () => unsubSchedule();
-  }, [currentUser?.uid]);
-
-  // 3. Live Saved Portfolios
+  // 2. Live Saved Portfolios
   useEffect(() => {
     if (!currentUser?.uid) {
       setSavedPortfolios([]);
@@ -207,7 +125,7 @@ export default function FestivalProfileScreen({ navigation }) {
       (error) => {
         console.warn("Saved portfolios notice:", error.message);
         setSavedPortfolios([]);
-      },
+      }
     );
 
     return () => unsubscribe();
@@ -222,7 +140,7 @@ export default function FestivalProfileScreen({ navigation }) {
         if (status !== "granted") {
           Alert.alert(
             "Permission required",
-            "Permission to access photos is required to update a profile photo.",
+            "Permission to access photos is required to update a profile photo."
           );
           return;
         }
@@ -307,7 +225,10 @@ export default function FestivalProfileScreen({ navigation }) {
             ]}
           >
             <Text
-              style={[styles.badgeText, { color: colors.primary || "#8B5CF6" }]}
+              style={[
+                styles.badgeText,
+                { color: colors.primary || "#8B5CF6" },
+              ]}
             >
               Pass Type: VIP
             </Text>
@@ -407,59 +328,6 @@ export default function FestivalProfileScreen({ navigation }) {
         <Feather name="chevron-right" size={20} color={colors.textMuted} />
       </TouchableOpacity>
 
-      {/* MY SCHEDULE */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            My Schedule
-          </Text>
-          <TouchableOpacity onPress={() => navigation.navigate("Events")}>
-            <Text
-              style={[styles.seeAll, { color: colors.primary || "#8B5CF6" }]}
-            >
-              See All
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {scheduleLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator
-              size="small"
-              color={colors.primary || "#8B5CF6"}
-            />
-            <Text style={[styles.loadingText, { color: colors.textMuted }]}>
-              Loading your schedule...
-            </Text>
-          </View>
-        ) : schedule.length === 0 ? (
-          <View style={styles.emptySchedule}>
-            <Ionicons
-              name="calendar-outline"
-              size={32}
-              color={colors.textMuted}
-            />
-            <Text style={[styles.emptyScheduleTitle, { color: colors.text }]}>
-              No saved events
-            </Text>
-            <Text
-              style={[styles.emptyScheduleText, { color: colors.textMuted }]}
-            >
-              Events you book or save will appear here.
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            horizontal
-            data={schedule}
-            keyExtractor={(item) => item.id}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingLeft: 16, paddingRight: 8 }}
-            renderItem={({ item }) => <EventCard item={item} colors={colors} />}
-          />
-        )}
-      </View>
-
       {/* SAVED PORTFOLIOS */}
       <View style={styles.section}>
         <Text
@@ -502,70 +370,6 @@ export default function FestivalProfileScreen({ navigation }) {
         </View>
       </View>
     </SafeScreen>
-  );
-}
-
-function EventCard({ item, colors }) {
-  const event = item.event;
-
-  if (!event) {
-    return (
-      <View
-        style={[
-          styles.eventCard,
-          { backgroundColor: colors.card, borderColor: colors.border },
-        ]}
-      >
-        <View style={styles.eventCardContent}>
-          <Text style={[styles.eventTitle, { color: colors.textMuted }]}>
-            Event reservation
-          </Text>
-          <Text style={[styles.eventMeta, { color: colors.textMuted }]}>
-            Schedule item loaded.
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
-  return (
-    <TouchableOpacity
-      activeOpacity={0.85}
-      style={[
-        styles.eventCard,
-        { backgroundColor: colors.card, borderColor: colors.border },
-      ]}
-    >
-      {event.image || event.image_url ? (
-        <Image
-          source={{ uri: event.image || event.image_url }}
-          style={styles.eventImage}
-        />
-      ) : null}
-
-      <View style={styles.eventCardContent}>
-        <Text
-          style={[styles.eventTime, { color: colors.primary || "#8B5CF6" }]}
-        >
-          {event.time || event.startTime || "Time TBC"}
-        </Text>
-        <Text
-          style={[styles.eventTitle, { color: colors.text }]}
-          numberOfLines={2}
-        >
-          {event.title || "Untitled event"}
-        </Text>
-        <View style={styles.eventLocationRow}>
-          <Feather name="map-pin" size={12} color={colors.textMuted} />
-          <Text
-            style={[styles.eventMeta, { color: colors.textMuted }]}
-            numberOfLines={1}
-          >
-            {event.location || event.venue || "Location TBC"}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
   );
 }
 
@@ -740,47 +544,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   section: { marginTop: 4, paddingVertical: 8 },
-  sectionHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-  },
   sectionTitle: { fontSize: 16, fontWeight: "800" },
-  seeAll: { fontSize: 13, fontWeight: "700" },
-  loadingContainer: {
-    height: 150,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: { marginTop: 8, fontSize: 13 },
-  emptySchedule: {
-    height: 150,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 30,
-  },
-  emptyScheduleTitle: { fontSize: 15, fontWeight: "700", marginTop: 8 },
-  emptyScheduleText: { fontSize: 13, textAlign: "center", marginTop: 4 },
-  eventCard: {
-    width: 210,
-    marginRight: 12,
-    marginTop: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  eventImage: { width: "100%", height: 95, resizeMode: "cover" },
-  eventCardContent: { padding: 12 },
-  eventTime: { fontSize: 11, fontWeight: "700", marginBottom: 5 },
-  eventTitle: { fontSize: 14, fontWeight: "800", lineHeight: 19 },
-  eventLocationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-    gap: 5,
-  },
-  eventMeta: { fontSize: 12, flex: 1 },
   portfolioCard: {
     flexDirection: "row",
     alignItems: "center",
