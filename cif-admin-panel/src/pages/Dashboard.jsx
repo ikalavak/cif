@@ -1,191 +1,334 @@
+// cif-admin-panel/src/pages/Dashboard.jsx
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { db } from "../firebaseClient";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 
-// Updated collections tailored for a 5,000 attendee music festival
+// Real collections used across this project — matches Events.jsx, Venues.jsx,
+// Speakers.jsx, Categories.jsx, Announcements.jsx, Gallery.jsx, Sponsors.jsx.
 const COLLECTIONS = [
-  "sets", // Replaced 'events' with individual artist sets
-  "stages", // Replaced 'venues' with festival stages
-  "lineup", // Replaced 'speakers' with performing artists/bands
-  "tickets", // Added for 5k crowd management tracking
-  "vendors", // Added for food trucks, merch booths, and bar logs
-  "announcements", // Retained for urgent mass-push notification logs
-  "gallery", // Retained for site map / media asset tracking
-  "sponsors", // Retained for festival partner logging
+  "events",
+  "venues",
+  "categories",
+  "speakers",
+  "gallery",
+  "sponsors",
+  "announcements",
 ];
 
 export default function Dashboard() {
   const [counts, setCounts] = useState({});
-  const [sets, setSets] = useState([]);
-  const [liveAttendance, setLiveAttendance] = useState(0);
+  const [events, setEvents] = useState([]);
+  const [search, setSearch] = useState("");
+  const [lastUpdated, setLastUpdated] = useState(new Date());
 
   useEffect(() => {
-    // 1. Live count tracking for all primary collections
+    // 1. Live count tracking for every primary collection
     const unsubscribes = COLLECTIONS.map((name) =>
       onSnapshot(collection(db, name), (snapshot) => {
         setCounts((prev) => ({ ...prev, [name]: snapshot.size }));
+        setLastUpdated(new Date());
       }),
     );
 
-    // 2. Query upcoming musical sets ordered chronologically
-    const setsQuery = query(
-      collection(db, "sets"),
-      orderBy("start_time", "asc"),
+    // 2. Full events list, ordered chronologically — used for the
+    //    published/draft split and the Upcoming Events table below
+    const eventsQuery = query(
+      collection(db, "events"),
+      orderBy("start_date", "asc"),
     );
-    const unsubSets = onSnapshot(setsQuery, (snapshot) => {
-      setSets(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-
-    // 3. Real-time scanning calculation for the 5,000 person capacity gate
-    const unsubTickets = onSnapshot(collection(db, "tickets"), (snapshot) => {
-      const insideCount = snapshot.docs.filter(
-        (doc) => doc.data().scannedIn === true,
-      ).length;
-      setLiveAttendance(insideCount);
+    const unsubEvents = onSnapshot(eventsQuery, (snapshot) => {
+      setEvents(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setLastUpdated(new Date());
     });
 
     return () => {
       unsubscribes.forEach((u) => u());
-      unsubSets();
-      unsubTickets();
+      unsubEvents();
     };
   }, []);
 
-  // Filter calculations based on live music operations
-  const confirmedSets = sets.filter((s) => s.status === "Confirmed").length;
-  const tentativeSets = sets.filter((s) => s.status !== "Confirmed").length;
-  const upcomingSets = sets.slice(0, 5);
+  const publishedEvents = events.filter((e) => e.published).length;
+  const draftEvents = events.filter((e) => !e.published).length;
 
-  // Re-mapped statistics grid optimized for multi-stage crowd logistics
+  const now = new Date();
+  const upcomingEvents = events.filter((e) => {
+    const start = e.start_date?.toDate ? e.start_date.toDate() : null;
+    return start && start >= now;
+  });
+
+  const nextFive = upcomingEvents.slice(0, 5);
+
   const stats = [
     {
-      label: "Live Gate Count",
-      value: liveAttendance,
-      hint: "Total bodies currently inside gates",
-      to: "/tickets",
+      label: "Total Events",
+      value: events.length,
+      hint: "All events in the system",
+      linkText: "Live total",
+      to: "/events",
     },
     {
-      label: "Tickets Sold",
-      value: counts.tickets ?? "0",
-      hint: "Target cap: 5,000 attendees",
-      to: "/tickets",
+      label: "Published Events",
+      value: publishedEvents,
+      hint: "Visible to end users",
+      linkText: "Publish-ready",
+      to: "/events",
     },
     {
-      label: "Total Show Sets",
-      value: sets.length,
-      hint: "Total performances scheduled",
-      to: "/sets",
+      label: "Draft Events",
+      value: draftEvents,
+      hint: "Pending publication",
+      linkText: "Needs review",
+      to: "/events",
     },
     {
-      label: "Confirmed Acts",
-      value: confirmedSets,
-      hint: "Locked into the schedule grid",
-      to: "/sets",
+      label: "Venues",
+      value: counts.venues ?? "—",
+      hint: "Available locations",
+      linkText: "Master data",
+      to: "/venues",
     },
     {
-      label: "Tentative/Hold",
-      value: tentativeSets,
-      hint: "Pending contract or technical riders",
-      to: "/sets",
+      label: "Categories",
+      value: counts.categories ?? "—",
+      hint: "Event classification",
+      linkText: "Taxonomy",
+      to: "/categories",
     },
     {
-      label: "Festival Stages",
-      value: counts.stages ?? "—",
-      hint: "Active sound & performance zones",
-      to: "/stages",
+      label: "Speakers",
+      value: counts.speakers ?? "—",
+      hint: "Speaker profiles",
+      linkText: "Directory",
+      to: "/speakers",
     },
     {
-      label: "Booked Artists",
-      value: counts.lineup ?? "—",
-      hint: "Total roster profiles created",
-      to: "/lineup",
-    },
-    {
-      label: "Active Food & Retail",
-      value: counts.vendors ?? "—",
-      hint: "Approved grounds concessions",
-      to: "/vendors",
-    },
-    {
-      label: "Emergency Alerts",
+      label: "Announcements",
       value: counts.announcements ?? "—",
-      hint: "Push alerts pushed to user app",
+      hint: "Home notifications",
+      linkText: "CMS feed",
       to: "/announcements",
     },
+    {
+      label: "Gallery Images",
+      value: counts.gallery ?? "—",
+      hint: "Media assets",
+      linkText: "Visual content",
+      to: "/gallery",
+    },
+    {
+      label: "Sponsors",
+      value: counts.sponsors ?? "—",
+      hint: "Partner records",
+      linkText: "Brand relations",
+      to: "/sponsors",
+    },
+    {
+      label: "Upcoming Events",
+      value: upcomingEvents.length,
+      hint: "Future schedule",
+      linkText: "Next up",
+      to: "/events",
+    },
   ];
+
+  // Simple live filter across events/venues/speakers/categories/announcements
+  // by title/name — matches the "Global Search" box shown in the reference.
+  const searchResults = (() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return null;
+
+    return events
+      .filter((e) => (e.title || "").toLowerCase().includes(term))
+      .slice(0, 8);
+  })();
 
   return (
     <div>
       <div className="page-header">
         <div>
-          <h1>Festival Control Dashboard</h1>
+          <h1>Admin Dashboard</h1>
           <p className="muted">
-            Live operational control room. Real-time metrics for crowd safety,
-            scheduling, and stages.
+            Real-time overview of events, content modules, and system health.
+          </p>
+          <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            Last updated:{" "}
+            {lastUpdated.toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+            })}{" "}
+            at{" "}
+            {lastUpdated.toLocaleTimeString("en-GB", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+            {"  "}
+            <button
+              type="button"
+              onClick={() => setLastUpdated(new Date())}
+              style={{
+                marginLeft: 8,
+                background: "none",
+                border: "none",
+                color: "#4c3ff0",
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 600,
+                padding: 0,
+              }}
+            >
+              ↻ Refresh
+            </button>
           </p>
         </div>
       </div>
 
-      {/* Grid displays original look with updated high-value festival content */}
+      {/* GLOBAL SEARCH */}
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e2e8f0",
+          borderRadius: 10,
+          padding: 16,
+          marginBottom: 24,
+        }}
+      >
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>
+          Global Search
+        </div>
+        <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+          Search across events, speakers, venues, categories, and announcements.
+        </div>
+        <input
+          className="search-input"
+          placeholder="Search records..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ width: "100%", marginBottom: 0 }}
+        />
+
+        {searchResults && (
+          <div style={{ marginTop: 12 }}>
+            {searchResults.length === 0 ? (
+              <p className="muted" style={{ fontSize: 13 }}>
+                No matching events found.
+              </p>
+            ) : (
+              searchResults.map((e) => (
+                <Link
+                  key={e.id}
+                  to="/events"
+                  style={{
+                    display: "block",
+                    padding: "8px 4px",
+                    borderBottom: "1px solid #f1f5f9",
+                    fontSize: 13,
+                    color: "#1e293b",
+                    textDecoration: "none",
+                  }}
+                >
+                  {e.title}{" "}
+                  <span className="muted">— {e.venue || "No venue set"}</span>
+                </Link>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* STAT GRID */}
       <div className="stat-grid">
         {stats.map((s) => (
           <Link key={s.label} to={s.to} className="stat-card">
             <div className="stat-label">{s.label}</div>
             <div className="stat-value">{s.value}</div>
             <div className="stat-hint">{s.hint}</div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "#4c3ff0",
+                fontWeight: 600,
+                marginTop: 4,
+              }}
+            >
+              ↗ {s.linkText}
+            </div>
           </Link>
         ))}
       </div>
 
       <div className="dashboard-lower">
-        {/* Next 5 performances upcoming on the festival grounds */}
+        {/* UPCOMING EVENTS */}
         <div className="upcoming-panel">
-          <h3>Upcoming Live Sets</h3>
+          <h3>Upcoming Events</h3>
           <p className="muted">
-            Next 5 scheduled performances across all festival stages.
+            Next 5 scheduled events in chronological order.
           </p>
           <table className="data-table">
             <thead>
               <tr>
-                <th>Artist / Act</th>
-                <th>Stage</th>
-                <th>Set Time</th>
+                <th>Event</th>
+                <th>Venue</th>
+                <th>Date</th>
+                <th>Time</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              {upcomingSets.map((s) => (
-                <tr key={s.id}>
-                  <td>
-                    <strong>{s.artistName || s.title}</strong>
-                  </td>
-                  <td>{s.stageName || s.stage || "—"}</td>
-                  <td>
-                    {s.start_time
-                      ? new Date(s.start_time).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "—"}
-                  </td>
-                  <td>
-                    <span
-                      className={`status-pill status-${(s.status || "Scheduled").toLowerCase().replace(/\s/g, "-")}`}
-                    >
-                      {s.status || "Scheduled"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {upcomingSets.length === 0 && (
+              {nextFive.map((e) => {
+                const start = e.start_date?.toDate
+                  ? e.start_date.toDate()
+                  : null;
+                return (
+                  <tr key={e.id}>
+                    <td>
+                      <Link
+                        to="/events"
+                        style={{
+                          color: "#4c3ff0",
+                          fontWeight: 600,
+                          textDecoration: "none",
+                        }}
+                      >
+                        {e.title}
+                      </Link>
+                    </td>
+                    <td>{e.venue || "—"}</td>
+                    <td>
+                      {start
+                        ? start.toLocaleDateString("en-GB", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          })
+                        : "—"}
+                    </td>
+                    <td>
+                      {start
+                        ? start.toLocaleTimeString("en-GB", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "—"}
+                    </td>
+                    <td>
+                      <span
+                        className={`status-pill status-${e.published ? "published" : "draft"}`}
+                      >
+                        {e.published ? "Published" : "Draft"}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+              {nextFive.length === 0 && (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     className="muted"
                     style={{ textAlign: "center", padding: 20 }}
                   >
-                    No festival sets populated yet.
+                    No upcoming events scheduled.
                   </td>
                 </tr>
               )}
@@ -193,33 +336,27 @@ export default function Dashboard() {
           </table>
         </div>
 
-        {/* Quick actions panel updated to fit festival manager workflow */}
+        {/* QUICK ACTIONS */}
         <div className="quick-actions-panel">
-          <h3>Ground Actions</h3>
-          <p className="muted">
-            Rapidly add festival assets and broadcast urgent notices.
-          </p>
-          <Link
-            className="quick-action"
-            to="/announcements"
-            style={{ borderLeft: "4px solid #d9534f" }}
-          >
-            🚨 Broadcast Emergency Alert
+          <h3>Quick Actions</h3>
+          <p className="muted">Navigate to common admin workflows.</p>
+          <Link className="quick-action" to="/events">
+            + Create Event
           </Link>
-          <Link className="quick-action" to="/sets">
-            + Schedule New Set
+          <Link className="quick-action" to="/venues">
+            + Add Venue
           </Link>
-          <Link className="quick-action" to="/stages">
-            + Provision New Stage
+          <Link className="quick-action" to="/speakers">
+            + Add Speaker
           </Link>
-          <Link className="quick-action" to="/lineup">
-            + Add Artist Profile
+          <Link className="quick-action" to="/categories">
+            + Add Category
           </Link>
-          <Link className="quick-action" to="/vendors">
-            + Register Vendor Box
+          <Link className="quick-action" to="/announcements">
+            + Create Announcement
           </Link>
-          <Link className="quick-action" to="/tickets">
-            + Scan/Look Up Pass
+          <Link className="quick-action" to="/gallery">
+            + Upload Gallery Image
           </Link>
         </div>
       </div>
