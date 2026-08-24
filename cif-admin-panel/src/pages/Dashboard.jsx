@@ -2,7 +2,13 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { db } from "../firebaseClient";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import {
+  collection,
+  collectionGroup,
+  onSnapshot,
+  query,
+  orderBy,
+} from "firebase/firestore";
 
 // Real collections used across this project — matches Events.jsx, Venues.jsx,
 // Speakers.jsx, Categories.jsx, Announcements.jsx, Gallery.jsx, Sponsors.jsx.
@@ -10,17 +16,34 @@ const COLLECTIONS = [
   "events",
   "venues",
   "categories",
-  "speakers",
   "gallery",
   "sponsors",
-  "announcements",
+  "bookings",
+  "job_applications",
+  "forum_messages",
 ];
 
 export default function Dashboard() {
   const [counts, setCounts] = useState({});
   const [events, setEvents] = useState([]);
+  const [portfolioCount, setPortfolioCount] = useState("—");
   const [search, setSearch] = useState("");
   const [lastUpdated, setLastUpdated] = useState(new Date());
+
+  useEffect(() => {
+    // Portfolios live at users/{uid}/portfolio/profile — a subcollection per
+    // user, not a top-level collection, so this needs collectionGroup to
+    // count across every user at once.
+    const unsubPortfolios = onSnapshot(
+      collectionGroup(db, "portfolio"),
+      (snapshot) => {
+        setPortfolioCount(snapshot.size);
+        setLastUpdated(new Date());
+      },
+    );
+
+    return () => unsubPortfolios();
+  }, []);
 
   useEffect(() => {
     // 1. Live count tracking for every primary collection
@@ -75,11 +98,11 @@ export default function Dashboard() {
       to: "/events",
     },
     {
-      label: "Draft Events",
-      value: draftEvents,
-      hint: "Pending publication",
-      linkText: "Needs review",
-      to: "/events",
+      label: "Bookings",
+      value: counts.bookings ?? "—",
+      hint: "Confirmed event bookings",
+      linkText: "Attendance",
+      to: "/bookings",
     },
     {
       label: "Venues",
@@ -96,18 +119,25 @@ export default function Dashboard() {
       to: "/categories",
     },
     {
-      label: "Speakers",
-      value: counts.speakers ?? "—",
-      hint: "Speaker profiles",
-      linkText: "Directory",
-      to: "/speakers",
+      label: "Job Applications",
+      value: counts.job_applications ?? "—",
+      hint: "Submitted applications",
+      linkText: "Talent pipeline",
+      to: "/job-applications",
     },
     {
-      label: "Announcements",
-      value: counts.announcements ?? "—",
-      hint: "Home notifications",
-      linkText: "CMS feed",
-      to: "/announcements",
+      label: "Portfolios",
+      value: portfolioCount,
+      hint: "Attendee portfolios created",
+      linkText: "Talent showcase",
+      to: "/users",
+    },
+    {
+      label: "Forum Activity",
+      value: counts.forum_messages ?? "—",
+      hint: "Total community posts",
+      linkText: "Community pulse",
+      to: "/forum-moderation",
     },
     {
       label: "Gallery Images",
