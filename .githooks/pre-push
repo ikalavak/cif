@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+echo "Running shared pre-push checks..."
+sh ./scripts/local-quality-check.sh
+
+echo "All pre-push checks passed. Continuing push."

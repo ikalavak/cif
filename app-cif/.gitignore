@@ -1,0 +1,40 @@
+node_modules
+# =========================
+# Dependencies
+# =========================
+node_modules/
+.pnp
+.pnp.js
+
+# =========================
+# Expo & React Native Build Files
+# =========================
+.expo/
+dist/
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+android/
+ios/
+
+# =========================
+# macOS System Files
+# =========================
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+# =========================
+# Environment Variables & Secrets
+# =========================
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production

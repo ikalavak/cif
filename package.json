@@ -1,0 +1,32 @@
+{
+  "private": true,
+  "scripts": {
+    "setup:hooks": "git config core.hooksPath .githooks && chmod +x .githooks/pre-push scripts/local-quality-check.sh",
+    "check:all": "sh ./scripts/local-quality-check.sh"
+  },
+  "dependencies": {
+    "expo": "^57.0.8",
+    "expo-secure-store": "~57.0.1",
+    "firebase-admin": "^14.2.0",
+    "react-feather": "^2.0.10"
+  },
+  "name": "cif",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/reddyakshay2003/cif.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/reddyakshay2003/cif/issues"
+  },
+  "homepage": "https://github.com/reddyakshay2003/cif#readme"
+}

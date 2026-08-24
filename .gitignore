@@ -1,0 +1,122 @@
+node_modules
+# =========================
+# Dependencies
+# =========================
+node_modules/
+.pnp
+.pnp.js
+
+# =========================
+# Expo & React Native Build Files
+# =========================
+.expo/
+dist/
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+android/
+ios/
+
+# =========================
+# macOS System Files
+# =========================
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+# =========================
+# Environment Variables & Secrets
+# =========================
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+serviceAccountKey.json
+# ==========================================
+# 1. Critical Secrets & Credentials (NEVER COMMIT)
+# ==========================================
+*.pem
+*.key
+serviceAccountKey*.json
+*serviceAccount*.json
+//GoogleService-Info.plist
+//google-services.json
+firebase-debug.log*
+firestore-debug.log*
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+!.env.example
+
+# ==========================================
+# 2. Node & Dependency Directories
+# ==========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-store/
+
+# ==========================================
+# 3. Vite / Web Builds (cif-admin-panel)
+# ==========================================
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# ==========================================
+# 4. Expo & React Native (app-cif)
+# ==========================================
+.expo/
+.expo-shared/
+web-build/
+android/
+ios/
+
+# Fastlane (Mobile releases)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+
+# ==========================================
+# 5. OS & IDE System Files
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor configurations
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# ==========================================
+# 6. Temporary & Testing Artifacts
+# ==========================================
+*.log
+coverage/
+.nyc_output/
+.turbo/
