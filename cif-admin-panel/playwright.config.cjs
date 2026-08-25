@@ -4,6 +4,10 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   timeout: 30000,
+  reporter: [
+    ['html'], // Generates the interactive web report
+    ['junit', { outputFile: 'test-results/junit-report.xml' }] // Generates an XML report file
+  ],
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
