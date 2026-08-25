@@ -15,13 +15,11 @@ export default function Categories() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
-  // Form State Values
   const [name, setName] = useState("");
   const [type, setType] = useState("music");
   const [color, setColor] = useState("#3b82f6");
   const [imageUrl, setImageUrl] = useState("");
 
-  // 1. Live stream actual records from Firestore
   useEffect(() => {
     const q = query(collection(db, "categories"), orderBy("name", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -32,7 +30,6 @@ export default function Categories() {
     return () => unsubscribe();
   }, []);
 
-  // 2. Submit new entry safely to Firebase
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -53,14 +50,12 @@ export default function Categories() {
     }
   };
 
-  // 3. Remove entry
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to remove this category?")) {
       await deleteDoc(doc(db, "categories", id));
     }
   };
 
-  // Filter client table arrays
   const filteredCategories = categories.filter(
     (c) =>
       c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -120,7 +115,6 @@ export default function Categories() {
         />
       </div>
 
-      {/* Main Core Responsive Data Layout */}
       <table
         className="data-table"
         style={{ width: "100%", borderCollapse: "collapse" }}
@@ -232,7 +226,6 @@ export default function Categories() {
         </tbody>
       </table>
 
-      {/* Built-in Custom Modal Popup - Styled Bright & Clean */}
       {isOpen && (
         <div
           style={{
@@ -276,7 +269,9 @@ export default function Categories() {
               style={{ display: "flex", flexDirection: "column", gap: 16 }}
             >
               <div>
+                {/* ✅ Added htmlFor + id */}
                 <label
+                  htmlFor="categoryName"
                   style={{
                     display: "block",
                     fontSize: 12,
@@ -288,6 +283,7 @@ export default function Categories() {
                   Category Name
                 </label>
                 <input
+                  id="categoryName"
                   type="text"
                   required
                   value={name}
@@ -305,7 +301,9 @@ export default function Categories() {
               </div>
 
               <div>
+                {/* ✅ Added htmlFor + id */}
                 <label
+                  htmlFor="categoryType"
                   style={{
                     display: "block",
                     fontSize: 12,
@@ -317,6 +315,7 @@ export default function Categories() {
                   Classification Group
                 </label>
                 <select
+                  id="categoryType"
                   value={type}
                   onChange={(e) => setType(e.target.value)}
                   style={{
@@ -344,7 +343,9 @@ export default function Categories() {
               </div>
 
               <div>
+                {/* ✅ Added htmlFor + id */}
                 <label
+                  htmlFor="categoryColor"
                   style={{
                     display: "block",
                     fontSize: 12,
@@ -356,6 +357,7 @@ export default function Categories() {
                   Map Marker Hex Code
                 </label>
                 <input
+                  id="categoryColor"
                   type="text"
                   value={color}
                   onChange={(e) => setColor(e.target.value)}
@@ -372,7 +374,9 @@ export default function Categories() {
               </div>
 
               <div>
+                {/* ✅ Added htmlFor + id */}
                 <label
+                  htmlFor="categoryImageUrl"
                   style={{
                     display: "block",
                     fontSize: 12,
@@ -384,6 +388,7 @@ export default function Categories() {
                   Display Image Thumbnail URL
                 </label>
                 <input
+                  id="categoryImageUrl"
                   type="text"
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}

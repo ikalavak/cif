@@ -163,10 +163,13 @@ export default function NotificationsPage() {
         >
           <form onSubmit={handleSendNotification}>
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontWeight: 600, fontSize: 13, color: '#374151', marginBottom: 6 }}>
+              {/* ✅ Added htmlFor */}
+              <label htmlFor="notificationType" style={{ display: 'block', fontWeight: 600, fontSize: 13, color: '#374151', marginBottom: 6 }}>
                 Category / Type
               </label>
+              {/* ✅ Added id */}
               <select
+                id="notificationType"
                 value={type}
                 onChange={(e) => setType(e.target.value)}
                 style={{
@@ -186,10 +189,13 @@ export default function NotificationsPage() {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontWeight: 600, fontSize: 13, color: '#374151', marginBottom: 6 }}>
+              {/* ✅ Added htmlFor */}
+              <label htmlFor="notificationTitle" style={{ display: 'block', fontWeight: 600, fontSize: 13, color: '#374151', marginBottom: 6 }}>
                 Notification Title
               </label>
+              {/* ✅ Added id */}
               <input
+                id="notificationTitle"
                 type="text"
                 placeholder="e.g. Workshop Starting Soon"
                 value={title}
@@ -207,10 +213,13 @@ export default function NotificationsPage() {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontWeight: 600, fontSize: 13, color: '#374151', marginBottom: 6 }}>
+              {/* ✅ Added htmlFor */}
+              <label htmlFor="notificationMessage" style={{ display: 'block', fontWeight: 600, fontSize: 13, color: '#374151', marginBottom: 6 }}>
                 Notification Message
               </label>
+              {/* ✅ Added id */}
               <textarea
+                id="notificationMessage"
                 placeholder="e.g. Join us at The Source for the keynote talk in 15 minutes."
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
@@ -228,10 +237,13 @@ export default function NotificationsPage() {
             </div>
 
             <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontWeight: 600, fontSize: 13, color: '#374151', marginBottom: 6 }}>
+              {/* ✅ Added htmlFor */}
+              <label htmlFor="targetScreen" style={{ display: 'block', fontWeight: 600, fontSize: 13, color: '#374151', marginBottom: 6 }}>
                 Open Screen on Tap
               </label>
+              {/* ✅ Added id */}
               <select
+                id="targetScreen"
                 value={targetScreen}
                 onChange={(e) => setTargetScreen(e.target.value)}
                 style={{

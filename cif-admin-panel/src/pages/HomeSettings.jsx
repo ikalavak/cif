@@ -733,6 +733,7 @@ export default function HomeSettings() {
           {formData.highlights.map((hl, index) => (
             <div
               key={hl.id || index}
+              data-testid="highlight-card"   // ← add this line
               style={{
                 background: "#ffffff",
                 border: "1px solid #e2e8f0",

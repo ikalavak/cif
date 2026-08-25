@@ -81,7 +81,7 @@ function GalleryPickerModal({ isOpen, onClose, onSelect }) {
 }
 
 // --- Image Field with Direct Upload & Picker ---
-function ImageFieldInput({ value, onChange, required }) {
+function ImageFieldInput({ fieldKey, value, onChange, required }) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -105,7 +105,6 @@ function ImageFieldInput({ value, onChange, required }) {
       async () => {
         const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
         onChange(downloadUrl);
-        // Also register upload in the gallery collection automatically
         await addDoc(collection(db, 'gallery'), {
           image_url: downloadUrl,
           storage_path: storagePath,
@@ -123,6 +122,7 @@ function ImageFieldInput({ value, onChange, required }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <input
+          id={`field-${fieldKey}`}
           type="text"
           value={value ?? ''}
           onChange={(e) => onChange(e.target.value)}
@@ -290,6 +290,7 @@ export default function CollectionManager({
       </div>
 
       <input
+        aria-label="Search records"
         className="search-input"
         placeholder="Search..."
         value={search}
@@ -304,29 +305,33 @@ export default function CollectionManager({
           <div className="form-grid">
             {fields.map((f) => {
               if (f.type === 'checkbox') return null;
+              const fieldId = `field-${f.key}`;
               return (
                 <div key={f.key} style={f.wide || f.type === 'image' ? { gridColumn: '1 / -1' } : undefined}>
-                  <label>{f.label}</label>
+                  <label htmlFor={fieldId}>{f.label}</label>
                   {f.type === 'image' ? (
                     <ImageFieldInput
+                      fieldKey={f.key}
                       value={form[f.key]}
                       onChange={(url) => setForm({ ...form, [f.key]: url })}
                       required={f.required}
                     />
                   ) : f.type === 'textarea' ? (
                     <textarea
+                      id={fieldId}
                       rows={4}
                       value={form[f.key] ?? ''}
                       onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
                     />
                   ) : f.type === 'select' ? (
-                    <select value={form[f.key] ?? ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
+                    <select id={fieldId} value={form[f.key] ?? ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
                       {(f.options || []).map((opt) => (
                         <option key={opt} value={opt}>{opt}</option>
                       ))}
                     </select>
                   ) : (
                     <input
+                      id={fieldId}
                       type={f.type === 'datetime' ? 'datetime-local' : f.type === 'number' ? 'number' : 'text'}
                       value={
                         f.type === 'datetime' && form[f.key]
@@ -344,16 +349,20 @@ export default function CollectionManager({
 
           {fields.some((f) => f.type === 'checkbox') && (
             <div className="checkbox-row">
-              {fields.filter((f) => f.type === 'checkbox').map((f) => (
-                <label key={f.key}>
-                  <input
-                    type="checkbox"
-                    checked={!!form[f.key]}
-                    onChange={(e) => setForm({ ...form, [f.key]: e.target.checked })}
-                  />
-                  {f.label}
-                </label>
-              ))}
+              {fields.filter((f) => f.type === 'checkbox').map((f) => {
+                const checkboxId = `field-${f.key}`;
+                return (
+                  <label key={f.key} htmlFor={checkboxId}>
+                    <input
+                      id={checkboxId}
+                      type="checkbox"
+                      checked={!!form[f.key]}
+                      onChange={(e) => setForm({ ...form, [f.key]: e.target.checked })}
+                    />
+                    {f.label}
+                  </label>
+                );
+              })}
             </div>
           )}
 

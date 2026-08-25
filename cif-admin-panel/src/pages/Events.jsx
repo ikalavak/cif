@@ -23,7 +23,6 @@ const emptyForm = {
   isFeatured: false,
 };
 
-// Safe date formatter for table display
 const formatDate = (dateVal) => {
   if (!dateVal) return "—";
   if (dateVal && typeof dateVal.toDate === "function") {
@@ -33,7 +32,6 @@ const formatDate = (dateVal) => {
   return !isNaN(parsed.getTime()) ? parsed.toLocaleString() : "—";
 };
 
-// Safe date parser for form input (datetime-local format: YYYY-MM-DDTHH:mm)
 const getDatetimeInputString = (dateVal) => {
   if (!dateVal) return "";
   try {
@@ -53,13 +51,11 @@ const getDatetimeInputString = (dateVal) => {
 export default function EventsAdmin() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
-
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    // Fetch all events without strict server-side orderBy to include docs missing created_at
     const unsubscribe = onSnapshot(
       collection(db, "events"),
       (snapshot) => {
@@ -68,7 +64,6 @@ export default function EventsAdmin() {
           ...d.data(),
         }));
 
-        // Sort client-side safely
         fetchedDocs.sort((a, b) => {
           const timeA = a.created_at?.toMillis
             ? a.created_at.toMillis()
@@ -208,8 +203,9 @@ export default function EventsAdmin() {
         </h2>
 
         <div style={styles.formGroup}>
-          <label style={styles.label}>Title</label>
+          <label htmlFor="eventTitle" style={styles.label}>Title</label>
           <input
+            id="eventTitle"
             type="text"
             required
             value={form.title}
@@ -219,8 +215,9 @@ export default function EventsAdmin() {
         </div>
 
         <div style={styles.formGroup}>
-          <label style={styles.label}>Image URL</label>
+          <label htmlFor="eventImageUrl" style={styles.label}>Image URL</label>
           <input
+            id="eventImageUrl"
             type="text"
             value={form.imageUrl}
             onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
@@ -231,8 +228,9 @@ export default function EventsAdmin() {
 
         <div style={styles.row}>
           <div style={{ flex: 1 }}>
-            <label style={styles.label}>Category</label>
+            <label htmlFor="eventCategory" style={styles.label}>Category</label>
             <input
+              id="eventCategory"
               type="text"
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
@@ -240,8 +238,9 @@ export default function EventsAdmin() {
             />
           </div>
           <div style={{ flex: 1 }}>
-            <label style={styles.label}>Venue</label>
+            <label htmlFor="eventVenue" style={styles.label}>Venue</label>
             <input
+              id="eventVenue"
               type="text"
               value={form.venue}
               onChange={(e) => setForm({ ...form, venue: e.target.value })}
@@ -252,8 +251,9 @@ export default function EventsAdmin() {
 
         <div style={styles.row}>
           <div style={{ flex: 1 }}>
-            <label style={styles.label}>Start Date & Time</label>
+            <label htmlFor="eventStartDate" style={styles.label}>Start Date & Time</label>
             <input
+              id="eventStartDate"
               type="datetime-local"
               value={form.startDate}
               onChange={(e) => setForm({ ...form, startDate: e.target.value })}
@@ -261,8 +261,9 @@ export default function EventsAdmin() {
             />
           </div>
           <div style={{ flex: 1 }}>
-            <label style={styles.label}>Status</label>
+            <label htmlFor="eventStatus" style={styles.label}>Status</label>
             <select
+              id="eventStatus"
               value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value })}
               style={styles.input}
@@ -274,8 +275,11 @@ export default function EventsAdmin() {
             </select>
           </div>
           <div style={{ flex: 1 }}>
-            <label style={styles.label}>Capacity (blank = unlimited)</label>
+            <label htmlFor="eventCapacity" style={styles.label}>
+              Capacity (blank = unlimited)
+            </label>
             <input
+              id="eventCapacity"
               type="number"
               min="0"
               value={form.capacity}
@@ -287,36 +291,26 @@ export default function EventsAdmin() {
 
         <div style={{ display: "flex", gap: 24, margin: "16px 0" }}>
           <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              cursor: "pointer",
-            }}
+            htmlFor="eventPublished"
+            style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}
           >
             <input
+              id="eventPublished"
               type="checkbox"
               checked={form.isPublished}
-              onChange={(e) =>
-                setForm({ ...form, isPublished: e.target.checked })
-              }
+              onChange={(e) => setForm({ ...form, isPublished: e.target.checked })}
             />
             Published
           </label>
           <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              cursor: "pointer",
-            }}
+            htmlFor="eventFeatured"
+            style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}
           >
             <input
+              id="eventFeatured"
               type="checkbox"
               checked={form.isFeatured}
-              onChange={(e) =>
-                setForm({ ...form, isFeatured: e.target.checked })
-              }
+              onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })}
             />
             Featured
           </label>
@@ -357,11 +351,7 @@ export default function EventsAdmin() {
 
       <div style={{ ...styles.card, marginTop: 24 }}>
         <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            textAlign: "left",
-          }}
+          style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}
         >
           <thead>
             <tr
@@ -388,13 +378,9 @@ export default function EventsAdmin() {
               <tr>
                 <td
                   colSpan="10"
-                  style={{
-                    textAlign: "center",
-                    padding: "32px",
-                    color: "#a0aec0",
-                  }}
+                  style={{ textAlign: "center", padding: "32px", color: "#a0aec0" }}
                 >
-                  No items found.
+                  No items found matching your search
                 </td>
               </tr>
             ) : (
@@ -403,9 +389,7 @@ export default function EventsAdmin() {
                   key={ev.id}
                   style={{ borderBottom: "1px solid #edf2f7", fontSize: 14 }}
                 >
-                  <td style={styles.td}>
-                    <strong>{ev.title}</strong>
-                  </td>
+                  <td style={styles.td}><strong>{ev.title}</strong></td>
                   <td style={styles.td}>{ev.category || "—"}</td>
                   <td style={styles.td}>{ev.venue || "—"}</td>
                   <td style={styles.td}>{formatDate(ev.start_date)}</td>

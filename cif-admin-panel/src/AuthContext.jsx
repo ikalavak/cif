@@ -18,8 +18,9 @@ import { auth, db } from "./firebaseClient";
 
 const AuthContext = createContext(null);
 // Primary Root Super Admin email
-const ROOT_SUPERADMIN_EMAIL = "nonye_c@hotmail.co.uk";
-
+const ROOT_SUPERADMIN_EMAIL = (
+  import.meta.env.VITE_ROOT_SUPERADMIN_EMAIL || ""
+).trim().toLowerCase();
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
