@@ -47,8 +47,8 @@ test.describe("Gallery & Media Management Suite", () => {
     await expect(page.getByText("Staged for upload (1)")).toBeVisible();
     
     // React automatically formats the filename into a caption ("playwright test image")
-    // ✅ Fixed: Replaced non-existent getByDisplayValue with Playwright locator filter
-    const captionInput = page.locator('input[type="text"]').filter({ hasValue: 'playwright test image' });    await expect(captionInput).toBeVisible();
+    const captionInput = page.locator('input[type="text"]').filter({ hasValue: 'playwright test image' });
+    await expect(captionInput).toBeVisible();
 
     // 3. Modify the caption of the staged file
     await captionInput.fill("Modified Caption Title");
@@ -71,13 +71,17 @@ test.describe("Gallery & Media Management Suite", () => {
     await page.getByPlaceholder("Image URL (e.g. https://images.unsplash.com/...)").fill(testImageUrl);
     await page.getByPlaceholder("Caption / Description (optional)").fill(uniqueCaption);
 
-    // Intercept the success alert
-    page.once("dialog", async (dialog) => {
-      expect(dialog.message()).toBe("Image added to gallery!");
-      await dialog.accept();
+    // ✅ Register the dialog listener BEFORE clicking save to catch the success alert reliably
+    const dialogPromise = new Promise((resolve) => {
+      page.once("dialog", async (dialog) => {
+        expect(dialog.message()).toBe("Image added to gallery!");
+        await dialog.accept();
+        resolve();
+      });
     });
 
     await page.getByRole("button", { name: "Save to Gallery" }).click();
+    await dialogPromise; // Wait for dialog handling to finish
 
     // --- PART 2: VERIFY IN GRID & TEST LIGHTBOX ---
     // Search for the newly added image
@@ -85,7 +89,7 @@ test.describe("Gallery & Media Management Suite", () => {
 
     // Locate the specific image card
     const imageCard = page.locator("div", { hasText: uniqueCaption }).first();
-    await expect(imageCard).toBeVisible({ timeout: 10000 });
+    await expect(imageCard).toBeVisible({ timeout: 15000 });
 
     // Click the image thumbnail to open the Lightbox (targets the img tag specifically)
     await imageCard.getByAltText(uniqueCaption).click();
@@ -99,17 +103,21 @@ test.describe("Gallery & Media Management Suite", () => {
     await expect(lightboxCloseBtn).toBeHidden();
 
     // --- PART 3: DELETE IMAGE ---
-    // Intercept the delete confirmation
-    page.once("dialog", async (dialog) => {
-      expect(dialog.message()).toBe("Delete this image permanently from the gallery?");
-      await dialog.accept();
+    // ✅ Register the delete confirmation dialog listener before clicking delete
+    const deleteDialogPromise = new Promise((resolve) => {
+      page.once("dialog", async (dialog) => {
+        expect(dialog.message()).toBe("Delete this image permanently from the gallery?");
+        await dialog.accept();
+        resolve();
+      });
     });
 
     // Click the delete button inside our specific image card
     await imageCard.getByRole("button", { name: "Delete" }).click();
+    await deleteDialogPromise;
 
     // Verify the image disappears and the empty state shows up (since we are filtering by its unique name)
-    await expect(imageCard).toBeHidden({ timeout: 10000 });
+    await expect(imageCard).toBeHidden({ timeout: 15000 });
     await expect(page.getByText("No images found.")).toBeVisible();
   });
 

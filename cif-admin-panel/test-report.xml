@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="5" failures="0" errors="0" time="0.306915">
+    <testsuite name="firestore.rules.test.js" timestamp="2026-08-26T06:28:02.472Z" hostname="Akshays-MacBook-Air.local" tests="5" failures="0" errors="0" skipped="0" time="0.306915">
+        <testcase classname="firestore.rules.test.js" name="Admin Panel Strict Access Control Rules &gt; Admin-Managed Content Collections &gt; should deny unauthenticated users from writing to admin content" time="0.075034875">
+            <system-err>
+[2026-08-26T06:28:02.294Z]  @firebase/firestore: Firestore (12.18.0): GrpcConnection RPC &apos;Write&apos; stream 0x55e99f1e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for &apos;create&apos; @ L31, false for &apos;update&apos; @ L31
+
+[2026-08-26T06:28:02.303Z]  @firebase/firestore: Firestore (12.18.0): GrpcConnection RPC &apos;Write&apos; stream 0x55e99f1f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for &apos;create&apos; @ L33, false for &apos;update&apos; @ L33
+
+            </system-err>
+        </testcase>
+        <testcase classname="firestore.rules.test.js" name="Admin Panel Strict Access Control Rules &gt; Admin-Managed Content Collections &gt; should deny regular signed-in users from modifying admin content" time="0.037016916">
+            <system-err>
+[2026-08-26T06:28:02.331Z]  @firebase/firestore: Firestore (12.18.0): GrpcConnection RPC &apos;Write&apos; stream 0x55e99f20 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L31:87 for &apos;create&apos; @ L31, evaluation error at L31:87 for &apos;update&apos; @ L31, false for &apos;create&apos; @ L31
+
+[2026-08-26T06:28:02.340Z]  @firebase/firestore: Firestore (12.18.0): GrpcConnection RPC &apos;Write&apos; stream 0x55e99f21 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L32:72 for &apos;create&apos; @ L32, evaluation error at L32:100 for &apos;update&apos; @ L32, false for &apos;create&apos; @ L32
+
+            </system-err>
+        </testcase>
+        <testcase classname="firestore.rules.test.js" name="Admin Panel Strict Access Control Rules &gt; Admin-Managed Content Collections &gt; should allow verified admin users to create and update admin content" time="0.047137417">
+        </testcase>
+        <testcase classname="firestore.rules.test.js" name="Admin Panel Strict Access Control Rules &gt; Superadmin &amp; Admin Roster Controls &gt; should block regular admins from creating other admin accounts" time="0.03948925">
+            <system-err>
+[2026-08-26T06:28:02.427Z]  @firebase/firestore: Firestore (12.18.0): GrpcConnection RPC &apos;Write&apos; stream 0x55e99f25 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L27:32 for &apos;create&apos; @ L27, evaluation error at L28:24 for &apos;update&apos; @ L28, false for &apos;create&apos; @ L27
+
+            </system-err>
+        </testcase>
+        <testcase classname="firestore.rules.test.js" name="Admin Panel Strict Access Control Rules &gt; Superadmin &amp; Admin Roster Controls &gt; should allow superadmins to create and delete admin accounts" time="0.035356083">
+        </testcase>
+    </testsuite>
+</testsuites>
