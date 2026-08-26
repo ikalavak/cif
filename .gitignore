@@ -50,7 +50,8 @@ serviceAccountKey*.json
 //google-services.json
 firebase-debug.log*
 firestore-debug.log*
-
+test-results/
+playwright-report/
 # Environment Variables
 .env
 .env.local
@@ -120,3 +121,9 @@ Thumbs.db
 coverage/
 .nyc_output/
 .turbo/
+test-results/
+playwright-report/
+*.json
+!package.json
+!tsconfig.json
+!firebase.json

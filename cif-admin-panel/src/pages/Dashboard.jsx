@@ -234,6 +234,8 @@ export default function Dashboard() {
           placeholder="Search records..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          // width: 100% was correct here, it makes the input fill the white panel.
+          // The panel itself is limited by the Layout component, so this won't stretch forever.
           style={{ width: "100%", marginBottom: 0 }}
         />
 
@@ -267,6 +269,11 @@ export default function Dashboard() {
       </div>
 
       {/* STAT GRID */}
+      {/*
+        Using the .stat-grid class from index.css.
+        Ensure index.css uses grid-template-columns: repeat(auto-fill, minmax(200px, 1fr))
+        rather than grid-template-columns: repeat(10, 1fr) for full adaptability.
+      */}
       <div className="stat-grid">
         {stats.map((s) => (
           <Link key={s.label} to={s.to} className="stat-card">
@@ -294,82 +301,88 @@ export default function Dashboard() {
           <p className="muted">
             Next 5 scheduled events in chronological order.
           </p>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Event</th>
-                <th>Venue</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {nextFive.map((e) => {
-                const start = e.start_date?.toDate
-                  ? e.start_date.toDate()
-                  : null;
-                return (
-                  <tr key={e.id}>
-                    <td>
-                      <Link
-                        to="/events"
-                        style={{
-                          color: "#4c3ff0",
-                          fontWeight: 600,
-                          textDecoration: "none",
-                        }}
-                      >
-                        {e.title}
-                      </Link>
-                    </td>
-                    <td>{e.venue || "—"}</td>
-                    <td>
-                      {start
-                        ? start.toLocaleDateString("en-GB", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })
-                        : "—"}
-                    </td>
-                    <td>
-                      {start
-                        ? start.toLocaleTimeString("en-GB", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : "—"}
-                    </td>
-                    <td>
-                      <span
-                        className={`status-pill status-${e.published ? "published" : "draft"}`}
-                      >
-                        {e.published ? "Published" : "Draft"}
-                      </span>
+          <div style={{ overflowX: "auto" }}> {/* Crucial for mobile scrollable tables */}
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>Venue</th>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {nextFive.map((e) => {
+                  const start = e.start_date?.toDate
+                    ? e.start_date.toDate()
+                    : null;
+                  return (
+                    <tr key={e.id}>
+                      <td>
+                        <Link
+                          to="/events"
+                          style={{
+                            color: "#4c3ff0",
+                            fontWeight: 600,
+                            textDecoration: "none",
+                          }}
+                        >
+                          {e.title}
+                        </Link>
+                      </td>
+                      <td>{e.venue || "—"}</td>
+                      <td>
+                        {start
+                          ? start.toLocaleDateString("en-GB", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })
+                          : "—"}
+                      </td>
+                      <td>
+                        {start
+                          ? start.toLocaleTimeString("en-GB", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "—"}
+                      </td>
+                      <td>
+                        <span
+                          className={`status-pill status-${e.published ? "published" : "draft"}`}
+                        >
+                          {e.published ? "Published" : "Draft"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {nextFive.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="muted"
+                      style={{ textAlign: "center", padding: 20 }}
+                    >
+                      No upcoming events scheduled.
                     </td>
                   </tr>
-                );
-              })}
-              {nextFive.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="muted"
-                    style={{ textAlign: "center", padding: 20 }}
-                  >
-                    No upcoming events scheduled.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* QUICK ACTIONS */}
         <div className="quick-actions-panel">
           <h3>Quick Actions</h3>
           <p className="muted">Navigate to common admin workflows.</p>
+          {/*
+            Check index.css for .quick-action styles. It should use `display: block`
+            and standard padding so these links stack neatly.
+          */}
           <Link className="quick-action" to="/events">
             + Create Event
           </Link>

@@ -1,10 +1,15 @@
 // cif-admin-panel/src/components/Layout.jsx
-import React from "react";
+import React, { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 
 export default function Layout() {
   const { signOut, session, isSuperAdmin } = useAuth();
+  
+  // State to manage the mobile sidebar drawer
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   const NAV_GROUPS = [
     {
@@ -15,7 +20,7 @@ export default function Layout() {
       label: "CONTENT MANAGEMENT",
       links: [
         { to: "/events", label: "Events" },
-        { to: "/bookings", label: "Bookings" }, // <-- Added Bookings link
+        { to: "/bookings", label: "Bookings" },
         { to: "/opportunities", label: "Opportunities" },
         { to: "/campus-maps", label: "Campus Maps" },
         { to: "/venues", label: "Venues" },
@@ -41,7 +46,24 @@ export default function Layout() {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      {/* 1. MOBILE HEADER - Only visible on small screens */}
+      <div className="mobile-header">
+        <button 
+          className="hamburger-btn" 
+          onClick={() => setIsMobileMenuOpen(true)}
+        >
+          ☰
+        </button>
+        <div className="mobile-header-title">CIF Admin</div>
+      </div>
+
+      {/* 2. MOBILE OVERLAY - Click outside the sidebar to close it */}
+      {isMobileMenuOpen && (
+        <div className="sidebar-overlay" onClick={closeMobileMenu}></div>
+      )}
+
+      {/* 3. SIDEBAR - Toggles the 'open' class dynamically */}
+      <aside className={`sidebar ${isMobileMenuOpen ? "open" : ""}`}>
         <div className="sidebar-header">
           <div className="sidebar-title">CIF Admin</div>
           <div className="sidebar-subtitle">Creative Industries Festival</div>
@@ -57,6 +79,7 @@ export default function Layout() {
                   <NavLink
                     key={link.to}
                     to={link.to}
+                    onClick={closeMobileMenu} // Auto-close drawer on navigation
                     className={({ isActive }) =>
                       isActive ? "nav-link active" : "nav-link"
                     }
@@ -78,7 +101,9 @@ export default function Layout() {
       </aside>
 
       <main className="content">
-        <Outlet />
+        <div className="max-width-wrapper">
+          <Outlet />
+        </div>
       </main>
     </div>
   );
