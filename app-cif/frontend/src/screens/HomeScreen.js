@@ -21,6 +21,7 @@ import {
   query,
   orderBy,
   limit,
+  where,
 } from "firebase/firestore";
 
 const FALLBACK_IMAGE =
@@ -117,12 +118,20 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     const q = query(
       collection(db, "events"),
+      where("published", "==", true),
       orderBy("start_date", "asc"),
       limit(6),
     );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setFestivalEvents(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
+    const unsubscribe = onSnapshot(
+  q,
+  (snapshot) => {
+    console.log("EVENTS SNAPSHOT SIZE:", snapshot.docs.length);
+    setFestivalEvents(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+  },
+  (err) => {
+    console.log("EVENTS SNAPSHOT ERROR:", err.message);
+  },
+);
     return unsubscribe;
   }, []);
 

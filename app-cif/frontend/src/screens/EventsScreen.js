@@ -47,7 +47,11 @@ export default function EventsScreen({ navigation, route }) {
 
   // Live events, published only (matches Firestore rules for public reads)
   useEffect(() => {
-    const q = query(collection(db, "events"), orderBy("start_date", "asc"));
+    const q = query(
+  collection(db, "events"),
+  where("published", "==", true),
+  orderBy("start_date", "asc"),
+);
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {

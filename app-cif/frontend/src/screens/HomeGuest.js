@@ -22,21 +22,22 @@ import {
   query,
   orderBy,
   limit,
+  where,
 } from "firebase/firestore";
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=1200&q=80";
 
-// Defaults match what used to be hardcoded — used until Firestore loads.
+// Defaults match what used to be hardcoded â€” used until Firestore loads.
 // Note: the CTA card stays guest-specific ("Create your account") and is
-// NOT driven by the admin panel's cta_* fields — those control the
+// NOT driven by the admin panel's cta_* fields â€” those control the
 // logged-in "Explore Events" CTA on HomeScreen.js, which doesn't make
 // sense for a guest who can't book anything yet.
 const DEFAULT_SETTINGS = {
   hero_badge: "FREE FESTIVAL",
   hero_title: "Creative Industries Festival 2026",
   hero_subtitle: "Creative Balance: Good Work, Health and Life",
-  hero_dates: "2 – 5 September 2026",
+  hero_dates: "2 â€“ 5 September 2026",
   hero_locations: "Royal Docks & Stratford",
   hero_image_url: FALLBACK_IMAGE,
   about_text:
@@ -87,7 +88,7 @@ export default function HomeGuest({ navigation }) {
   const promptSignUp = () => {
     Alert.alert(
       "Sign up required",
-      "You need an account to view a portfolio. Create one now — it only takes a minute.",
+      "You need an account to view a portfolio. Create one now â€” it only takes a minute.",
       [
         { text: "Not now", style: "cancel" },
         { text: "Sign Up", onPress: () => navigation.navigate("SignUp") },
@@ -121,6 +122,7 @@ export default function HomeGuest({ navigation }) {
   useEffect(() => {
     const q = query(
       collection(db, "events"),
+      where("published", "==", true),
       orderBy("start_date", "asc"),
       limit(6),
     );
@@ -140,7 +142,7 @@ export default function HomeGuest({ navigation }) {
       <View style={styles.headerRow}>
         <View style={styles.headerTextContainer}>
           <Text style={[styles.greetingText, { color: colors.textMuted }]}>
-            Welcome, Guest 👋
+            Welcome, Guest ðŸ‘‹
           </Text>
           <Text style={[styles.headerTitle, { color: colors.text }]}>
             Creative Industries Festival
@@ -224,7 +226,7 @@ export default function HomeGuest({ navigation }) {
         </Text>
       </View>
 
-      {/* QUICK ACTIONS — Events and Gallery are still account-only for guests.
+      {/* QUICK ACTIONS â€” Events and Gallery are still account-only for guests.
           Portfolio is included but guarded: tapping it prompts sign-up
           instead of navigating, since portfolios belong to a real account. */}
       <View style={styles.quickActionsRow}>
@@ -277,7 +279,7 @@ export default function HomeGuest({ navigation }) {
             marginBottom: 20,
           }}
         >
-          No events published yet — check back soon.
+          No events published yet â€” check back soon.
         </Text>
       ) : (
         <ScrollView
@@ -411,7 +413,7 @@ export default function HomeGuest({ navigation }) {
         </View>
       </View>
 
-      {/* CTA — sign up, instead of the logged-in "Explore Events" CTA */}
+      {/* CTA â€” sign up, instead of the logged-in "Explore Events" CTA */}
       <View style={[styles.ctaCard, { backgroundColor: colors.primary }]}>
         <Feather
           name="user-plus"
