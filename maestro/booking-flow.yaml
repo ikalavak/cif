@@ -1,0 +1,56 @@
+appId: com.cif.app
+---
+- openLink: "exp+cif-app://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"
+- extendedWaitUntil:
+    visible: "Email address"
+    timeout: 10000
+    optional: true
+- tapOn:
+    point: "540,2143"
+    optional: true
+- extendedWaitUntil:
+    visible: "Email address"
+    timeout: 60000
+- runFlow:
+    when:
+      visible: "Email address"
+    commands:
+      - tapOn: "Email address"
+      - inputText: "test@cif.local"
+      - tapOn: "Password"
+      - inputText: "Test1234!"
+      - tapOn: "Login"
+- tapOn:
+    text: "Never for this app or website"
+    optional: true
+- extendedWaitUntil:
+    visible: "Festival Events"
+    timeout: 15000
+- tapOn: "Events"
+- assertVisible: "Explore Events"
+- runFlow:
+    when:
+      visible: "Registered.*"
+    commands:
+      - tapOn:
+          text: "Registered.*"
+          index: 0
+      - tapOn: "Cancel"
+      - tapOn:
+          text: "OK"
+          optional: true
+- runFlow:
+    when:
+      visible: "Explore Events"
+    commands:
+      - tapOn:
+          text: "View Details.*"
+          index: 0
+- assertVisible: "When and Where"
+- assertVisible: "About this Event"
+- tapOn: "Register Now"
+- extendedWaitUntil:
+    visible: "Booking Confirmed.*"
+    timeout: 10000
+- tapOn: "OK"
+- assertVisible: "Confirmed.*"
