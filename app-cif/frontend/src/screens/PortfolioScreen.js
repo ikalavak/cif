@@ -1,5 +1,7 @@
 // src/screens/PortfolioScreen.js
-import React, { useEffect, useMemo, useState } from "react";
+
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+
 import {
   ActivityIndicator,
   Alert,
@@ -19,12 +21,12 @@ import { Feather } from "@expo/vector-icons";
 
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
   serverTimestamp,
   setDoc,
-  deleteDoc,
 } from "firebase/firestore";
 
 export default function PortfolioScreen({ navigation }) {
@@ -34,164 +36,366 @@ export default function PortfolioScreen({ navigation }) {
   const [portfolios, setPortfolios] = useState([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // ============================================================
+  // LOAD PORTFOLIOS + CHECK WHICH ONES ARE SAVED
+  // ============================================================
+
+  const loadPortfolios = useCallback(
+    async (isPullToRefresh = false) => {
+      try {
+        if (isPullToRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        const loadedPortfolios = [];
+
+        const currentUser = auth.currentUser;
+
+        // --------------------------------------------------------
+        // GET ALL USERS
+        // --------------------------------------------------------
+
+        const usersSnapshot = await getDocs(collection(db, "users"));
+
+        // --------------------------------------------------------
+        // GET CURRENT USER'S SAVED PORTFOLIOS
+        // --------------------------------------------------------
+
+        const savedPortfolioIds = new Set();
+
+        if (currentUser) {
+          try {
+            const savedSnapshot = await getDocs(
+              collection(
+                db,
+                "users",
+                currentUser.uid,
+                "saved_portfolios"
+              )
+            );
+
+            savedSnapshot.forEach((savedDoc) => {
+              savedPortfolioIds.add(savedDoc.id);
+            });
+          } catch (savedError) {
+            console.error(
+              "Error loading saved portfolios:",
+              savedError
+            );
+          }
+        }
+
+        // --------------------------------------------------------
+        // LOAD EACH USER'S PUBLIC PORTFOLIO
+        // --------------------------------------------------------
+
+        for (const userDoc of usersSnapshot.docs) {
+          const userId = userDoc.id;
+
+          try {
+            const profileRef = doc(
+              db,
+              "users",
+              userId,
+              "portfolio",
+              "profile"
+            );
+
+            const profileSnap = await getDoc(profileRef);
+
+            if (!profileSnap.exists()) {
+              continue;
+            }
+
+            const data = profileSnap.data();
+
+            if (
+              data.name ||
+              data.fullName ||
+              data.education ||
+              data.bio ||
+              data.role
+            ) {
+              loadedPortfolios.push({
+                id: userId,
+
+                name:
+                  data.name ||
+                  data.fullName ||
+                  "Festival Attendee",
+
+                education:
+                  data.education ||
+                  data.role ||
+                  "Creative Professional",
+
+                role:
+                  data.role ||
+                  data.education ||
+                  "Creative Professional",
+
+                bio:
+                  data.bio ||
+                  "No biography provided.",
+
+                category:
+                  data.category ||
+                  "Creative Industries",
+
+                createdAt:
+                  data.createdAt || null,
+
+                // ------------------------------------------------
+                // IMPORTANT:
+                // Check whether this portfolio is already saved.
+                // ------------------------------------------------
+
+                isSaved: savedPortfolioIds.has(userId),
+              });
+            }
+          } catch (err) {
+            console.error(
+              `Could not load portfolio for user ${userId}:`,
+              err
+            );
+          }
+        }
+
+        setPortfolios(loadedPortfolios);
+
+        // --------------------------------------------------------
+        // IF A MODAL IS OPEN, UPDATE ITS SAVED STATE TOO
+        // --------------------------------------------------------
+
+        if (selected) {
+          const updatedSelected = loadedPortfolios.find(
+            (portfolio) => portfolio.id === selected.id
+          );
+
+          if (updatedSelected) {
+            setSelected(updatedSelected);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading portfolios:", error);
+
+        Alert.alert(
+          "Notice",
+          "Could not load portfolios."
+        );
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [selected]
+  );
 
   useEffect(() => {
     loadPortfolios();
   }, []);
 
-  // ==================================================
-  // LOAD PORTFOLIOS
-  // ==================================================
-  const loadPortfolios = async (isPullToRefresh = false) => {
-    try {
-      if (isPullToRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-
-      const loadedPortfolios = [];
-
-      // Fetch all registered users
-      const usersSnapshot = await getDocs(collection(db, "users"));
-
-      for (const userDoc of usersSnapshot.docs) {
-        const userId = userDoc.id;
-        try {
-          // Direct read on the specific subcollection profile doc
-          const profileRef = doc(db, "users", userId, "portfolio", "profile");
-          const profileSnap = await getDoc(profileRef);
-
-          if (profileSnap.exists()) {
-            const data = profileSnap.data();
-
-            if (data.name || data.education || data.bio || data.role) {
-              loadedPortfolios.push({
-                id: userId,
-                name: data.name || data.fullName || "Festival Attendee",
-                education:
-                  data.education || data.role || "Creative Professional",
-                role: data.role || data.education || "Creative Professional",
-                bio: data.bio || "No biography provided.",
-                category: data.category || "Creative Industries",
-                createdAt: data.createdAt || null,
-              });
-            }
-          }
-        } catch (err) {
-          // Gracefully continue without interrupting remaining items
-        }
-      }
-
-      setPortfolios(loadedPortfolios);
-    } catch (error) {
-      console.error("Error loading portfolios:", error);
-      Alert.alert("Notice", "Could not load portfolios.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  // ============================================================
+  // REFRESH
+  // ============================================================
 
   const onRefresh = () => {
     loadPortfolios(true);
   };
 
-  // ==================================================
-  // SEARCH FILTER
-  // ==================================================
-  const filtered = portfolios.filter((person) => {
-    const term = search.toLowerCase().trim();
-    if (!term) return true;
+  // ============================================================
+  // SAVE / UNSAVE PORTFOLIO
+  // ============================================================
 
-    return (
-      (person.name && person.name.toLowerCase().includes(term)) ||
-      (person.education && person.education.toLowerCase().includes(term)) ||
-      (person.role && person.role.toLowerCase().includes(term)) ||
-      (person.bio && person.bio.toLowerCase().includes(term))
-    );
-  });
-
-  // ==================================================
-  // SAVE PORTFOLIO (Saves to saved_portfolios matching rules)
-  // ==================================================
-  const handleSavePortfolio = async (person) => {
+  const handleToggleSavePortfolio = async (person) => {
     try {
       const user = auth.currentUser;
 
       if (!user) {
         Alert.alert(
           "Sign In Required",
-          "Please sign in before saving a portfolio.",
+          "Please sign in before saving a portfolio."
         );
         return;
       }
 
       if (!person) {
-        Alert.alert("Error", "No portfolio selected.");
+        Alert.alert(
+          "Error",
+          "No portfolio selected."
+        );
         return;
       }
 
+      // --------------------------------------------------------
+      // PREVENT SAVING OWN PORTFOLIO
+      // --------------------------------------------------------
+
       if (person.id === user.uid) {
-        Alert.alert("Your Portfolio", "This is your own portfolio profile.");
+        Alert.alert(
+          "Your Portfolio",
+          "This is your own portfolio profile."
+        );
         return;
       }
 
       setSaving(true);
+
+      // --------------------------------------------------------
+      // SAME DOCUMENT IS USED FOR SAVE AND UNSAVE
+      //
+      // users
+      //   └── currentUser.uid
+      //       └── saved_portfolios
+      //           └── originalPortfolioUserId
+      // --------------------------------------------------------
 
       const savedPortfolioRef = doc(
         db,
         "users",
         user.uid,
         "saved_portfolios",
-        person.id,
+        person.id
       );
+
+      // ========================================================
+      // UNSAVE
+      // ========================================================
+
+      if (person.isSaved) {
+        await deleteDoc(savedPortfolioRef);
+
+        // Update the main portfolio list immediately
+        setPortfolios((previous) =>
+          previous.map((portfolio) =>
+            portfolio.id === person.id
+              ? {
+                  ...portfolio,
+                  isSaved: false,
+                }
+              : portfolio
+          )
+        );
+
+        // Update modal
+        setSelected((previous) =>
+          previous && previous.id === person.id
+            ? {
+                ...previous,
+                isSaved: false,
+              }
+            : previous
+        );
+
+        Alert.alert(
+          "Portfolio Unsaved",
+          `${person.name}'s portfolio has been removed from your saved portfolios.`
+        );
+
+        return;
+      }
+
+      // ========================================================
+      // SAVE
+      // ========================================================
 
       await setDoc(
         savedPortfolioRef,
         {
-          name: person.name || "Creative Professional",
-          role: person.role || person.education || "Creative Attendee",
-          education: person.education || "",
-          bio: person.bio || "",
-          category: person.category || "Creative Industries",
-          originalUserId: person.id,
-          savedBy: user.uid,
-          createdAt: serverTimestamp(),
+          name:
+            person.name ||
+            "Creative Professional",
+
+          role:
+            person.role ||
+            person.education ||
+            "Creative Attendee",
+
+          education:
+            person.education || "",
+
+          bio:
+            person.bio || "",
+
+          category:
+            person.category ||
+            "Creative Industries",
+
+          originalUserId:
+            person.id,
+
+          savedBy:
+            user.uid,
+
+          createdAt:
+            serverTimestamp(),
         },
-        { merge: true },
+        {
+          merge: true,
+        }
+      );
+
+      // Update the main portfolio list immediately
+      setPortfolios((previous) =>
+        previous.map((portfolio) =>
+          portfolio.id === person.id
+            ? {
+                ...portfolio,
+                isSaved: true,
+              }
+            : portfolio
+        )
+      );
+
+      // Update modal
+      setSelected((previous) =>
+        previous && previous.id === person.id
+          ? {
+              ...previous,
+              isSaved: true,
+            }
+          : previous
       );
 
       Alert.alert(
         "Portfolio Saved! 🎉",
-        `${person.name}'s portfolio has been saved to your profile bookmarks.`,
-        [
-          {
-            text: "OK",
-            onPress: () => setSelected(null),
-          },
-        ],
+        `${person.name}'s portfolio has been saved to your profile.`
       );
     } catch (error) {
-      console.error("Error saving portfolio:", error);
-      Alert.alert("Save Failed", `Could not save portfolio: ${error.message}`);
+      console.error(
+        "Error saving/unsaving portfolio:",
+        error
+      );
+
+      Alert.alert(
+        "Error",
+        `Could not update saved portfolio: ${error.message}`
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  // ==================================================
-  // DELETE MY OWN PORTFOLIO
-  // ==================================================
+  // ============================================================
+  // DELETE MY OWN PUBLIC PORTFOLIO
+  // ============================================================
+
   const handleDeleteMyPortfolio = async () => {
     try {
       const user = auth.currentUser;
 
       if (!user) {
-        Alert.alert("Sign In Required", "Please sign in first.");
+        Alert.alert(
+          "Sign In Required",
+          "Please sign in first."
+        );
         return;
       }
 
@@ -199,19 +403,25 @@ export default function PortfolioScreen({ navigation }) {
         "Delete My Portfolio",
         "Are you sure you want to permanently delete your public portfolio?",
         [
-          { text: "Cancel", style: "cancel" },
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+
           {
             text: "Delete",
             style: "destructive",
+
             onPress: async () => {
               try {
                 setSaving(true);
+
                 const portfolioRef = doc(
                   db,
                   "users",
                   user.uid,
                   "portfolio",
-                  "profile",
+                  "profile"
                 );
 
                 await deleteDoc(portfolioRef);
@@ -219,33 +429,98 @@ export default function PortfolioScreen({ navigation }) {
                 Alert.alert(
                   "Portfolio Deleted",
                   "Your public portfolio has been removed.",
-                  [{ text: "OK", onPress: () => loadPortfolios() }],
+                  [
+                    {
+                      text: "OK",
+                      onPress: () => loadPortfolios(),
+                    },
+                  ]
                 );
               } catch (error) {
-                console.error("Delete error:", error);
-                Alert.alert("Delete Failed", error.message);
+                console.error(
+                  "Delete error:",
+                  error
+                );
+
+                Alert.alert(
+                  "Delete Failed",
+                  error.message
+                );
               } finally {
                 setSaving(false);
               }
             },
           },
-        ],
+        ]
       );
     } catch (error) {
-      console.error("Delete portfolio error:", error);
+      console.error(
+        "Delete portfolio error:",
+        error
+      );
     }
   };
+
+  // ============================================================
+  // SEARCH
+  // ============================================================
+
+  const filtered = portfolios.filter((person) => {
+    const term = search.toLowerCase().trim();
+
+    if (!term) {
+      return true;
+    }
+
+    return (
+      (person.name &&
+        person.name
+          .toLowerCase()
+          .includes(term)) ||
+
+      (person.education &&
+        person.education
+          .toLowerCase()
+          .includes(term)) ||
+
+      (person.role &&
+        person.role
+          .toLowerCase()
+          .includes(term)) ||
+
+      (person.bio &&
+        person.bio
+          .toLowerCase()
+          .includes(term))
+    );
+  });
+
+  // ============================================================
+  // LOADING
+  // ============================================================
 
   if (loading) {
     return (
       <SafeScreen style={styles.screen}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary || "#8B5CF6"} />
-          <Text style={styles.loadingText}>Loading festival portfolios...</Text>
+          <ActivityIndicator
+            size="large"
+            color={
+              colors.primary || "#8B5CF6"
+            }
+          />
+
+          <Text style={styles.loadingText}>
+            Loading festival portfolios...
+          </Text>
         </View>
       </SafeScreen>
     );
   }
+
+  // ============================================================
+  // MAIN SCREEN
+  // ============================================================
 
   return (
     <SafeScreen
@@ -256,40 +531,67 @@ export default function PortfolioScreen({ navigation }) {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor={colors.primary || "#8B5CF6"}
-          colors={[colors.primary || "#8B5CF6"]}
+          tintColor={
+            colors.primary || "#8B5CF6"
+          }
+          colors={[
+            colors.primary || "#8B5CF6",
+          ]}
         />
       }
     >
-      {/* HEADER — arrow fixed left, title absolutely centered over the row */}
+      {/* HEADER */}
+
       <View style={styles.headerRow}>
         <TouchableOpacity
           onPress={() => {
-            if (navigation && typeof navigation.goBack === "function") {
+            if (
+              navigation &&
+              typeof navigation.goBack ===
+                "function"
+            ) {
               navigation.goBack();
             }
           }}
           style={styles.backIconBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          hitSlop={{
+            top: 8,
+            bottom: 8,
+            left: 8,
+            right: 8,
+          }}
         >
-          <Feather name="arrow-left" size={22} color={colors.text} />
+          <Feather
+            name="arrow-left"
+            size={22}
+            color={colors.text}
+          />
         </TouchableOpacity>
-        <Text style={styles.backText} pointerEvents="none">
+
+        <Text
+          style={styles.backText}
+          pointerEvents="none"
+        >
           Portfolios
         </Text>
       </View>
 
+      {/* SUBTITLE */}
+
       <Text style={styles.subtitle}>
-        Discover talent, collaborators, and creative work from festival
-        attendees.
+        Discover talent, collaborators, and creative
+        work from festival attendees.
       </Text>
 
-      {/* CREATE / DELETE ACTIONS */}
+      {/* CREATE / EDIT */}
+
       <TouchableOpacity
         style={styles.createButton}
         onPress={() => {
           if (navigation?.navigate) {
-            navigation.navigate("CreatePortfolioScreen");
+            navigation.navigate(
+              "CreatePortfolioScreen"
+            );
           }
         }}
         activeOpacity={0.8}
@@ -299,32 +601,52 @@ export default function PortfolioScreen({ navigation }) {
         </Text>
       </TouchableOpacity>
 
+      {/* DELETE */}
+
       <TouchableOpacity
         style={styles.deletePortfolioButton}
         onPress={handleDeleteMyPortfolio}
         disabled={saving}
         activeOpacity={0.8}
       >
-        <Text style={styles.deletePortfolioButtonText}>
-          {saving ? "Processing..." : "Delete My Portfolio"}
+        <Text
+          style={
+            styles.deletePortfolioButtonText
+          }
+        >
+          {saving
+            ? "Processing..."
+            : "Delete My Portfolio"}
         </Text>
       </TouchableOpacity>
 
-      {/* SEARCH INPUT */}
+      {/* SEARCH */}
+
       <TextInput
         style={styles.search}
         placeholder="Search by name, role, skills, or bio..."
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor={
+          colors.textMuted
+        }
         value={search}
         onChangeText={setSearch}
       />
 
-      {/* PORTFOLIO LIST */}
+      {/* PORTFOLIOS */}
+
       <View style={styles.grid}>
         {filtered.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Feather name="folder" size={40} color={colors.textMuted} />
-            <Text style={styles.emptyTitle}>No Portfolios Found</Text>
+            <Feather
+              name="folder"
+              size={40}
+              color={colors.textMuted}
+            />
+
+            <Text style={styles.emptyTitle}>
+              No Portfolios Found
+            </Text>
+
             <Text style={styles.emptyText}>
               {portfolios.length === 0
                 ? "Be the first to publish a portfolio!"
@@ -333,89 +655,226 @@ export default function PortfolioScreen({ navigation }) {
           </View>
         ) : (
           filtered.map((person) => (
-            <View style={styles.card} key={person.id}>
+            <View
+              style={styles.card}
+              key={person.id}
+            >
               {/* AVATAR */}
+
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {person.name ? person.name.charAt(0).toUpperCase() : "U"}
+                <Text
+                  style={styles.avatarText}
+                >
+                  {person.name
+                    ? person.name
+                        .charAt(0)
+                        .toUpperCase()
+                    : "U"}
                 </Text>
               </View>
 
               {/* NAME */}
-              <Text style={styles.personName}>{person.name}</Text>
 
-              {/* ROLE / EDUCATION */}
-              <Text style={styles.educationTitle}>Role / Background</Text>
-              <Text style={styles.educationText}>{person.education}</Text>
+              <Text
+                style={styles.personName}
+              >
+                {person.name}
+              </Text>
+
+              {/* ROLE */}
+
+              <Text
+                style={styles.educationTitle}
+              >
+                Role / Background
+              </Text>
+
+              <Text
+                style={styles.educationText}
+              >
+                {person.education}
+              </Text>
 
               {/* BIO */}
-              <Text style={styles.bio} numberOfLines={3}>
+
+              <Text
+                style={styles.bio}
+                numberOfLines={3}
+              >
                 {person.bio}
               </Text>
 
-              {/* VIEW ACTION */}
+              {/* VIEW */}
+
               <TouchableOpacity
                 style={styles.actionButton}
-                onPress={() => setSelected(person)}
+                onPress={() =>
+                  setSelected(person)
+                }
                 activeOpacity={0.8}
               >
-                <Text style={styles.actionButtonText}>View Portfolio</Text>
+                <Text
+                  style={
+                    styles.actionButtonText
+                  }
+                >
+                  View Portfolio
+                </Text>
               </TouchableOpacity>
+
+              {/* SAVED INDICATOR */}
+
+              {person.isSaved && (
+                <View
+                  style={styles.savedIndicator}
+                >
+                  <Feather
+                    name="bookmark"
+                    size={14}
+                    color={
+                      colors.primary ||
+                      "#8B5CF6"
+                    }
+                  />
+
+                  <Text
+                    style={
+                      styles.savedIndicatorText
+                    }
+                  >
+                    Saved
+                  </Text>
+                </View>
+              )}
             </View>
           ))
         )}
       </View>
 
-      {/* VIEW & SAVE DETAIL MODAL */}
+      {/* ======================================================
+          PORTFOLIO MODAL
+          ====================================================== */}
+
       <Modal
         visible={Boolean(selected)}
         transparent
         animationType="fade"
         onRequestClose={() => {
-          if (!saving) setSelected(null);
+          if (!saving) {
+            setSelected(null);
+          }
         }}
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            {/* CLOSE BUTTON */}
+            {/* CLOSE */}
+
             <TouchableOpacity
               style={styles.closeButton}
               onPress={() => {
-                if (!saving) setSelected(null);
+                if (!saving) {
+                  setSelected(null);
+                }
               }}
               disabled={saving}
             >
-              <Feather name="x" size={20} color={colors.text} />
+              <Feather
+                name="x"
+                size={20}
+                color={colors.text}
+              />
             </TouchableOpacity>
 
-            {/* MODAL AVATAR */}
+            {/* AVATAR */}
+
             <View style={styles.modalAvatar}>
-              <Text style={styles.avatarText}>
-                {selected?.name?.charAt(0)?.toUpperCase()}
+              <Text
+                style={styles.avatarText}
+              >
+                {selected?.name
+                  ?.charAt(0)
+                  ?.toUpperCase()}
               </Text>
             </View>
 
             {/* NAME */}
-            <Text style={styles.modalName}>{selected?.name}</Text>
 
-            {/* EDUCATION / ROLE */}
-            <Text style={styles.skillsTitle}>Role & Education</Text>
-            <Text style={styles.modalEducation}>{selected?.education}</Text>
+            <Text
+              style={styles.modalName}
+            >
+              {selected?.name}
+            </Text>
 
-            {/* BIO */}
-            <Text style={styles.skillsTitle}>About</Text>
-            <Text style={styles.modalBio}>{selected?.bio}</Text>
+            {/* ROLE / EDUCATION */}
 
-            {/* ACTION BUTTONS */}
+            <Text
+              style={styles.skillsTitle}
+            >
+              Role & Education
+            </Text>
+
+            <Text
+              style={styles.modalEducation}
+            >
+              {selected?.education}
+            </Text>
+
+            {/* ABOUT */}
+
+            <Text
+              style={styles.skillsTitle}
+            >
+              About
+            </Text>
+
+            <Text
+              style={styles.modalBio}
+            >
+              {selected?.bio}
+            </Text>
+
+            {/* SAVE / UNSAVE */}
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.saveButton, { opacity: saving ? 0.6 : 1 }]}
-                onPress={() => handleSavePortfolio(selected)}
+                style={[
+                  styles.saveButton,
+                  {
+                    opacity:
+                      saving ? 0.6 : 1,
+                  },
+                ]}
+                onPress={() =>
+                  handleToggleSavePortfolio(
+                    selected
+                  )
+                }
                 disabled={saving}
                 activeOpacity={0.85}
               >
-                <Text style={styles.actionButtonText}>
-                  {saving ? "Saving..." : "Save to My Profile"}
+                <Feather
+                  name={
+                    selected?.isSaved
+                      ? "bookmark"
+                      : "bookmark"
+                  }
+                  size={17}
+                  color="#fff"
+                  style={{
+                    marginRight: 8,
+                  }}
+                />
+
+                <Text
+                  style={
+                    styles.actionButtonText
+                  }
+                >
+                  {saving
+                    ? "Processing..."
+                    : selected?.isSaved
+                    ? "Unsave from My Profile"
+                    : "Save to My Profile"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -426,17 +885,23 @@ export default function PortfolioScreen({ navigation }) {
   );
 }
 
+// ============================================================
+// STYLES
+// ============================================================
+
 const getStyles = (colors) =>
   StyleSheet.create({
     screen: {
       flex: 1,
       backgroundColor: colors.bg,
     },
+
     content: {
       paddingHorizontal: 20,
       paddingTop: 18,
       paddingBottom: 40,
     },
+
     headerRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -444,7 +909,11 @@ const getStyles = (colors) =>
       minHeight: 32,
       marginBottom: 6,
     },
-    backIconBtn: { zIndex: 2 },
+
+    backIconBtn: {
+      zIndex: 2,
+    },
+
     backText: {
       position: "absolute",
       left: 0,
@@ -454,6 +923,7 @@ const getStyles = (colors) =>
       fontWeight: "800",
       color: colors.text,
     },
+
     subtitle: {
       marginTop: 12,
       marginBottom: 16,
@@ -462,20 +932,24 @@ const getStyles = (colors) =>
       lineHeight: 20,
       textAlign: "center",
     },
+
     createButton: {
       width: "100%",
       height: 48,
       borderRadius: 12,
-      backgroundColor: colors.primary || "#8B5CF6",
+      backgroundColor:
+        colors.primary || "#8B5CF6",
       alignItems: "center",
       justifyContent: "center",
       marginBottom: 10,
     },
+
     createButtonText: {
       color: "#fff",
       fontSize: 15,
       fontWeight: "700",
     },
+
     deletePortfolioButton: {
       width: "100%",
       height: 44,
@@ -487,11 +961,13 @@ const getStyles = (colors) =>
       justifyContent: "center",
       marginBottom: 16,
     },
+
     deletePortfolioButtonText: {
       color: "#ef4444",
       fontSize: 14,
       fontWeight: "700",
     },
+
     search: {
       width: "100%",
       height: 48,
@@ -504,9 +980,11 @@ const getStyles = (colors) =>
       marginBottom: 18,
       fontSize: 14,
     },
+
     grid: {
       gap: 14,
     },
+
     card: {
       backgroundColor: colors.card,
       borderColor: colors.border,
@@ -514,36 +992,43 @@ const getStyles = (colors) =>
       borderRadius: 16,
       padding: 18,
     },
+
     avatar: {
       width: 52,
       height: 52,
       borderRadius: 26,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.primary || "#8B5CF6",
+      backgroundColor:
+        colors.primary || "#8B5CF6",
       marginBottom: 12,
     },
+
     modalAvatar: {
       width: 64,
       height: 64,
       borderRadius: 32,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.primary || "#8B5CF6",
+      backgroundColor:
+        colors.primary || "#8B5CF6",
       marginBottom: 12,
       alignSelf: "center",
     },
+
     avatarText: {
       color: "#fff",
       fontSize: 22,
       fontWeight: "800",
     },
+
     personName: {
       fontSize: 18,
       fontWeight: "800",
       color: colors.text,
       marginBottom: 8,
     },
+
     modalName: {
       fontSize: 20,
       fontWeight: "800",
@@ -551,90 +1036,123 @@ const getStyles = (colors) =>
       textAlign: "center",
       marginBottom: 16,
     },
+
     educationTitle: {
       fontSize: 12,
       fontWeight: "700",
-      color: colors.primary || "#8B5CF6",
+      color:
+        colors.primary || "#8B5CF6",
       textTransform: "uppercase",
       marginBottom: 2,
     },
+
     educationText: {
       fontSize: 14,
       color: colors.textMuted,
       lineHeight: 20,
       marginBottom: 10,
     },
+
     modalEducation: {
       fontSize: 14,
       color: colors.textMuted,
       lineHeight: 20,
       marginBottom: 14,
     },
+
     bio: {
       color: colors.textMuted,
       fontSize: 13,
       lineHeight: 19,
       marginBottom: 14,
     },
+
     modalBio: {
       color: colors.textMuted,
       fontSize: 13,
       lineHeight: 20,
       marginBottom: 18,
     },
+
     skillsTitle: {
       color: colors.text,
       fontSize: 14,
       fontWeight: "700",
       marginBottom: 4,
     },
+
     actionButton: {
       alignSelf: "flex-start",
-      backgroundColor: colors.primary || "#8B5CF6",
+      backgroundColor:
+        colors.primary || "#8B5CF6",
       borderRadius: 10,
       paddingVertical: 9,
       paddingHorizontal: 16,
       alignItems: "center",
     },
+
     actionButtonText: {
       color: "#fff",
       fontWeight: "700",
       fontSize: 13,
     },
+
+    savedIndicator: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 10,
+      alignSelf: "flex-start",
+    },
+
+    savedIndicatorText: {
+      color:
+        colors.primary || "#8B5CF6",
+      fontSize: 12,
+      fontWeight: "700",
+      marginLeft: 5,
+    },
+
     emptyContainer: {
       padding: 40,
       alignItems: "center",
       justifyContent: "center",
       gap: 8,
     },
+
     emptyTitle: {
       color: colors.text,
       fontSize: 17,
       fontWeight: "700",
       marginTop: 4,
     },
+
     emptyText: {
       color: colors.textMuted,
       fontSize: 13,
       textAlign: "center",
     },
+
     loadingContainer: {
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
       gap: 10,
     },
+
     loadingText: {
       color: colors.textMuted,
       fontSize: 14,
       fontWeight: "600",
     },
+
     modalBackdrop: {
       flex: 1,
-      backgroundColor: "rgba(0,0,0,0.6)",
+      backgroundColor:
+        "rgba(0,0,0,0.6)",
       padding: 20,
       justifyContent: "center",
     },
+
     modalCard: {
       backgroundColor: colors.card,
       borderWidth: 1,
@@ -644,6 +1162,7 @@ const getStyles = (colors) =>
       position: "relative",
       maxHeight: "85%",
     },
+
     closeButton: {
       position: "absolute",
       right: 14,
@@ -656,15 +1175,19 @@ const getStyles = (colors) =>
       backgroundColor: colors.bg,
       zIndex: 10,
     },
+
     modalButtons: {
       marginTop: 8,
     },
+
     saveButton: {
-      backgroundColor: colors.primary || "#8B5CF6",
+      backgroundColor:
+        colors.primary || "#8B5CF6",
       borderRadius: 12,
       paddingVertical: 13,
       alignItems: "center",
       justifyContent: "center",
       width: "100%",
+      flexDirection: "row",
     },
   });

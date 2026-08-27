@@ -44,6 +44,8 @@ import HomeGuest from "./src/screens/HomeGuest";
 import ProfileGuest from "./src/screens/ProfileGuest";
 import EditProfileScreen from "./src/screens/EditProfileScreen";
 import CreatePortfolioScreen from "./src/screens/CreatePortfolioScreen";
+import SavedPortfoliosScreen from "./src/screens/SavedPortfoliosScreen";
+import SavedJobsScreen from "./src/screens/SavedJobsScreen";
 
 const isExpoGo =
   Constants?.executionEnvironment === ExecutionEnvironment.StoreClient;
@@ -612,6 +614,15 @@ function AppInner() {
             name="EditProfileScreen"
             component={EditProfileScreen}
           />
+          <Stack.Screen
+  name="SavedPortfolios"
+  component={SavedPortfoliosScreen}
+/>
+
+<Stack.Screen
+  name="SavedJobs"
+  component={SavedJobsScreen}
+/>
           <Stack.Screen name="MainApp" component={MainTabs} />
           <Stack.Screen name="GuestApp" component={GuestTabs} />
         </Stack.Navigator>

@@ -83,6 +83,8 @@ export default function HomeScreen({ navigation }) {
   // CTA card) flows through this single listener.
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [searchQuery, setSearchQuery] = useState("");
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
+
 
   const submitSearch = () => {
     if (searchQuery.trim()) {
@@ -114,6 +116,40 @@ export default function HomeScreen({ navigation }) {
   // Live festival events, synced from the admin panel's Events page —
   // each event now carries its own image_url, set individually per event.
   const [festivalEvents, setFestivalEvents] = useState([]);
+
+  useEffect(() => {
+  const user = auth.currentUser;
+
+  if (!user) {
+    setHasUnreadNotifications(false);
+    return;
+  }
+
+  const notificationsRef = collection(
+    db,
+    "users",
+    user.uid,
+    "notifications"
+  );
+
+  const unreadQuery = query(
+    notificationsRef,
+    where("read", "==", false)
+  );
+
+  const unsubscribe = onSnapshot(
+    unreadQuery,
+    (snapshot) => {
+      setHasUnreadNotifications(!snapshot.empty);
+    },
+    (error) => {
+      console.error("Error checking unread notifications:", error);
+      setHasUnreadNotifications(false);
+    }
+  );
+
+  return () => unsubscribe();
+}, []);
 
   useEffect(() => {
     const q = query(
@@ -191,7 +227,7 @@ export default function HomeScreen({ navigation }) {
             }}
           >
             <Feather name="bell" size={20} color={colors.text} />
-
+          {hasUnreadNotifications && (
             <View
               style={[
                 styles.notificationDot,
@@ -200,6 +236,7 @@ export default function HomeScreen({ navigation }) {
                 },
               ]}
             />
+          )}
           </TouchableOpacity>
 
           <ThemeToggle />

@@ -235,14 +235,14 @@ export default function HomeGuest({ navigation }) {
           color={colors.accent}
           label="Forum"
           colors={colors}
-          onPress={() => navigation.navigate("ForumScreen")}
+          onPress={promptSignUp}
         />
         <ActionBtn
           icon="briefcase"
           color={colors.success}
           label="Jobs"
           colors={colors}
-          onPress={() => navigation.navigate("JobBoard")}
+          onPress={promptSignUp}
         />
         <ActionBtn
           icon="user"

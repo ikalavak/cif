@@ -1,18 +1,16 @@
 // src/screens/FestivalProfileScreen.js
-import React, { useState, useEffect } from "react";
+
+import React, { useState } from "react";
+
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   Alert,
   Image,
   Platform,
-  ActivityIndicator,
 } from "react-native";
-
-import { collection, onSnapshot, query, where } from "firebase/firestore";
 
 import SafeScreen from "../components/SafeScreen";
 import QRCode from "react-native-qrcode-svg";
@@ -20,21 +18,37 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import * as ImagePicker from "expo-image-picker";
 
-import { auth, db } from "../config/firebase";
+import { auth } from "../config/firebase";
 
-export default function FestivalProfileScreen({ navigation }) {
+export default function FestivalProfileScreen({
+  navigation,
+}) {
   const { colors } = useTheme();
 
-  const [currentUser, setCurrentUser] = useState(auth.currentUser);
+  // ==================================================
+  // CURRENT USER
+  // ==================================================
 
-  useEffect(() => {
-    const unsubAuth = auth.onAuthStateChanged((user) => {
-      setCurrentUser(user);
-    });
-    return () => unsubAuth();
+  const [currentUser, setCurrentUser] = useState(
+    auth.currentUser
+  );
+
+  React.useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(
+      (user) => {
+        setCurrentUser(user);
+      }
+    );
+
+    return () => unsubscribe();
   }, []);
 
-  const userName = currentUser?.displayName?.trim() || "User";
+  // ==================================================
+  // USER DETAILS
+  // ==================================================
+
+  const userName =
+    currentUser?.displayName?.trim() || "User";
 
   const userInitials =
     userName
@@ -45,189 +59,216 @@ export default function FestivalProfileScreen({ navigation }) {
       .join("")
       .toUpperCase() || "U";
 
-  const [photoUri, setPhotoUri] = useState(currentUser?.photoURL || null);
-  const [savedPortfolios, setSavedPortfolios] = useState([]);
-  const [myBookings, setMyBookings] = useState([]);
+  const [photoUri, setPhotoUri] = useState(
+    currentUser?.photoURL || null
+  );
 
-  // Safe navigation directly climbing to Root Stack Navigator
+  // ==================================================
+  // NAVIGATION
+  // ==================================================
+
   const navigateSafely = (routeName) => {
-    const rootNav = navigation.getParent();
-    if (rootNav?.navigate) {
-      rootNav.navigate(routeName);
+    const parentNavigation =
+      navigation.getParent();
+
+    if (parentNavigation?.navigate) {
+      parentNavigation.navigate(routeName);
     } else {
       navigation.navigate(routeName);
     }
   };
 
-  // 1. Live User Bookings Listener
-  useEffect(() => {
-    if (!currentUser?.uid) {
-      setMyBookings([]);
-      return;
-    }
+  // ==================================================
+  // PICK PROFILE PHOTO
+  // ==================================================
 
-    const q = query(
-      collection(db, "bookings"),
-      where("userId", "==", currentUser.uid),
-    );
-
-    const unsub = onSnapshot(
-      q,
-      (snapshot) => {
-        const bookingsList = snapshot.docs.map((docSnap) => ({
-          id: docSnap.id,
-          ...docSnap.data(),
-        }));
-        setMyBookings(bookingsList);
-      },
-      (error) => {
-        console.warn("Bookings listener notice:", error.message);
-      },
-    );
-
-    return () => unsub();
-  }, [currentUser?.uid]);
-
-  // 2. Live Saved Portfolios
-  useEffect(() => {
-    if (!currentUser?.uid) {
-      setSavedPortfolios([]);
-      return;
-    }
-
-    const portfolioRef = collection(db, "users", currentUser.uid, "portfolio");
-
-    const unsubscribe = onSnapshot(
-      portfolioRef,
-      (snapshot) => {
-        const portfolios = snapshot.docs.map((docSnap) => ({
-          id: docSnap.id,
-          ...docSnap.data(),
-        }));
-
-        portfolios.sort((a, b) => {
-          const timeA = a.createdAt?.toMillis
-            ? a.createdAt.toMillis()
-            : a.createdAt || 0;
-          const timeB = b.createdAt?.toMillis
-            ? b.createdAt.toMillis()
-            : b.createdAt || 0;
-          return timeB - timeA;
-        });
-
-        setSavedPortfolios(portfolios);
-      },
-      (error) => {
-        console.warn("Saved portfolios notice:", error.message);
-        setSavedPortfolios([]);
-      },
-    );
-
-    return () => unsubscribe();
-  }, [currentUser?.uid]);
-
-  // Photo Picker
   const pickImage = async () => {
     try {
       if (Platform.OS !== "web") {
         const { status } =
           await ImagePicker.requestMediaLibraryPermissionsAsync();
+
         if (status !== "granted") {
           Alert.alert(
             "Permission required",
-            "Permission to access photos is required to update a profile photo.",
+            "Permission to access photos is required to update your profile photo."
           );
+
           return;
         }
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
+      const result =
+        await ImagePicker.launchImageLibraryAsync({
+          mediaTypes:
+            ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
+      if (
+        !result.canceled &&
+        result.assets &&
+        result.assets.length > 0
+      ) {
         setPhotoUri(result.assets[0].uri);
       }
     } catch (error) {
-      console.warn("Image pick error:", error);
+      console.warn(
+        "Image pick error:",
+        error
+      );
     }
   };
+
+  // ==================================================
+  // SCREEN
+  // ==================================================
 
   return (
     <SafeScreen
       scroll
-      style={[styles.safeArea, { backgroundColor: colors.bg }]}
-      contentContainerStyle={{ paddingBottom: 40, paddingTop: 12 }}
+      style={[
+        styles.safeArea,
+        {
+          backgroundColor: colors.bg,
+        },
+      ]}
+      contentContainerStyle={{
+        paddingBottom: 40,
+        paddingTop: 12,
+      }}
     >
-      {/* BACK BUTTON — arrow fixed left, title absolutely centered, matching Job Board / Forum / Settings / Portfolio */}
+      {/* ==================================================
+          HEADER
+      ================================================== */}
+
       <View style={styles.backRow}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backIconBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          hitSlop={{
+            top: 8,
+            bottom: 8,
+            left: 8,
+            right: 8,
+          }}
         >
-          <Feather name="arrow-left" size={22} color={colors.text} />
+          <Feather
+            name="arrow-left"
+            size={22}
+            color={colors.text}
+          />
         </TouchableOpacity>
+
         <Text
-          style={[styles.backTitle, { color: colors.text }]}
-          pointerEvents="none"
+          style={[
+            styles.backTitle,
+            {
+              color: colors.text,
+            },
+          ]}
         >
           Profile
         </Text>
       </View>
 
-      {/* HEADER */}
+      {/* ==================================================
+          PROFILE HEADER
+      ================================================== */}
+
       <View style={styles.headerRow}>
         <View style={styles.avatarWrap}>
-          <TouchableOpacity activeOpacity={0.8} onPress={pickImage}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={pickImage}
+          >
             {photoUri ? (
-              <Image source={{ uri: photoUri }} style={styles.avatarImage} />
+              <Image
+                source={{
+                  uri: photoUri,
+                }}
+                style={styles.avatarImage}
+              />
             ) : (
               <View
                 style={[
                   styles.avatarCircle,
                   {
-                    backgroundColor: colors.card,
-                    borderColor: colors.primary || "#8B5CF6",
+                    backgroundColor:
+                      colors.card,
+                    borderColor:
+                      colors.primary ||
+                      "#8B5CF6",
                   },
                 ]}
               >
                 <Text
                   style={[
                     styles.avatarInitials,
-                    { color: colors.primary || "#8B5CF6" },
+                    {
+                      color:
+                        colors.primary ||
+                        "#8B5CF6",
+                    },
                   ]}
                 >
                   {userInitials}
                 </Text>
               </View>
             )}
+
             <View
               style={[
                 styles.cameraBadge,
-                { backgroundColor: colors.primary || "#8B5CF6" },
+                {
+                  backgroundColor:
+                    colors.primary ||
+                    "#8B5CF6",
+                },
               ]}
             >
-              <Feather name="camera" size={12} color="#fff" />
+              <Feather
+                name="camera"
+                size={12}
+                color="#fff"
+              />
             </View>
           </TouchableOpacity>
         </View>
 
         <View style={styles.headerInfo}>
-          <Text style={[styles.nameText, { color: colors.text }]}>
+          <Text
+            style={[
+              styles.nameText,
+              {
+                color: colors.text,
+              },
+            ]}
+          >
             {userName}
           </Text>
+
           <View
             style={[
               styles.badge,
-              { backgroundColor: (colors.primary || "#8B5CF6") + "22" },
+              {
+                backgroundColor:
+                  (colors.primary ||
+                    "#8B5CF6") + "22",
+              },
             ]}
           >
             <Text
-              style={[styles.badgeText, { color: colors.primary || "#8B5CF6" }]}
+              style={[
+                styles.badgeText,
+                {
+                  color:
+                    colors.primary ||
+                    "#8B5CF6",
+                },
+              ]}
             >
               Pass Type: VIP
             </Text>
@@ -235,36 +276,80 @@ export default function FestivalProfileScreen({ navigation }) {
         </View>
 
         <TouchableOpacity
-          style={[styles.iconButton, { backgroundColor: colors.card }]}
-          onPress={() => navigateSafely("Settings")}
+          style={[
+            styles.iconButton,
+            {
+              backgroundColor:
+                colors.card,
+            },
+          ]}
+          onPress={() =>
+            navigateSafely("Settings")
+          }
           activeOpacity={0.8}
         >
-          <Ionicons name="settings-sharp" size={18} color={colors.text} />
+          <Ionicons
+            name="settings-sharp"
+            size={18}
+            color={colors.text}
+          />
         </TouchableOpacity>
       </View>
 
-      {/* VIP TICKET CARD */}
+      {/* ==================================================
+          VIP TICKET
+      ================================================== */}
+
       <View
         style={[
           styles.ticketCard,
-          { backgroundColor: colors.card, borderColor: colors.border },
+          {
+            backgroundColor:
+              colors.card,
+            borderColor:
+              colors.border,
+          },
         ]}
       >
         <View style={styles.ticketRow}>
           <View style={styles.ticketInfo}>
-            <Text style={[styles.ticketTitle, { color: colors.text }]}>
+            <Text
+              style={[
+                styles.ticketTitle,
+                {
+                  color: colors.text,
+                },
+              ]}
+            >
               VIP Pass
             </Text>
-            <Text style={[styles.ticketSub, { color: colors.textMuted }]}>
+
+            <Text
+              style={[
+                styles.ticketSub,
+                {
+                  color:
+                    colors.textMuted,
+                },
+              ]}
+            >
               All-access + Backstage
             </Text>
-            <Text style={[styles.ticketHolder, { color: colors.text }]}>
+
+            <Text
+              style={[
+                styles.ticketHolder,
+                {
+                  color: colors.text,
+                },
+              ]}
+            >
               Holder: {userName}
             </Text>
           </View>
 
           <View style={styles.qrWrap}>
-            <View style={[styles.qrBox, { backgroundColor: "#ffffff" }]}>
+            <View style={styles.qrBox}>
               <QRCode
                 value={
                   currentUser?.uid
@@ -280,161 +365,275 @@ export default function FestivalProfileScreen({ navigation }) {
         </View>
 
         <View style={styles.ticketFooter}>
-          <Text style={[styles.ticketFooterText, { color: colors.textMuted }]}>
+          <Text
+            style={[
+              styles.ticketFooterText,
+              {
+                color:
+                  colors.textMuted,
+              },
+            ]}
+          >
             UID:{" "}
             {currentUser?.uid
-              ? `${currentUser.uid.slice(0, 10)}...`
+              ? `${currentUser.uid.slice(
+                  0,
+                  10
+                )}...`
               : "CIF-VIP-12345"}
           </Text>
-          <Text style={[styles.ticketFooterText, { color: colors.textMuted }]}>
+
+          <Text
+            style={[
+              styles.ticketFooterText,
+              {
+                color:
+                  colors.textMuted,
+              },
+            ]}
+          >
             Online
           </Text>
         </View>
       </View>
 
-      {/* MY EVENT TICKETS BUTTON */}
+      {/* ==================================================
+          MY EVENT TICKETS
+      ================================================== */}
+
       <TouchableOpacity
         style={[
           styles.menuTile,
-          { backgroundColor: colors.card, borderColor: colors.border },
+          {
+            backgroundColor:
+              colors.card,
+            borderColor:
+              colors.border,
+          },
         ]}
-        onPress={() => navigateSafely("MyTickets")}
+        onPress={() =>
+          navigateSafely("MyTickets")
+        }
         activeOpacity={0.8}
       >
         <View style={styles.menuTileLeft}>
           <View
             style={[
               styles.iconCircle,
-              { backgroundColor: (colors.primary || "#8B5CF6") + "22" },
+              {
+                backgroundColor:
+                  (colors.primary ||
+                    "#8B5CF6") + "22",
+              },
             ]}
           >
             <Feather
               name="ticket"
               size={20}
-              color={colors.primary || "#8B5CF6"}
+              color={
+                colors.primary ||
+                "#8B5CF6"
+              }
             />
           </View>
-          <View>
-            <Text style={[styles.menuTileTitle, { color: colors.text }]}>
+
+          <View style={styles.menuTextContainer}>
+            <Text
+              style={[
+                styles.menuTileTitle,
+                {
+                  color: colors.text,
+                },
+              ]}
+            >
               My Event Tickets
             </Text>
-            <Text style={[styles.menuTileSub, { color: colors.textMuted }]}>
-              {myBookings.length} confirmed booking
-              {myBookings.length === 1 ? "" : "s"}
+
+            <Text
+              style={[
+                styles.menuTileSub,
+                {
+                  color:
+                    colors.textMuted,
+                },
+              ]}
+            >
+              View your event tickets
             </Text>
           </View>
         </View>
-        <Feather name="chevron-right" size={20} color={colors.textMuted} />
+
+        <Feather
+          name="chevron-right"
+          size={20}
+          color={colors.textMuted}
+        />
       </TouchableOpacity>
 
-      {/* SAVED PORTFOLIOS */}
-      <View style={styles.section}>
-        <Text
-          style={[
-            styles.sectionTitle,
-            { color: colors.text, marginHorizontal: 16 },
-          ]}
-        >
-          Saved Portfolios
-        </Text>
+      {/* ==================================================
+          SAVED PORTFOLIOS
+      ================================================== */}
 
-        <View style={{ marginTop: 12 }}>
-          {savedPortfolios.length === 0 ? (
-            <View style={styles.emptyPortfolio}>
-              <Ionicons
-                name="briefcase-outline"
-                size={32}
-                color={colors.textMuted}
-              />
-              <Text
-                style={[styles.emptyPortfolioTitle, { color: colors.text }]}
-              >
-                No saved portfolios
-              </Text>
-              <Text
-                style={[styles.emptyPortfolioText, { color: colors.textMuted }]}
-              >
-                Portfolios you bookmark will appear here.
-              </Text>
-            </View>
-          ) : (
-            savedPortfolios.map((portfolio) => (
-              <SavedPortfolioCard
-                key={portfolio.id}
-                item={portfolio}
-                colors={colors}
-              />
-            ))
-          )}
+      <TouchableOpacity
+        style={[
+          styles.menuTile,
+          {
+            backgroundColor:
+              colors.card,
+            borderColor:
+              colors.border,
+          },
+        ]}
+        onPress={() =>
+          navigateSafely(
+            "SavedPortfolios"
+          )
+        }
+        activeOpacity={0.8}
+      >
+        <View style={styles.menuTileLeft}>
+          <View
+            style={[
+              styles.iconCircle,
+              {
+                backgroundColor:
+                  (colors.primary ||
+                    "#8B5CF6") + "22",
+              },
+            ]}
+          >
+            <Feather
+              name="briefcase"
+              size={20}
+              color={
+                colors.primary ||
+                "#8B5CF6"
+              }
+            />
+          </View>
+
+          <View style={styles.menuTextContainer}>
+            <Text
+              style={[
+                styles.menuTileTitle,
+                {
+                  color: colors.text,
+                },
+              ]}
+            >
+              Saved Portfolios
+            </Text>
+
+            <Text
+              style={[
+                styles.menuTileSub,
+                {
+                  color:
+                    colors.textMuted,
+                },
+              ]}
+            >
+              View your saved portfolios
+            </Text>
+          </View>
         </View>
-      </View>
+
+        <Feather
+          name="chevron-right"
+          size={20}
+          color={colors.textMuted}
+        />
+      </TouchableOpacity>
+
+      {/* ==================================================
+          SAVED JOBS
+      ================================================== */}
+
+      <TouchableOpacity
+        style={[
+          styles.menuTile,
+          {
+            backgroundColor:
+              colors.card,
+            borderColor:
+              colors.border,
+          },
+        ]}
+        onPress={() =>
+          navigateSafely("SavedJobs")
+        }
+        activeOpacity={0.8}
+      >
+        <View style={styles.menuTileLeft}>
+          <View
+            style={[
+              styles.iconCircle,
+              {
+                backgroundColor:
+                  (colors.primary ||
+                    "#8B5CF6") + "22",
+              },
+            ]}
+          >
+            <Feather
+              name="bookmark"
+              size={20}
+              color={
+                colors.primary ||
+                "#8B5CF6"
+              }
+            />
+          </View>
+
+          <View style={styles.menuTextContainer}>
+            <Text
+              style={[
+                styles.menuTileTitle,
+                {
+                  color: colors.text,
+                },
+              ]}
+            >
+              Saved Jobs
+            </Text>
+
+            <Text
+              style={[
+                styles.menuTileSub,
+                {
+                  color:
+                    colors.textMuted,
+                },
+              ]}
+            >
+              View your saved jobs
+            </Text>
+          </View>
+        </View>
+
+        <Feather
+          name="chevron-right"
+          size={20}
+          color={colors.textMuted}
+        />
+      </TouchableOpacity>
     </SafeScreen>
   );
 }
 
-function SavedPortfolioCard({ item, colors }) {
-  const initials =
-    (item.name || "?")
-      .split(" ")
-      .filter(Boolean)
-      .map((name) => name[0])
-      .slice(0, 2)
-      .join("")
-      .toUpperCase() || "?";
-
-  return (
-    <View
-      style={[
-        styles.portfolioCard,
-        { backgroundColor: colors.card, borderColor: colors.border },
-      ]}
-    >
-      <View style={styles.portfolioLeft}>
-        <View
-          style={[
-            styles.portfolioAvatar,
-            { backgroundColor: (colors.primary || "#8B5CF6") + "22" },
-          ]}
-        >
-          <Text
-            style={{
-              color: colors.primary || "#8B5CF6",
-              fontWeight: "700",
-            }}
-          >
-            {initials}
-          </Text>
-        </View>
-
-        <View style={styles.portfolioInfo}>
-          <Text style={{ color: colors.text, fontWeight: "700", fontSize: 15 }}>
-            {item.name || "Unknown"}
-          </Text>
-          <Text style={{ color: colors.textMuted, marginTop: 3 }}>
-            {item.role || "Role not specified"}
-          </Text>
-          {item.category ? (
-            <Text
-              style={{
-                color: colors.primary || "#8B5CF6",
-                fontSize: 12,
-                fontWeight: "600",
-                marginTop: 3,
-              }}
-            >
-              {item.category}
-            </Text>
-          ) : null}
-        </View>
-      </View>
-
-      <Feather name="chevron-right" size={18} color={colors.textMuted} />
-    </View>
-  );
-}
+// ==================================================
+// STYLES
+// ==================================================
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
+  safeArea: {
+    flex: 1,
+  },
+
+  // ==================================================
+  // BACK HEADER
+  // ==================================================
+
   backRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -443,7 +642,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
   },
-  backIconBtn: { zIndex: 2 },
+
+  backIconBtn: {
+    zIndex: 2,
+  },
+
   backTitle: {
     position: "absolute",
     left: 0,
@@ -452,12 +655,21 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "800",
   },
+
+  // ==================================================
+  // PROFILE HEADER
+  // ==================================================
+
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
   },
-  avatarWrap: { marginRight: 12 },
+
+  avatarWrap: {
+    marginRight: 12,
+  },
+
   avatarCircle: {
     width: 64,
     height: 64,
@@ -466,8 +678,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 2,
   },
-  avatarInitials: { fontSize: 20, fontWeight: "800" },
-  avatarImage: { width: 64, height: 64, borderRadius: 32, resizeMode: "cover" },
+
+  avatarInitials: {
+    fontSize: 20,
+    fontWeight: "800",
+  },
+
+  avatarImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    resizeMode: "cover",
+  },
+
   cameraBadge: {
     position: "absolute",
     right: -6,
@@ -480,8 +703,16 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#fff",
   },
-  headerInfo: { flex: 1 },
-  nameText: { fontSize: 18, fontWeight: "800" },
+
+  headerInfo: {
+    flex: 1,
+  },
+
+  nameText: {
+    fontSize: 18,
+    fontWeight: "800",
+  },
+
   badge: {
     marginTop: 6,
     paddingHorizontal: 8,
@@ -489,8 +720,21 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignSelf: "flex-start",
   },
-  badgeText: { fontSize: 12, fontWeight: "700" },
-  iconButton: { padding: 8, borderRadius: 8 },
+
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  iconButton: {
+    padding: 8,
+    borderRadius: 8,
+  },
+
+  // ==================================================
+  // VIP TICKET
+  // ==================================================
+
   ticketCard: {
     marginHorizontal: 16,
     borderRadius: 12,
@@ -498,29 +742,59 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 12,
   },
-  ticketRow: { flexDirection: "row", alignItems: "center" },
-  ticketInfo: { flex: 1 },
-  ticketTitle: { fontSize: 18, fontWeight: "800" },
-  ticketSub: { marginTop: 4 },
-  ticketHolder: { marginTop: 8, fontWeight: "700" },
+
+  ticketRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  ticketInfo: {
+    flex: 1,
+  },
+
+  ticketTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+  },
+
+  ticketSub: {
+    marginTop: 4,
+  },
+
+  ticketHolder: {
+    marginTop: 8,
+    fontWeight: "700",
+  },
+
   qrWrap: {
     width: 96,
     height: 96,
     alignItems: "center",
     justifyContent: "center",
   },
+
   qrBox: {
     alignItems: "center",
     justifyContent: "center",
     padding: 6,
     borderRadius: 8,
+    backgroundColor: "#ffffff",
   },
+
   ticketFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 12,
   },
-  ticketFooterText: { fontSize: 12 },
+
+  ticketFooterText: {
+    fontSize: 12,
+  },
+
+  // ==================================================
+  // MENU TILES
+  // ==================================================
+
   menuTile: {
     flexDirection: "row",
     alignItems: "center",
@@ -529,55 +803,35 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 16,
+    marginBottom: 12,
   },
+
   menuTileLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    flex: 1,
   },
+
   iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
   },
+
+  menuTextContainer: {
+    marginLeft: 12,
+    flex: 1,
+  },
+
   menuTileTitle: {
     fontSize: 15,
     fontWeight: "700",
   },
+
   menuTileSub: {
     fontSize: 12,
-    marginTop: 2,
+    marginTop: 3,
   },
-  section: { marginTop: 4, paddingVertical: 8 },
-  sectionTitle: { fontSize: 16, fontWeight: "800" },
-  portfolioCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 12,
-    marginHorizontal: 16,
-    marginTop: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  portfolioLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
-  portfolioAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  portfolioInfo: { marginLeft: 12, flex: 1 },
-  emptyPortfolio: {
-    minHeight: 130,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 30,
-  },
-  emptyPortfolioTitle: { fontSize: 15, fontWeight: "700", marginTop: 8 },
-  emptyPortfolioText: { fontSize: 13, textAlign: "center", marginTop: 4 },
 });
