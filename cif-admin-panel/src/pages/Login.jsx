@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../AuthContext";
+import { auth } from "../firebaseClient";
+import { recordAuditLog } from "../utils/auditLogger";
 
 export default function Login() {
   const { session, isAdmin, signIn, resetPassword } = useAuth();
@@ -53,6 +55,22 @@ export default function Login() {
 
     try {
       await signIn(cleanEmail, cleanPassword);
+
+      // Audit Log: Successful Admin Login
+      await recordAuditLog({
+        action: "LOGIN",
+        resource: "auth",
+        resourceId: auth.currentUser?.uid || cleanEmail,
+        actor: {
+          uid: auth.currentUser?.uid || "authenticated_admin",
+          email: cleanEmail,
+        },
+        details: {
+          action_type: "ADMIN_LOGIN_SUCCESS",
+          email: cleanEmail,
+          userAgent: navigator.userAgent,
+        },
+      });
     } catch (err) {
       let message = "Login failed. Please try again.";
 
@@ -72,6 +90,23 @@ export default function Login() {
 
       setError(message);
       console.error("Login error:", err.code || "CUSTOM_ERROR", err.message);
+
+      // Audit Log: Failed Login Attempt
+      await recordAuditLog({
+        action: "LOGIN_FAILED",
+        resource: "auth",
+        resourceId: cleanEmail,
+        actor: {
+          uid: "unauthenticated",
+          email: cleanEmail,
+        },
+        details: {
+          action_type: "ADMIN_LOGIN_FAILED",
+          email: cleanEmail,
+          errorCode: err.code || "UNKNOWN_ERROR",
+          errorMessage: err.message,
+        },
+      });
     } finally {
       setSubmitting(false);
     }
@@ -91,8 +126,22 @@ export default function Login() {
     try {
       if (resetPassword) {
         await resetPassword(cleanEmail);
+
+        // Audit Log: Password Reset Request
+        await recordAuditLog({
+          action: "PASSWORD_RESET",
+          resource: "auth",
+          resourceId: cleanEmail,
+          actor: {
+            uid: "unauthenticated",
+            email: cleanEmail,
+          },
+          details: {
+            action_type: "PASSWORD_RESET_REQUESTED",
+            email: cleanEmail,
+          },
+        });
       } else {
-        // Direct feedback if AuthContext doesn't export resetPassword yet
         throw new Error(
           "Password reset function is not available in AuthContext.",
         );

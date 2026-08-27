@@ -11,8 +11,9 @@ import {
   addDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "../firebaseClient";
+import { db, auth } from "../firebaseClient";
 import { useAuth } from "../AuthContext";
+import { recordAuditLog } from "../utils/auditLogger";
 
 export default function ForumModeration() {
   const { session } = useAuth();
@@ -71,9 +72,24 @@ export default function ForumModeration() {
 
   // Action: Toggle Pin Status
   const handleTogglePin = async (msg) => {
+    const nextPinState = !msg.isPinned;
     try {
       await updateDoc(doc(db, "forum_messages", msg.id), {
-        isPinned: !msg.isPinned,
+        isPinned: nextPinState,
+      });
+
+      // Audit Log: Pin toggle
+      await recordAuditLog({
+        action: "UPDATE",
+        resource: "forum_messages",
+        resourceId: msg.id,
+        actor: auth.currentUser || session,
+        details: {
+          action_type: nextPinState ? "PIN_MESSAGE" : "UNPIN_MESSAGE",
+          channel: msg.channel || "General",
+          authorName: msg.userName || "Attendee",
+          textSnippet: (msg.text || "").substring(0, 60),
+        },
       });
     } catch (err) {
       alert("Failed to update pin state: " + err.message);
@@ -82,9 +98,24 @@ export default function ForumModeration() {
 
   // Action: Dismiss Reports
   const handleDismissReports = async (msg) => {
+    const reportCount = Array.isArray(msg.reports) ? msg.reports.length : 0;
     try {
       await updateDoc(doc(db, "forum_messages", msg.id), {
         reports: [],
+      });
+
+      // Audit Log: Flag dismissal
+      await recordAuditLog({
+        action: "UPDATE",
+        resource: "forum_messages",
+        resourceId: msg.id,
+        actor: auth.currentUser || session,
+        details: {
+          action_type: "DISMISS_REPORTS",
+          reportsDismissed: reportCount,
+          channel: msg.channel || "General",
+          authorName: msg.userName || "Attendee",
+        },
       });
     } catch (err) {
       alert("Failed to clear flags: " + err.message);
@@ -96,6 +127,22 @@ export default function ForumModeration() {
     if (!window.confirm("Are you sure you want to permanently delete this message?")) return;
     try {
       await deleteDoc(doc(db, "forum_messages", msg.id));
+
+      // Audit Log: Post deletion
+      await recordAuditLog({
+        action: "DELETE",
+        resource: "forum_messages",
+        resourceId: msg.id,
+        actor: auth.currentUser || session,
+        details: {
+          action_type: "DELETE_FORUM_POST",
+          channel: msg.channel || "General",
+          authorName: msg.userName || "Attendee",
+          authorId: msg.userId || "Unknown",
+          textSnippet: (msg.text || "").substring(0, 100),
+          hadReports: Array.isArray(msg.reports) ? msg.reports.length : 0,
+        },
+      });
     } catch (err) {
       alert("Failed to delete post: " + err.message);
     }
@@ -111,6 +158,21 @@ export default function ForumModeration() {
         isForumMuted: !currentMuteState,
         mutedAt: !currentMuteState ? serverTimestamp() : null,
       });
+
+      // Audit Log: Mute / Unmute user
+      await recordAuditLog({
+        action: "UPDATE",
+        resource: "users",
+        resourceId: userId,
+        actor: auth.currentUser || session,
+        details: {
+          action_type: currentMuteState ? "UNMUTE_FORUM_USER" : "MUTE_FORUM_USER",
+          targetUserId: userId,
+          targetUserName: users[userId]?.displayName || users[userId]?.name || "Unknown User",
+          targetUserEmail: users[userId]?.email || "Unknown Email",
+        },
+      });
+
       alert(`User ${action}d successfully.`);
     } catch (err) {
       alert(`Failed to ${action} user: ` + err.message);
@@ -125,10 +187,10 @@ export default function ForumModeration() {
     setIsBroadcasting(true);
     try {
       // 1. Post pinned message to forum
-      await addDoc(collection(db, "forum_messages"), {
+      const forumMsgRef = await addDoc(collection(db, "forum_messages"), {
         text: broadcastText.trim(),
         channel: broadcastChannel,
-        userId: session?.uid || "admin",
+        userId: session?.uid || auth.currentUser?.uid || "admin",
         userName: "Festival Organizer",
         userRole: "Organizer",
         isPinned: true,
@@ -138,12 +200,27 @@ export default function ForumModeration() {
       });
 
       // 2. Create notification record
-      await addDoc(collection(db, "notifications"), {
+      const notifRef = await addDoc(collection(db, "notifications"), {
         title: `Official Announcement (#${broadcastChannel})`,
         body: broadcastText.trim(),
         channel: broadcastChannel,
         type: "forum_broadcast",
         createdAt: serverTimestamp(),
+      });
+
+      // Audit Log: Broadcast creation
+      await recordAuditLog({
+        action: "CREATE",
+        resource: "forum_messages",
+        resourceId: forumMsgRef.id,
+        actor: auth.currentUser || session,
+        details: {
+          action_type: "BROADCAST_ANNOUNCEMENT",
+          notificationId: notifRef.id,
+          channel: broadcastChannel,
+          text: broadcastText.trim(),
+          isPinned: true,
+        },
       });
 
       setBroadcastText("");

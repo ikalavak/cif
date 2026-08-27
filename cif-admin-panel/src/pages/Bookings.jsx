@@ -1,6 +1,6 @@
 // cif-admin-panel/src/pages/Bookings.jsx
 import React, { useState, useEffect, useMemo } from "react";
-import { db } from "../firebaseClient";
+import { db, auth } from "../firebaseClient";
 import {
   collection,
   onSnapshot,
@@ -9,8 +9,8 @@ import {
   doc,
   runTransaction,
   updateDoc,
-  getDoc,
 } from "firebase/firestore";
+import { recordAuditLog } from "../utils/auditLogger";
 
 export default function Bookings() {
   const [bookings, setBookings] = useState([]);
@@ -135,6 +135,22 @@ export default function Bookings() {
         transaction.delete(doc(db, "bookings", booking.id));
       });
 
+      // Audit Log: Cancellation & capacity restoration
+      await recordAuditLog({
+        action: "DELETE",
+        resource: "bookings",
+        resourceId: booking.id,
+        actor: auth.currentUser,
+        details: {
+          action_type: "CANCEL_BOOKING",
+          attendeeEmail: booking.attendeeEmail,
+          attendeeName: booking.attendeeName,
+          eventTitle: booking.eventTitle,
+          eventId: booking.eventId,
+          quantity: booking.quantity,
+        },
+      });
+
       if (verifyResult?.id === booking.id) {
         setVerifyResult(null);
       }
@@ -170,9 +186,31 @@ export default function Bookings() {
   };
 
   const updateBookingStatus = async (bookingId, newStatus) => {
+    const targetBooking = enriched.find((b) => b.id === bookingId);
+    const previousStatus = targetBooking?.status || "Valid";
+
+    if (previousStatus === newStatus) return;
+
     try {
       const bookingRef = doc(db, "bookings", bookingId);
       await updateDoc(bookingRef, { status: newStatus });
+
+      // Audit Log: Ticket check-in or status revert
+      await recordAuditLog({
+        action: "UPDATE",
+        resource: "bookings",
+        resourceId: bookingId,
+        actor: auth.currentUser,
+        details: {
+          action_type: "CHECK_IN_UPDATE",
+          attendeeEmail: targetBooking?.attendeeEmail || "Unknown",
+          attendeeName: targetBooking?.attendeeName || "Attendee",
+          eventTitle: targetBooking?.eventTitle || "Unknown Event",
+          from: previousStatus,
+          to: newStatus,
+        },
+      });
+
       setVerifyResult((prev) => (prev ? { ...prev, status: newStatus } : null));
     } catch (err) {
       setError("Failed to update ticket status: " + err.message);

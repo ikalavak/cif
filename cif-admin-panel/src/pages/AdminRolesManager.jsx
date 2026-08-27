@@ -12,6 +12,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db, auth } from "../firebaseClient";
+import { recordAuditLog } from "../utils/auditLogger";
 
 export default function AdminRolesManager() {
   const [adminList, setAdminList] = useState([]);
@@ -74,12 +75,13 @@ export default function AdminRolesManager() {
 
       const targetUid = userSnap.docs[0].id;
       const targetUserData = userSnap.docs[0].data();
+      const normalizedEmail = targetUserData.email || targetEmail.trim().toLowerCase();
 
       // Write to /admins/{uid}
       await setDoc(
         doc(db, "admins", targetUid),
         {
-          email: targetUserData.email || targetEmail.trim().toLowerCase(),
+          email: normalizedEmail,
           displayName: targetUserData.displayName || "Admin User",
           role: selectedRole,
           grantedAt: serverTimestamp(),
@@ -87,6 +89,19 @@ export default function AdminRolesManager() {
         },
         { merge: true }
       );
+
+      // Audit Log: Record role assignment
+      await recordAuditLog({
+        action: "GRANT_ROLE",
+        resource: "admins",
+        resourceId: targetUid,
+        actor: auth.currentUser,
+        details: {
+          targetEmail: normalizedEmail,
+          assignedRole: selectedRole,
+          displayName: targetUserData.displayName || "Admin User",
+        },
+      });
 
       alert(`Admin access granted to ${targetEmail} as ${selectedRole}!`);
       setTargetEmail("");
@@ -113,6 +128,19 @@ export default function AdminRolesManager() {
     if (window.confirm(`Revoke admin privileges for ${adminDoc.email}?`)) {
       try {
         await deleteDoc(doc(db, "admins", adminDoc.id));
+
+        // Audit Log: Record role revocation
+        await recordAuditLog({
+          action: "REVOKE_ROLE",
+          resource: "admins",
+          resourceId: adminDoc.id,
+          actor: auth.currentUser,
+          details: {
+            revokedEmail: adminDoc.email,
+            previousRole: adminDoc.role,
+          },
+        });
+
         alert("Access revoked successfully.");
       } catch (error) {
         console.error("Error revoking access:", error);
@@ -177,7 +205,7 @@ export default function AdminRolesManager() {
         </div>
         {currentAdminRole !== "superadmin" && (
           <p style={{ color: "#e53e3e", fontSize: 12, marginTop: 8 }}>
-            * You are currently signed in as "{currentAdminRole || 'viewer'}". Only Super Admins can grant roles.
+            * You are currently signed in as "{currentAdminRole || "viewer"}". Only Super Admins can grant roles.
           </p>
         )}
       </form>

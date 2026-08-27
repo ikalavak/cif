@@ -9,12 +9,13 @@ import {
   deleteDoc,
   serverTimestamp,
 } from 'firebase/firestore';
-import { db } from '../firebaseClient';
+import { db, auth } from '../firebaseClient';
 import { useAuth } from '../AuthContext';
 import CollectionManager from '../components/CollectionManager';
+import { recordAuditLog } from '../utils/auditLogger';
 
 export default function Users() {
-  const { isSuperAdmin } = useAuth();
+  const { session, isSuperAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('app_users'); // 'app_users' | 'admin_roster'
   const [appUsers, setAppUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,13 +67,29 @@ export default function Users() {
 
   // Soft Delete (Deactivate)
   const handleSoftDelete = async (userId) => {
-    if (!window.confirm('Deactivate (soft-delete) this user account? Their data will be preserved.')) return;
+    const targetUser = appUsers.find((u) => u.id === userId) || selectedUser;
+    if (!window.confirm(`Deactivate (soft-delete) account for ${targetUser?.email || 'this user'}? Their data will be preserved.`)) return;
+
     try {
       await updateDoc(doc(db, 'users', userId), {
         is_deleted: true,
         status: 'deactivated',
         deleted_at: serverTimestamp(),
       });
+
+      // Audit Log: Account deactivation
+      await recordAuditLog({
+        action: 'UPDATE',
+        resource: 'users',
+        resourceId: userId,
+        actor: auth.currentUser || session,
+        details: {
+          action_type: 'DEACTIVATE_USER',
+          targetEmail: targetUser?.email || 'Unknown',
+          targetName: targetUser?.name || targetUser?.displayName || 'Unnamed User',
+        },
+      });
+
       if (selectedUser?.id === userId) {
         setSelectedUser((prev) => ({ ...prev, is_deleted: true, status: 'deactivated' }));
       }
@@ -83,13 +100,29 @@ export default function Users() {
 
   // Reactivate (Restore)
   const handleReactivate = async (userId) => {
-    if (!window.confirm('Reactivate this user account?')) return;
+    const targetUser = appUsers.find((u) => u.id === userId) || selectedUser;
+    if (!window.confirm(`Reactivate account for ${targetUser?.email || 'this user'}?`)) return;
+
     try {
       await updateDoc(doc(db, 'users', userId), {
         is_deleted: false,
         status: 'active',
         restored_at: serverTimestamp(),
       });
+
+      // Audit Log: Account reactivation
+      await recordAuditLog({
+        action: 'UPDATE',
+        resource: 'users',
+        resourceId: userId,
+        actor: auth.currentUser || session,
+        details: {
+          action_type: 'REACTIVATE_USER',
+          targetEmail: targetUser?.email || 'Unknown',
+          targetName: targetUser?.name || targetUser?.displayName || 'Unnamed User',
+        },
+      });
+
       if (selectedUser?.id === userId) {
         setSelectedUser((prev) => ({ ...prev, is_deleted: false, status: 'active' }));
       }
@@ -100,9 +133,25 @@ export default function Users() {
 
   // Permanent Hard Delete (SuperAdmin only)
   const handlePermanentDelete = async (userId) => {
-    if (!window.confirm('PERMANENTLY delete this user profile document from Firestore? This cannot be undone.')) return;
+    const targetUser = appUsers.find((u) => u.id === userId) || selectedUser;
+    if (!window.confirm(`PERMANENTLY delete user profile document for ${targetUser?.email || userId} from Firestore? This cannot be undone.`)) return;
+
     try {
       await deleteDoc(doc(db, 'users', userId));
+
+      // Audit Log: Permanent user purge
+      await recordAuditLog({
+        action: 'DELETE',
+        resource: 'users',
+        resourceId: userId,
+        actor: auth.currentUser || session,
+        details: {
+          action_type: 'PURGE_USER_PERMANENT',
+          targetEmail: targetUser?.email || 'Unknown',
+          targetName: targetUser?.name || targetUser?.displayName || 'Unnamed User',
+        },
+      });
+
       if (selectedUser?.id === userId) setSelectedUser(null);
     } catch (err) {
       alert('Hard delete failed: ' + err.message);

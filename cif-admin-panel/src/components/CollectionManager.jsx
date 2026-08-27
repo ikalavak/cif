@@ -1,6 +1,6 @@
 // cif-admin-panel/src/components/CollectionManager.jsx
 import React, { useEffect, useMemo, useState } from 'react';
-import { db, storage } from '../firebaseClient';
+import { db, storage, auth } from '../firebaseClient';
 import {
   collection,
   addDoc,
@@ -13,6 +13,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { recordAuditLog } from '../utils/auditLogger';
 
 // --- Reusable Gallery Picker Modal ---
 function GalleryPickerModal({ isOpen, onClose, onSelect }) {
@@ -105,13 +106,23 @@ function ImageFieldInput({ value, onChange, required }) {
       async () => {
         const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
         onChange(downloadUrl);
-        // Also register upload in the gallery collection automatically
-        await addDoc(collection(db, 'gallery'), {
+        // Register upload in the gallery collection
+        const docRef = await addDoc(collection(db, 'gallery'), {
           image_url: downloadUrl,
           storage_path: storagePath,
           caption: file.name,
           created_at: serverTimestamp(),
-        }).catch(() => {});
+        }).catch(() => null);
+
+        if (docRef) {
+          await recordAuditLog({
+            action: 'CREATE',
+            resource: 'gallery',
+            resourceId: docRef.id,
+            actor: auth.currentUser,
+            details: { caption: file.name, image_url: downloadUrl },
+          });
+        }
 
         setUploading(false);
         setProgress(0);
@@ -187,6 +198,9 @@ export default function CollectionManager({
   orderDirection = 'desc',
   searchFields = [],
   emptyLabel = 'No items yet.',
+  onAfterCreate,
+  onAfterUpdate,
+  onAfterDelete,
 }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -236,15 +250,48 @@ export default function CollectionManager({
     setForm(emptyForm);
   };
 
+  const getRecordLabel = (data) => {
+    return data?.title || data?.name || data?.caption || data?.headline || 'Record';
+  };
+
   const save = async (e) => {
     e.preventDefault();
     setError('');
     try {
       if (editingId === 'new') {
-        await addDoc(collection(db, collectionName), { ...form, created_at: serverTimestamp() });
+        const payload = { ...form, created_at: serverTimestamp() };
+        const docRef = await addDoc(collection(db, collectionName), payload);
+
+        // Audit Log: Create action
+        await recordAuditLog({
+          action: 'CREATE',
+          resource: collectionName,
+          resourceId: docRef.id,
+          actor: auth.currentUser,
+          details: {
+            label: getRecordLabel(payload),
+            ...payload,
+          },
+        });
+
+        if (onAfterCreate) await onAfterCreate(docRef.id, payload);
       } else {
         const { id, ...rest } = form;
         await updateDoc(doc(db, collectionName, editingId), rest);
+
+        // Audit Log: Update action
+        await recordAuditLog({
+          action: 'UPDATE',
+          resource: collectionName,
+          resourceId: editingId,
+          actor: auth.currentUser,
+          details: {
+            label: getRecordLabel(rest),
+            ...rest,
+          },
+        });
+
+        if (onAfterUpdate) await onAfterUpdate(editingId, rest);
       }
       cancelEdit();
     } catch (err) {
@@ -254,16 +301,45 @@ export default function CollectionManager({
 
   const remove = async (id) => {
     if (!window.confirm('Delete this item? This cannot be undone.')) return;
+    const itemToDelete = items.find((i) => i.id === id);
     try {
       await deleteDoc(doc(db, collectionName, id));
+
+      // Audit Log: Delete action
+      await recordAuditLog({
+        action: 'DELETE',
+        resource: collectionName,
+        resourceId: id,
+        actor: auth.currentUser,
+        details: {
+          label: getRecordLabel(itemToDelete),
+        },
+      });
+
+      if (onAfterDelete) await onAfterDelete(id, itemToDelete);
     } catch (err) {
       setError(err.message);
     }
   };
 
   const toggleField = async (item, key) => {
+    const nextValue = !item[key];
     try {
-      await updateDoc(doc(db, collectionName, item.id), { [key]: !item[key] });
+      await updateDoc(doc(db, collectionName, item.id), { [key]: nextValue });
+
+      // Audit Log: Toggle field action
+      await recordAuditLog({
+        action: 'UPDATE',
+        resource: collectionName,
+        resourceId: item.id,
+        actor: auth.currentUser,
+        details: {
+          label: getRecordLabel(item),
+          field: key,
+          from: item[key],
+          to: nextValue,
+        },
+      });
     } catch (err) {
       setError(err.message);
     }

@@ -8,7 +8,8 @@ import {
   updateDoc, 
   deleteDoc 
 } from 'firebase/firestore';
-import { db } from '../firebaseClient';
+import { db, auth } from '../firebaseClient';
+import { recordAuditLog } from '../utils/auditLogger';
 
 const STATUS_CONFIG = {
   Pending: { bg: '#fef3c7', text: '#92400e', border: '#fde68a' },
@@ -58,9 +59,28 @@ export default function Applications() {
   );
 
   const handleStatusChange = async (app, newStatus) => {
+    const previousStatus = app.status || 'Pending';
+    if (previousStatus === newStatus) return;
+
     try {
       await updateDoc(doc(db, 'job_applications', app.id), {
         status: newStatus,
+      });
+
+      // Audit Log: Application status change
+      await recordAuditLog({
+        action: 'UPDATE',
+        resource: 'job_applications',
+        resourceId: app.id,
+        actor: auth.currentUser,
+        details: {
+          action_type: 'STATUS_CHANGE',
+          applicantName: app.applicantName || 'Anonymous',
+          applicantEmail: app.applicantEmail,
+          jobTitle: app.jobTitle,
+          from: previousStatus,
+          to: newStatus,
+        },
       });
     } catch (err) {
       console.error('Failed to update status:', err);
@@ -73,6 +93,20 @@ export default function Applications() {
 
     try {
       await deleteDoc(doc(db, 'job_applications', app.id));
+
+      // Audit Log: Application deletion
+      await recordAuditLog({
+        action: 'DELETE',
+        resource: 'job_applications',
+        resourceId: app.id,
+        actor: auth.currentUser,
+        details: {
+          applicantName: app.applicantName || 'Anonymous',
+          applicantEmail: app.applicantEmail,
+          jobTitle: app.jobTitle,
+        },
+      });
+
       if (selectedApp?.id === app.id) setSelectedApp(null);
     } catch (err) {
       console.error('Failed to delete application:', err);

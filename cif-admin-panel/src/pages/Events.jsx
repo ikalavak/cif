@@ -9,7 +9,8 @@ import {
   Timestamp,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "../firebaseClient";
+import { db, auth } from "../firebaseClient";
+import { recordAuditLog } from "../utils/auditLogger";
 
 const emptyForm = {
   title: "",
@@ -59,7 +60,6 @@ export default function EventsAdmin() {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    // Fetch all events without strict server-side orderBy to include docs missing created_at
     const unsubscribe = onSnapshot(
       collection(db, "events"),
       (snapshot) => {
@@ -143,13 +143,47 @@ export default function EventsAdmin() {
 
       if (editingId) {
         await updateDoc(doc(db, "events", editingId), payload);
+
+        // Audit Log: Update event
+        await recordAuditLog({
+          action: "UPDATE",
+          resource: "events",
+          resourceId: editingId,
+          actor: auth.currentUser,
+          details: {
+            title: payload.title,
+            category: payload.category,
+            venue: payload.venue,
+            status: payload.status,
+            published: payload.published,
+            featured: payload.featured,
+          },
+        });
+
         alert("Event updated!");
       } else {
-        await addDoc(collection(db, "events"), {
+        const docRef = await addDoc(collection(db, "events"), {
           ...payload,
           booked_count: 0,
           created_at: serverTimestamp(),
         });
+
+        // Audit Log: Create event
+        await recordAuditLog({
+          action: "CREATE",
+          resource: "events",
+          resourceId: docRef.id,
+          actor: auth.currentUser,
+          details: {
+            title: payload.title,
+            category: payload.category,
+            venue: payload.venue,
+            status: payload.status,
+            published: payload.published,
+            featured: payload.featured,
+          },
+        });
+
         alert("Event created!");
       }
 
@@ -163,9 +197,28 @@ export default function EventsAdmin() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this event?")) {
+    const targetEvent = events.find((ev) => ev.id === id);
+    if (
+      window.confirm(
+        `Are you sure you want to delete "${targetEvent?.title || "this event"}"?`,
+      )
+    ) {
       try {
         await deleteDoc(doc(db, "events", id));
+
+        // Audit Log: Delete event
+        await recordAuditLog({
+          action: "DELETE",
+          resource: "events",
+          resourceId: id,
+          actor: auth.currentUser,
+          details: {
+            title: targetEvent?.title || "Unknown Event",
+            category: targetEvent?.category || "—",
+            venue: targetEvent?.venue || "—",
+          },
+        });
+
         if (editingId === id) resetForm();
       } catch (error) {
         alert("Error deleting event: " + error.message);
