@@ -5,7 +5,7 @@ import { useAuth } from "../AuthContext";
 
 export default function Layout() {
   const { signOut, session, isSuperAdmin } = useAuth();
-  
+
   // State to manage the mobile sidebar drawer
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -23,12 +23,8 @@ export default function Layout() {
         { to: "/bookings", label: "Bookings" },
         { to: "/opportunities", label: "Opportunities" },
         { to: "/campus-maps", label: "Campus Maps" },
-        { to: "/venues", label: "Venues" },
         { to: "/categories", label: "Categories" },
-        { to: "/speakers", label: "Speakers" },
         { to: "/gallery", label: "Gallery" },
-        { to: "/sponsors", label: "Sponsors" },
-        { to: "/announcements", label: "Announcements" },
         { to: "/home-settings", label: "Home Settings" },
         { to: "/notifications", label: "Notifications" },
       ],
@@ -48,8 +44,8 @@ export default function Layout() {
     <div className="app-shell">
       {/* 1. MOBILE HEADER - Only visible on small screens */}
       <div className="mobile-header">
-        <button 
-          className="hamburger-btn" 
+        <button
+          className="hamburger-btn"
           onClick={() => setIsMobileMenuOpen(true)}
         >
           ☰
