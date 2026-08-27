@@ -41,6 +41,7 @@ export default function SignUpScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const { colors } = useTheme();
 
@@ -78,8 +79,25 @@ export default function SignUpScreen({ navigation }) {
   };
 
   // Google Sign-Up
+  // Placeholder — replace with a real Terms & Conditions / Privacy Policy
+  // screen or web link before launch.
+  const showTermsPlaceholder = () => {
+    Alert.alert(
+      "Terms & Conditions",
+      "Full Terms & Conditions and Privacy Policy content will be added here before launch.",
+    );
+  };
+
   const handleGoogleSignUp = async () => {
     if (isLoading) return;
+
+    if (!agreedToTerms) {
+      Alert.alert(
+        "Agreement required",
+        "Please agree to the Terms & Conditions to continue.",
+      );
+      return;
+    }
 
     setIsLoading(true);
 
@@ -170,6 +188,13 @@ export default function SignUpScreen({ navigation }) {
       !confirmPassword
     ) {
       return Alert.alert("Error", "Please fill in all fields.");
+    }
+
+    if (!agreedToTerms) {
+      return Alert.alert(
+        "Agreement required",
+        "Please agree to the Terms & Conditions to continue.",
+      );
     }
 
     if (password.length < 6) {
@@ -387,6 +412,40 @@ export default function SignUpScreen({ navigation }) {
             />
           </View>
 
+          {/* Terms & Conditions agreement */}
+          <TouchableOpacity
+            style={styles.termsRow}
+            activeOpacity={0.7}
+            onPress={() => setAgreedToTerms(!agreedToTerms)}
+          >
+            <View
+              style={[
+                styles.checkbox,
+                agreedToTerms && { backgroundColor: colors.primary },
+                { borderColor: colors.primary },
+              ]}
+            >
+              {agreedToTerms && <Feather name="check" size={12} color="#fff" />}
+            </View>
+
+            <Text style={[styles.termsText, { color: colors.textMuted }]}>
+              I agree to the{" "}
+              <Text
+                style={[styles.termsLink, { color: colors.primary }]}
+                onPress={showTermsPlaceholder}
+              >
+                Terms & Conditions
+              </Text>{" "}
+              and{" "}
+              <Text
+                style={[styles.termsLink, { color: colors.primary }]}
+                onPress={showTermsPlaceholder}
+              >
+                Privacy Policy
+              </Text>
+            </Text>
+          </TouchableOpacity>
+
           {/* Email Sign-Up */}
           <TouchableOpacity
             activeOpacity={0.8}
@@ -495,6 +554,30 @@ export default function SignUpScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  termsRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 14,
+    marginTop: 2,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    borderWidth: 1,
+    marginRight: 10,
+    marginTop: 2,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  termsLink: {
+    fontWeight: "700",
+  },
   rootContainer: {
     flex: 1,
   },
