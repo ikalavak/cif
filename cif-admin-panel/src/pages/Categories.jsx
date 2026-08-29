@@ -17,7 +17,7 @@ export default function Categories() {
 
   // Form State Values
   const [name, setName] = useState("");
-  const [type, setType] = useState("music");
+  const [type, setType] = useState("talks");
   const [color, setColor] = useState("#3b82f6");
   const [imageUrl, setImageUrl] = useState("");
 
@@ -67,6 +67,17 @@ export default function Categories() {
       c.type?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
+  const typeLabel = (t) =>
+    t === "talks"
+      ? "🎤 Talks"
+      : t === "workshops"
+        ? "🛠️ Workshops"
+        : t === "exhibitions"
+          ? "🖼️ Exhibitions"
+          : t === "networking"
+            ? "🤝 Networking"
+            : "🎉 Festival";
+
   return (
     <div style={{ background: "#fff", color: "#333" }}>
       <div
@@ -79,10 +90,10 @@ export default function Categories() {
         }}
       >
         <div>
-          <h1>Festival Categories & Zones</h1>
+          <h1>Event Categories</h1>
           <p className="muted">
-            Organize festival assets by genre, dining sections, tech exhibits,
-            and crowd activities.
+            Organise events by type — Talks, Workshops, Exhibitions, and more.
+            These power the category filters attendees use in the app.
           </p>
         </div>
         <button
@@ -136,7 +147,7 @@ export default function Categories() {
           >
             <th style={{ padding: 12 }}>PREVIEW</th>
             <th style={{ padding: 12 }}>CATEGORY NAME</th>
-            <th style={{ padding: 12 }}>CLASSIFICATION</th>
+            <th style={{ padding: 12 }}>TYPE</th>
             <th style={{ padding: 12 }}>THEME COLOUR</th>
             <th style={{ padding: 12, textAlign: "right" }}>ACTIONS</th>
           </tr>
@@ -177,13 +188,7 @@ export default function Categories() {
                     border: "1px solid #e5e7eb",
                   }}
                 >
-                  {c.type === "music"
-                    ? "🎵 Music"
-                    : c.type === "food"
-                      ? "🍔 Food"
-                      : c.type === "tech"
-                        ? "⚡ Tech"
-                        : "🎪 Activity"}
+                  {typeLabel(c.type)}
                 </span>
               </td>
               <td style={{ padding: 12 }}>
@@ -261,14 +266,13 @@ export default function Categories() {
             }}
           >
             <h3 style={{ margin: "0 0 4px 0", color: "#111827" }}>
-              Create Festival Category
+              Create Event Category
             </h3>
             <p
               className="muted"
               style={{ fontSize: 12, margin: "0 0 20px 0", color: "#6b7280" }}
             >
-              Provision new operational types live into the cluster database
-              rows.
+              Add a new category attendees can use to filter events in the app.
             </p>
 
             <form
@@ -292,7 +296,7 @@ export default function Categories() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g., VIP Cocktail Lounge, Techno Mainstage"
+                  placeholder="e.g., Fashion Design Workshop, AI Keynote Talk"
                   style={{
                     width: "100%",
                     padding: 10,
@@ -314,7 +318,7 @@ export default function Categories() {
                     fontWeight: "500",
                   }}
                 >
-                  Classification Group
+                  Type
                 </label>
                 <select
                   value={type}
@@ -328,17 +332,20 @@ export default function Categories() {
                     color: "#333",
                   }}
                 >
-                  <option value="music">
-                    🎵 Music (Stages, Artists, Genres)
+                  <option value="talks">
+                    🎤 Talks (Keynotes, Panels, Q&As)
                   </option>
-                  <option value="food">
-                    🍔 Food & Concessions (Trucks, Bars)
+                  <option value="workshops">
+                    🛠️ Workshops (Hands-on sessions)
                   </option>
-                  <option value="tech">
-                    ⚡ Tech Installations (RFID, Art Arena)
+                  <option value="exhibitions">
+                    🖼️ Exhibitions (Showcases, Installations)
                   </option>
-                  <option value="activities">
-                    🎪 Non-Tech Activities (Workshops, Wellness)
+                  <option value="networking">
+                    🤝 Networking (Meetups, Socials)
+                  </option>
+                  <option value="festival">
+                    🎉 Festival (General festival programming)
                   </option>
                 </select>
               </div>
@@ -353,7 +360,7 @@ export default function Categories() {
                     fontWeight: "500",
                   }}
                 >
-                  Map Marker Hex Code
+                  Filter Colour (hex)
                 </label>
                 <input
                   type="text"
@@ -381,7 +388,7 @@ export default function Categories() {
                     fontWeight: "500",
                   }}
                 >
-                  Display Image Thumbnail URL
+                  Thumbnail Image URL
                 </label>
                 <input
                   type="text"
