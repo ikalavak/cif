@@ -42,32 +42,6 @@ const DEFAULT_SETTINGS = {
   cta_text:
     "Explore the programme, save your favourite events and connect with the creative community.",
   cta_button_text: "Explore Events",
-  highlights: [
-    {
-      id: "1",
-      icon: "briefcase",
-      title: "Careers",
-      text: "Meet employers and get CV and portfolio advice.",
-    },
-    {
-      id: "2",
-      icon: "scissors",
-      title: "Fashion",
-      text: "Explore creative fashion design and sustainable fashion-tech.",
-    },
-    {
-      id: "3",
-      icon: "film",
-      title: "Screen",
-      text: "Learn how to break into film and television.",
-    },
-    {
-      id: "4",
-      icon: "users",
-      title: "Networking",
-      text: "Connect with creatives, businesses and industry professionals.",
-    },
-  ],
 };
 
 export default function HomeScreen({ navigation }) {
@@ -79,12 +53,11 @@ export default function HomeScreen({ navigation }) {
   const firstName = fullName.trim().split(" ")[0] || "Creative";
 
   // Live site settings — everything on the admin panel's Home Settings page
-  // (hero badge/title/subtitle/dates/location/image, about text, highlights,
-  // CTA card) flows through this single listener.
+  // (hero badge/title/subtitle/dates/location/image, about text, CTA card)
+  // flows through this single listener.
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [searchQuery, setSearchQuery] = useState("");
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
-
 
   const submitSearch = () => {
     if (searchQuery.trim()) {
@@ -101,10 +74,6 @@ export default function HomeScreen({ navigation }) {
           ...DEFAULT_SETTINGS,
           ...data,
           hero_image_url: data.hero_image_url || FALLBACK_IMAGE,
-          highlights:
-            Array.isArray(data.highlights) && data.highlights.length > 0
-              ? data.highlights
-              : DEFAULT_SETTINGS.highlights,
         });
       } else {
         setSettings(DEFAULT_SETTINGS);
@@ -118,38 +87,30 @@ export default function HomeScreen({ navigation }) {
   const [festivalEvents, setFestivalEvents] = useState([]);
 
   useEffect(() => {
-  const user = auth.currentUser;
+    const user = auth.currentUser;
 
-  if (!user) {
-    setHasUnreadNotifications(false);
-    return;
-  }
-
-  const notificationsRef = collection(
-    db,
-    "users",
-    user.uid,
-    "notifications"
-  );
-
-  const unreadQuery = query(
-    notificationsRef,
-    where("read", "==", false)
-  );
-
-  const unsubscribe = onSnapshot(
-    unreadQuery,
-    (snapshot) => {
-      setHasUnreadNotifications(!snapshot.empty);
-    },
-    (error) => {
-      console.error("Error checking unread notifications:", error);
+    if (!user) {
       setHasUnreadNotifications(false);
+      return;
     }
-  );
 
-  return () => unsubscribe();
-}, []);
+    const notificationsRef = collection(db, "users", user.uid, "notifications");
+
+    const unreadQuery = query(notificationsRef, where("read", "==", false));
+
+    const unsubscribe = onSnapshot(
+      unreadQuery,
+      (snapshot) => {
+        setHasUnreadNotifications(!snapshot.empty);
+      },
+      (error) => {
+        console.error("Error checking unread notifications:", error);
+        setHasUnreadNotifications(false);
+      },
+    );
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const q = query(
@@ -159,15 +120,17 @@ export default function HomeScreen({ navigation }) {
       limit(6),
     );
     const unsubscribe = onSnapshot(
-  q,
-  (snapshot) => {
-    console.log("EVENTS SNAPSHOT SIZE:", snapshot.docs.length);
-    setFestivalEvents(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-  },
-  (err) => {
-    console.log("EVENTS SNAPSHOT ERROR:", err.message);
-  },
-);
+      q,
+      (snapshot) => {
+        console.log("EVENTS SNAPSHOT SIZE:", snapshot.docs.length);
+        setFestivalEvents(
+          snapshot.docs.map((d) => ({ id: d.id, ...d.data() })),
+        );
+      },
+      (err) => {
+        console.log("EVENTS SNAPSHOT ERROR:", err.message);
+      },
+    );
     return unsubscribe;
   }, []);
 
@@ -227,16 +190,16 @@ export default function HomeScreen({ navigation }) {
             }}
           >
             <Feather name="bell" size={20} color={colors.text} />
-          {hasUnreadNotifications && (
-            <View
-              style={[
-                styles.notificationDot,
-                {
-                  backgroundColor: colors.error,
-                },
-              ]}
-            />
-          )}
+            {hasUnreadNotifications && (
+              <View
+                style={[
+                  styles.notificationDot,
+                  {
+                    backgroundColor: colors.error,
+                  },
+                ]}
+              />
+            )}
           </TouchableOpacity>
 
           <ThemeToggle />
@@ -425,12 +388,10 @@ export default function HomeScreen({ navigation }) {
                   <Feather name="calendar" size={13} color={colors.primary} />
                   <Text style={[styles.eventDate, { color: colors.primary }]}>
                     {event.start_date
-                      ? event.start_date
-                          .toDate()
-                          .toLocaleDateString("en-GB", {
-                            day: "numeric",
-                            month: "long",
-                          })
+                      ? event.start_date.toDate().toLocaleDateString("en-GB", {
+                          day: "numeric",
+                          month: "long",
+                        })
                       : ""}
                   </Text>
                 </View>
@@ -473,28 +434,6 @@ export default function HomeScreen({ navigation }) {
           ))}
         </ScrollView>
       )}
-
-      {/* ==================================================
-          FESTIVAL HIGHLIGHTS
-      ================================================== */}
-
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          Festival Highlights
-        </Text>
-      </View>
-
-      <View style={styles.highlightsGrid}>
-        {settings.highlights.map((hl, i) => (
-          <HighlightCard
-            key={hl.id || i}
-            icon={hl.icon}
-            title={hl.title}
-            text={hl.text}
-            colors={colors}
-          />
-        ))}
-      </View>
 
       {/* ==================================================
           VENUES
@@ -596,25 +535,6 @@ const ActionBtn = ({ icon, color, label, colors, onPress }) => (
     </View>
     <Text style={[styles.actionLabel, { color: colors.text }]}>{label}</Text>
   </TouchableOpacity>
-);
-
-/* ======================================================
-   HIGHLIGHT CARD
-====================================================== */
-
-const HighlightCard = ({ icon, title, text, colors }) => (
-  <View
-    style={[
-      styles.highlightCard,
-      { backgroundColor: colors.card, borderColor: colors.border },
-    ]}
-  >
-    <Feather name={icon || "star"} size={22} color={colors.primary} />
-    <Text style={[styles.highlightTitle, { color: colors.text }]}>{title}</Text>
-    <Text style={[styles.highlightText, { color: colors.textMuted }]}>
-      {text}
-    </Text>
-  </View>
 );
 
 /* ======================================================
@@ -782,28 +702,6 @@ const styles = StyleSheet.create({
   eventDescription: { fontSize: 12, lineHeight: 18, marginBottom: 10 },
   locationRow: { flexDirection: "row", alignItems: "center" },
   locationText: { fontSize: 11, marginLeft: 5 },
-
-  highlightsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 20,
-    gap: 10,
-    marginBottom: 25,
-  },
-  highlightCard: {
-    width: "48%",
-    minHeight: 145,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  highlightTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    marginTop: 12,
-    marginBottom: 6,
-  },
-  highlightText: { fontSize: 11, lineHeight: 17 },
 
   venueCard: {
     marginHorizontal: 20,
