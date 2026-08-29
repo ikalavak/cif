@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   collection,
   addDoc,
@@ -52,10 +53,12 @@ const getDatetimeInputString = (dateVal) => {
 };
 
 export default function EventsAdmin() {
+  const navigate = useNavigate();
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
 
   const [events, setEvents] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -87,6 +90,32 @@ export default function EventsAdmin() {
       },
       (error) => {
         console.error("Error fetching events in admin panel:", error);
+      },
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  // Live categories list, used to populate the Category dropdown below —
+  // keeps values consistent (no free-text typos like "Workshop" vs
+  // "workshop") so filtering/indexing by category actually works reliably
+  // on both the admin table and the mobile app's category filter pills.
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, "categories"),
+      (snapshot) => {
+        const fetchedCategories = snapshot.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            name: data.name || data.title || d.id,
+          };
+        });
+        fetchedCategories.sort((a, b) => a.name.localeCompare(b.name));
+        setCategories(fetchedCategories);
+      },
+      (error) => {
+        console.error("Error fetching categories in admin panel:", error);
       },
     );
 
@@ -284,13 +313,37 @@ export default function EventsAdmin() {
 
         <div style={styles.row}>
           <div style={{ flex: 1 }}>
-            <label style={styles.label}>Category</label>
-            <input
-              type="text"
+            <label style={styles.label}>
+              Category
+              <button
+                type="button"
+                onClick={() => navigate("/categories")}
+                style={styles.manageLink}
+              >
+                Manage categories
+              </button>
+            </label>
+            <select
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
               style={styles.input}
-            />
+            >
+              <option value="">Select a category...</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.name}>
+                  {cat.name}
+                </option>
+              ))}
+              {/* Keeps an event's existing category selectable even if it
+                  was set before this dropdown existed, or if it no longer
+                  matches any category currently in the Categories collection. */}
+              {form.category &&
+                !categories.some((cat) => cat.name === form.category) && (
+                  <option value={form.category}>
+                    {form.category} (not in Categories list)
+                  </option>
+                )}
+            </select>
           </div>
           <div style={{ flex: 1 }}>
             <label style={styles.label}>Venue</label>
@@ -513,11 +566,22 @@ const styles = {
   formGroup: { marginBottom: 16 },
   row: { display: "flex", gap: 16, marginBottom: 16 },
   label: {
-    display: "block",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
     fontSize: 13,
     fontWeight: "600",
     color: "#4a5568",
     marginBottom: 6,
+  },
+  manageLink: {
+    background: "none",
+    border: "none",
+    color: "#5850ec",
+    fontSize: 11,
+    fontWeight: 600,
+    cursor: "pointer",
+    padding: 0,
   },
   input: {
     width: "100%",
