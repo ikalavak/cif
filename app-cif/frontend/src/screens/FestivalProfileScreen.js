@@ -250,7 +250,7 @@ export default function FestivalProfileScreen({
             {userName}
           </Text>
 
-          <View
+          {/* <View
             style={[
               styles.badge,
               {
@@ -272,7 +272,7 @@ export default function FestivalProfileScreen({
             >
               Pass Type: VIP
             </Text>
-          </View>
+          </View> */}
         </View>
 
         <TouchableOpacity
@@ -296,9 +296,9 @@ export default function FestivalProfileScreen({
         </TouchableOpacity>
       </View>
 
-      {/* ==================================================
+    {/* { ==================================================
           VIP TICKET
-      ================================================== */}
+      ================================================== }
 
       <View
         style={[
@@ -395,7 +395,7 @@ export default function FestivalProfileScreen({
             Online
           </Text>
         </View>
-      </View>
+      </View> */}
 
       {/* ==================================================
           MY EVENT TICKETS
