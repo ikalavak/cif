@@ -1,4 +1,9 @@
-import React, { useState, useEffect, } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+
 import {
   View,
   Text,
@@ -9,298 +14,463 @@ import {
   ActivityIndicator,
 } from "react-native";
 
+import { useFocusEffect } from "@react-navigation/native";
+import { Feather } from "@expo/vector-icons";
 
 import SafeScreen from "../components/SafeScreen";
-import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 
 import { auth } from "../config/firebase";
 
 import {
-  updateProfile,
+  reload,
   sendEmailVerification,
   updatePassword,
-  reload,
+  updateProfile,
 } from "firebase/auth";
 
-export default function EditProfileScreen({ navigation }) {
+export default function EditProfileScreen({
+  navigation,
+}) {
   const { colors } = useTheme();
+
+  // ==================================================
+  // PROFILE
+  // ==================================================
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
 
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] =
+    useState("");
 
-  // IMPORTANT:
-  // This is the verification state for THIS visit to Edit Profile.
-  const [emailVerified, setEmailVerified] = useState(false);
-  const [verificationSent, setVerificationSent] = useState(false);
+  // ==================================================
+  // EMAIL VERIFICATION
+  // ==================================================
 
-  const [sendingVerification, setSendingVerification] = useState(false);
-  const [checkingVerification, setCheckingVerification] = useState(false);
+  const [emailVerified, setEmailVerified] =
+    useState(false);
+
+  const [sendingVerification, setSendingVerification] =
+    useState(false);
+
+  const [checkingVerification, setCheckingVerification] =
+    useState(false);
+
   const [saving, setSaving] = useState(false);
 
-  // Fields remain locked until the user verifies during THIS visit.
+  // ==================================================
+  // PROFILE IS LOCKED UNTIL FIREBASE SAYS VERIFIED
+  // ==================================================
+
   const fieldsLocked = !emailVerified;
 
-  const getUser = () => {
-    return auth.currentUser;
+  // ==================================================
+  // LOAD CURRENT FIREBASE USER
+  // ==================================================
+
+  const refreshVerificationStatus = async () => {
+    const user = auth.currentUser;
+
+    if (!user) {
+      return false;
+    }
+
+    try {
+      /*
+       * IMPORTANT:
+       *
+       * reload() gets the latest Firebase user.
+       * This is necessary after the user clicks the
+       * verification link in their email.
+       */
+      await reload(user);
+
+      const updatedUser = auth.currentUser;
+
+      if (!updatedUser) {
+        return false;
+      }
+
+      console.log(
+        "Firebase email:",
+        updatedUser.email
+      );
+
+      console.log(
+        "Firebase emailVerified:",
+        updatedUser.emailVerified
+      );
+
+      const verified =
+        updatedUser.emailVerified === true;
+
+      setEmailVerified(verified);
+
+      return verified;
+    } catch (error) {
+      console.log(
+        "Refresh verification error:",
+        error
+      );
+
+      return false;
+    }
   };
 
-  /*
-   * Load profile every time this screen is opened.
-   *
-   * IMPORTANT:
-   * We intentionally set emailVerified to FALSE.
-   *
-   * Firebase may say the account is already verified, but
-   * this screen requires a new verification session every time.
-   */
-  useEffect(() => {
-    const loadProfile = async () => {
-      const user = getUser();
+  // ==================================================
+  // LOAD PROFILE
+  // ==================================================
 
-      if (!user) {
-        Alert.alert(
-          "Not Logged In",
-          "Please log in before editing your profile."
-        );
+  const loadProfile = useCallback(async () => {
+    const user = auth.currentUser;
 
+    if (!user) {
+      Alert.alert(
+        "Not Logged In",
+        "Please log in before editing your profile."
+      );
+
+      if (navigation?.goBack) {
         navigation.goBack();
+      }
+
+      return;
+    }
+
+    try {
+      /*
+       * Get the newest Firebase user information.
+       */
+      await reload(user);
+
+      const updatedUser = auth.currentUser;
+
+      if (!updatedUser) {
         return;
       }
 
-      try {
-        await reload(user);
+      // ----------------------------------------------
+      // LOAD NAME
+      // ----------------------------------------------
 
-        const updatedUser = auth.currentUser;
+      if (updatedUser.displayName) {
+        const names =
+          updatedUser.displayName
+            .trim()
+            .split(" ");
 
-        /*
-         * Load existing name.
-         */
-        if (updatedUser?.displayName) {
-          const names = updatedUser.displayName.split(" ");
+        setFirstName(names[0] || "");
 
-          setFirstName(names[0] || "");
-          setLastName(names.slice(1).join(" ") || "");
+        setLastName(
+          names.slice(1).join(" ") || ""
+        );
+      }
+
+      // ----------------------------------------------
+      // LOAD VERIFICATION STATUS
+      // ----------------------------------------------
+
+      const verified =
+        updatedUser.emailVerified === true;
+
+      setEmailVerified(verified);
+
+      console.log(
+        "PROFILE LOADED"
+      );
+
+      console.log(
+        "Email:",
+        updatedUser.email
+      );
+
+      console.log(
+        "Verified:",
+        verified
+      );
+    } catch (error) {
+      console.log(
+        "Load profile error:",
+        error
+      );
+
+      Alert.alert(
+        "Error",
+        error?.message ||
+          "Unable to load your profile."
+      );
+    }
+  }, [navigation]);
+
+  // ==================================================
+  // LOAD WHEN SCREEN OPENS
+  // ==================================================
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
+
+  // ==================================================
+  // CHECK AGAIN WHEN RETURNING TO THIS SCREEN
+  // ==================================================
+
+  useFocusEffect(
+    useCallback(() => {
+      const checkWhenReturning = async () => {
+        const user = auth.currentUser;
+
+        if (!user) {
+          return;
         }
 
-        /*
-         * IMPORTANT:
-         *
-         * Do NOT do:
-         *
-         * setEmailVerified(updatedUser.emailVerified)
-         *
-         * because that would immediately unlock the page
-         * for previously verified users.
-         *
-         * Every time Edit Profile opens, the user must
-         * complete the verification process again.
-         */
-        setEmailVerified(false);
-        setVerificationSent(false);
+        try {
+          await reload(user);
 
-        /*
-         * Clear password fields every time the screen opens.
-         */
-        setPassword("");
-        setConfirmPassword("");
+          const updatedUser =
+            auth.currentUser;
 
-        console.log("Email:", updatedUser?.email);
-        console.log(
-          "Firebase emailVerified:",
-          updatedUser?.emailVerified
-        );
-        console.log(
-          "Edit Profile verification session:",
-          "NOT VERIFIED"
-        );
-      } catch (error) {
-        console.log("Profile loading error:", error);
-      }
-    };
+          if (!updatedUser) {
+            return;
+          }
 
-    loadProfile();
-  }, []);
+          const verified =
+            updatedUser.emailVerified === true;
 
-  /*
-   * STEP 1
-   *
-   * Send a REAL Firebase verification email.
-   */
- const handleVerification = async () => {
-  const user = auth.currentUser;
+          console.log(
+            "RETURNED TO APP"
+          );
 
-  if (!user) {
-    Alert.alert(
-      "Error",
-      "No user is currently signed in."
-    );
-    return;
-  }
+          console.log(
+            "Email verified:",
+            verified
+          );
 
-  try {
-    setSendingVerification(true);
+          setEmailVerified(verified);
+        } catch (error) {
+          console.log(
+            "Automatic verification check error:",
+            error
+          );
+        }
+      };
 
-    /*
-     * Get the latest Firebase user.
-     */
-    await reload(user);
+      checkWhenReturning();
+    }, [])
+  );
 
-    const updatedUser = auth.currentUser;
+  // ==================================================
+  // SEND NEW VERIFICATION EMAIL
+  // ==================================================
 
-    /*
-     * Firebase verification is permanent.
-     *
-     * If the account is already verified, we don't
-     * need to send another verification email.
-     *
-     * We simply start a new Edit Profile verification
-     * session.
-     */
-    if (updatedUser?.emailVerified === true) {
-      setVerificationSent(true);
+  const handleVerification = async () => {
+    const user = auth.currentUser;
+
+    if (!user) {
+      Alert.alert(
+        "Error",
+        "No user is currently signed in."
+      );
+
+      return;
+    }
+
+    try {
+      setSendingVerification(true);
 
       /*
-       * We still keep the Edit Profile fields locked
-       * until the user presses Check Verification.
+       * Always refresh before sending.
+       */
+      await reload(user);
+
+      const updatedUser =
+        auth.currentUser;
+
+      if (!updatedUser) {
+        Alert.alert(
+          "Error",
+          "Unable to find your account."
+        );
+
+        return;
+      }
+
+      // ==================================================
+      // ALREADY VERIFIED
+      // ==================================================
+
+      if (updatedUser.emailVerified === true) {
+        setEmailVerified(true);
+
+        Alert.alert(
+          "Already Verified",
+          "Your email address is already verified. You can edit your profile."
+        );
+
+        return;
+      }
+
+      // ==================================================
+      // SEND A NEW FIREBASE VERIFICATION LINK
+      // ==================================================
+
+      await sendEmailVerification(
+        updatedUser
+      );
+
+      /*
+       * Do NOT set emailVerified to true here.
+       *
+       * Sending the email does NOT mean the email
+       * has been verified.
        */
       setEmailVerified(false);
 
-      Alert.alert(
-        "Verification Required",
-        "Your email is already verified with Firebase. Press \"Check Verification\" to verify this Edit Profile session."
+      console.log(
+        "NEW VERIFICATION LINK SENT"
       );
 
-      return;
-    }
-
-    /*
-     * If the email has never been verified,
-     * send the real Firebase verification email.
-     */
-    await sendEmailVerification(updatedUser);
-
-    setVerificationSent(true);
-    setEmailVerified(false);
-
-    Alert.alert(
-      "Verification Email Sent",
-      `A verification link has been sent to ${updatedUser.email}.\n\nOpen the email, click the verification link, return to the app, and press "Check Verification".`
-    );
-  } catch (error) {
-    console.log(
-      "Verification email error:",
-      error
-    );
-
-    if (error?.code === "auth/too-many-requests") {
-      Alert.alert(
-        "Too Many Requests",
-        "Firebase has temporarily limited verification emails. Please wait before requesting another email."
+      console.log(
+        "Sent to:",
+        updatedUser.email
       );
-    } else {
+
+      Alert.alert(
+        "New Verification Email Sent",
+        `A new verification link has been sent to ${updatedUser.email}.\n\nOpen the newest email and click the verification link.\n\nThen return to this screen and press "Check Verification".`
+      );
+    } catch (error) {
+      console.log(
+        "Send verification error:",
+        error
+      );
+
+      // ==================================================
+      // FIREBASE RATE LIMIT
+      // ==================================================
+
+      if (
+        error?.code ===
+        "auth/too-many-requests"
+      ) {
+        Alert.alert(
+          "Too Many Requests",
+          "Firebase has temporarily stopped sending verification emails because too many requests were made. Please wait a little while and try again."
+        );
+
+        return;
+      }
+
+      // ==================================================
+      // OTHER ERROR
+      // ==================================================
+
       Alert.alert(
         "Verification Error",
         error?.message ||
-          "Unable to send the verification email."
+          "Unable to send a new verification email."
       );
+    } finally {
+      setSendingVerification(false);
     }
-  } finally {
-    setSendingVerification(false);
-  }
-};
+  };
 
-  /*
-   * STEP 2
-   *
-   * Check Firebase AFTER the user has clicked
-   * the verification link.
-   */
+  // ==================================================
+  // CHECK VERIFICATION
+  // ==================================================
+
   const checkVerification = async () => {
-  if (!verificationSent) {
-    Alert.alert(
-      "Send Verification First",
-      "Please press the verification button first."
-    );
-    return;
-  }
+    const user = auth.currentUser;
 
-  const user = auth.currentUser;
-
-  if (!user) {
-    Alert.alert(
-      "Error",
-      "No user is currently signed in."
-    );
-    return;
-  }
-
-  try {
-    setCheckingVerification(true);
-
-    /*
-     * Refresh the Firebase user.
-     *
-     * This gets the latest emailVerified value
-     * after the user clicks the email link.
-     */
-    await reload(user);
-
-    const updatedUser = auth.currentUser;
-
-    console.log(
-      "Firebase emailVerified:",
-      updatedUser?.emailVerified
-    );
-
-    /*
-     * Firebase says the email is verified.
-     *
-     * Now we unlock this Edit Profile session.
-     */
-    if (updatedUser?.emailVerified === true) {
-      setEmailVerified(true);
-
+    if (!user) {
       Alert.alert(
-        "Email Verified",
-        "Your email has been verified. You can now edit your profile."
+        "Error",
+        "No user is currently signed in."
       );
 
       return;
     }
 
-    /*
-     * Firebase still says the email is not verified.
-     */
-    setEmailVerified(false);
+    try {
+      setCheckingVerification(true);
 
-    Alert.alert(
-      "Not Verified",
-      "Your email has not been verified yet. Please open the verification email, click the verification link, and then press Check Verification again."
-    );
-  } catch (error) {
-    console.log(
-      "Verification check error:",
-      error
-    );
+      /*
+       * ALWAYS reload Firebase.
+       *
+       * This is what detects that the user clicked
+       * the verification link outside the app.
+       */
+      await reload(user);
 
-    Alert.alert(
-      "Verification Error",
-      error?.message ||
-        "Unable to check verification."
-    );
-  } finally {
-    setCheckingVerification(false);
-  }
-}; 
-  /*
-   * SAVE PROFILE
-   */
+      const updatedUser =
+        auth.currentUser;
+
+      if (!updatedUser) {
+        return;
+      }
+
+      console.log(
+        "CHECKING VERIFICATION"
+      );
+
+      console.log(
+        "Email:",
+        updatedUser.email
+      );
+
+      console.log(
+        "emailVerified:",
+        updatedUser.emailVerified
+      );
+
+      // ==================================================
+      // VERIFIED
+      // ==================================================
+
+      if (updatedUser.emailVerified === true) {
+        setEmailVerified(true);
+
+        Alert.alert(
+          "Email Verified",
+          "Your email has been successfully verified. You can now edit your profile."
+        );
+
+        return;
+      }
+
+      // ==================================================
+      // NOT VERIFIED
+      // ==================================================
+
+      setEmailVerified(false);
+
+      Alert.alert(
+        "Not Verified Yet",
+        "Firebase has not detected the verification yet. Make sure you clicked the newest verification link, then press Check Verification again."
+      );
+    } catch (error) {
+      console.log(
+        "Check verification error:",
+        error
+      );
+
+      Alert.alert(
+        "Verification Error",
+        error?.message ||
+          "Unable to check your verification status."
+      );
+    } finally {
+      setCheckingVerification(false);
+    }
+  };
+
+  // ==================================================
+  // SAVE PROFILE
+  // ==================================================
+
   const saveProfile = async () => {
-    const user = getUser();
+    const user = auth.currentUser;
 
     if (!user) {
       Alert.alert(
@@ -313,67 +483,81 @@ export default function EditProfileScreen({ navigation }) {
 
     try {
       /*
-       * Always reload before saving.
+       * Always check Firebase again before saving.
        */
       await reload(user);
 
-      const updatedUser = auth.currentUser;
+      const updatedUser =
+        auth.currentUser;
 
-      /*
-       * Firebase must still say verified.
-       */
-      if (!updatedUser?.emailVerified) {
+      if (!updatedUser) {
+        return;
+      }
+
+      // ==================================================
+      // VERIFY AGAIN
+      // ==================================================
+
+      if (updatedUser.emailVerified !== true) {
         setEmailVerified(false);
 
         Alert.alert(
           "Email Verification Required",
-          "Please verify your email address before saving your profile changes."
+          "Please verify your email before saving profile changes."
         );
 
         return;
       }
 
-      /*
-       * First name validation.
-       */
+      // ==================================================
+      // VALIDATE FIRST NAME
+      // ==================================================
+
       if (!firstName.trim()) {
         Alert.alert(
-          "Error",
+          "Missing First Name",
           "Please enter your first name."
         );
 
         return;
       }
 
-      /*
-       * Last name validation.
-       */
+      // ==================================================
+      // VALIDATE LAST NAME
+      // ==================================================
+
       if (!lastName.trim()) {
         Alert.alert(
-          "Error",
+          "Missing Last Name",
           "Please enter your last name."
         );
 
         return;
       }
 
-      /*
-       * Password validation.
-       */
-      if (password || confirmPassword) {
+      // ==================================================
+      // VALIDATE PASSWORD
+      // ==================================================
+
+      if (
+        password.length > 0 ||
+        confirmPassword.length > 0
+      ) {
         if (password.length < 6) {
           Alert.alert(
             "Invalid Password",
-            "Password must be at least 6 characters."
+            "Password must contain at least 6 characters."
           );
 
           return;
         }
 
-        if (password !== confirmPassword) {
+        if (
+          password !== confirmPassword
+        ) {
           Alert.alert(
             "Passwords Do Not Match",
-            "Please make sure both passwords are the same."
+            "Please make sure both passwords match."
           );
 
           return;
@@ -382,110 +566,145 @@ export default function EditProfileScreen({ navigation }) {
 
       setSaving(true);
 
-      /*
-       * Update name.
-       */
-      await updateProfile(updatedUser, {
-        displayName:
-          `${firstName.trim()} ${lastName.trim()}`,
-      });
+      // ==================================================
+      // UPDATE NAME
+      // ==================================================
 
-      /*
-       * Update password if entered.
-       */
+      await updateProfile(
+        updatedUser,
+        {
+          displayName:
+            `${firstName.trim()} ${lastName.trim()}`,
+        }
+      );
+
+      // ==================================================
+      // UPDATE PASSWORD
+      // ==================================================
+
       if (password.trim()) {
-        await updatePassword(
-          updatedUser,
-          password
-        );
+        try {
+          await updatePassword(
+            updatedUser,
+            password
+          );
+        } catch (passwordError) {
+          console.log(
+            "Password update error:",
+            passwordError
+          );
+
+          if (
+            passwordError?.code ===
+            "auth/requires-recent-login"
+          ) {
+            Alert.alert(
+              "Log In Again",
+              "For security, Firebase requires you to log in again before changing your password."
+            );
+
+            return;
+          }
+
+          throw passwordError;
+        }
       }
 
-      /*
-       * Clear password fields.
-       */
+      // ==================================================
+      // CLEAR PASSWORD
+      // ==================================================
+
       setPassword("");
       setConfirmPassword("");
 
+      // ==================================================
+      // SUCCESS
+      // ==================================================
+
       Alert.alert(
         "Profile Updated",
-        "Your profile changes have been saved successfully.",
+        "Your profile has been updated successfully.",
         [
           {
             text: "OK",
             onPress: () => {
-              /*
-               * IMPORTANT:
-               *
-               * Reset the verification session BEFORE
-               * leaving the screen.
-               */
-              setEmailVerified(false);
-              setVerificationSent(false);
-
-              navigation.goBack();
+              if (navigation?.goBack) {
+                navigation.goBack();
+              }
             },
           },
         ]
       );
     } catch (error) {
       console.log(
-        "Profile update error:",
+        "Save profile error:",
         error
       );
 
       if (
-        error.code ===
+        error?.code ===
         "auth/requires-recent-login"
       ) {
         Alert.alert(
-          "Please Log In Again",
-          "For security, Firebase requires you to log in again before changing your password."
+          "Log In Again",
+          "For security, Firebase requires you to log in again before changing your profile."
         );
-      } else {
-        Alert.alert(
-          "Update Failed",
-          error?.message ||
-            "Unable to update your profile."
-        );
+
+        return;
       }
+
+      Alert.alert(
+        "Update Failed",
+        error?.message ||
+          "Unable to update your profile."
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  /*
-   * BACK BUTTON
-   *
-   * Always reset the verification session.
-   */
-  const handleBack = () => {
-    setEmailVerified(false);
-    setVerificationSent(false);
+  // ==================================================
+  // BACK
+  // ==================================================
 
+  const handleBack = () => {
     setPassword("");
     setConfirmPassword("");
 
-    navigation.goBack();
+    if (navigation?.goBack) {
+      navigation.goBack();
+    }
   };
+
+  // ==================================================
+  // UI
+  // ==================================================
 
   return (
     <SafeScreen
       scroll
       style={[
         styles.screen,
-        { backgroundColor: colors.bg },
+        {
+          backgroundColor: colors.bg,
+        },
       ]}
       contentContainerStyle={{
         paddingBottom: 30,
       }}
     >
-      {/* HEADER */}
+      {/* ==================================================
+          HEADER
+      ================================================== */}
 
       <View style={styles.header}>
         <TouchableOpacity
           style={[
             styles.backButton,
-            { backgroundColor: colors.card },
+            {
+              backgroundColor:
+                colors.card,
+            },
           ]}
           onPress={handleBack}
         >
@@ -499,23 +718,34 @@ export default function EditProfileScreen({ navigation }) {
         <Text
           style={[
             styles.title,
-            { color: colors.text },
+            {
+              color: colors.text,
+            },
           ]}
         >
           Edit Profile
         </Text>
 
-        <View style={{ width: 40 }} />
+        <View
+          style={{
+            width: 40,
+          }}
+        />
       </View>
 
       <View style={styles.container}>
 
-        {/* VERIFICATION STATUS */}
+        {/* ==================================================
+            VERIFICATION STATUS
+        ================================================== */}
 
         <View
           style={[
             styles.verificationBox,
-            { backgroundColor: colors.card },
+            {
+              backgroundColor:
+                colors.card,
+            },
           ]}
         >
           <Feather
@@ -524,7 +754,7 @@ export default function EditProfileScreen({ navigation }) {
                 ? "check-circle"
                 : "alert-circle"
             }
-            size={22}
+            size={24}
             color={
               emailVerified
                 ? colors.primary
@@ -532,32 +762,43 @@ export default function EditProfileScreen({ navigation }) {
             }
           />
 
-          <View style={{ flex: 1 }}>
+          <View
+            style={{
+              flex: 1,
+            }}
+          >
             <Text
               style={[
                 styles.verificationTitle,
-                { color: colors.text },
+                {
+                  color: colors.text,
+                },
               ]}
             >
               {emailVerified
                 ? "Email Verified"
-                : "Verification Required"}
+                : "Email Not Verified"}
             </Text>
 
             <Text
               style={[
                 styles.verificationText,
-                { color: colors.textMuted },
+                {
+                  color:
+                    colors.textMuted,
+                },
               ]}
             >
               {emailVerified
-                ? "Your email has been verified for this editing session."
-                : "You must verify your email before you can edit your profile."}
+                ? "Your email is verified. You can edit your profile."
+                : "Verify your email before editing your profile."}
             </Text>
           </View>
         </View>
 
-        {/* STEP 1 */}
+        {/* ==================================================
+            SEND NEW VERIFICATION EMAIL
+        ================================================== */}
 
         {!emailVerified && (
           <TouchableOpacity
@@ -572,11 +813,17 @@ export default function EditProfileScreen({ navigation }) {
                     : 1,
               },
             ]}
-            onPress={handleVerification}
-            disabled={sendingVerification}
+            onPress={
+              handleVerification
+            }
+            disabled={
+              sendingVerification
+            }
           >
             {sendingVerification ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator
+                color="#FFFFFF"
+              />
             ) : (
               <>
                 <Feather
@@ -585,17 +832,21 @@ export default function EditProfileScreen({ navigation }) {
                   color="#FFFFFF"
                 />
 
-                <Text style={styles.buttonText}>
-                  {verificationSent
-                    ? "Resend Verification Email"
-                    : "1. Send Verification Email"}
+                <Text
+                  style={
+                    styles.buttonText
+                  }
+                >
+                  Send New Verification Email
                 </Text>
               </>
             )}
           </TouchableOpacity>
         )}
 
-        {/* STEP 2 */}
+        {/* ==================================================
+            CHECK VERIFICATION
+        ================================================== */}
 
         {!emailVerified && (
           <TouchableOpacity
@@ -603,25 +854,25 @@ export default function EditProfileScreen({ navigation }) {
               styles.checkButton,
               {
                 borderColor:
-                  verificationSent
-                    ? colors.primary
-                    : colors.border,
-
+                  colors.primary,
                 opacity:
-                  verificationSent
-                    ? 1
-                    : 0.4,
+                  checkingVerification
+                    ? 0.6
+                    : 1,
               },
             ]}
-            onPress={checkVerification}
+            onPress={
+              checkVerification
+            }
             disabled={
-              !verificationSent ||
               checkingVerification
             }
           >
             {checkingVerification ? (
               <ActivityIndicator
-                color={colors.primary}
+                color={
+                  colors.primary
+                }
               />
             ) : (
               <>
@@ -629,9 +880,7 @@ export default function EditProfileScreen({ navigation }) {
                   name="refresh-cw"
                   size={18}
                   color={
-                    verificationSent
-                      ? colors.primary
-                      : colors.textMuted
+                    colors.primary
                   }
                 />
 
@@ -640,35 +889,36 @@ export default function EditProfileScreen({ navigation }) {
                     styles.checkButtonText,
                     {
                       color:
-                        verificationSent
-                          ? colors.primary
-                          : colors.textMuted,
+                        colors.primary,
                     },
                   ]}
                 >
-                  2. Check Verification
+                  Check Verification
                 </Text>
               </>
             )}
           </TouchableOpacity>
         )}
 
-        {!emailVerified &&
-          !verificationSent && (
-            <Text
-              style={[
-                styles.lockedHint,
-                {
-                  color:
-                    colors.textMuted,
-                },
-              ]}
-            >
-              Send the verification email first to unlock the check button.
-            </Text>
-          )}
+        {!emailVerified && (
+          <Text
+            style={[
+              styles.lockedHint,
+              {
+                color:
+                  colors.textMuted,
+              },
+            ]}
+          >
+            You can request a new verification email,
+            then check your verification status again
+            after clicking the newest link.
+          </Text>
+        )}
 
-        {/* PROFILE FIELDS */}
+        {/* ==================================================
+            PROFILE FIELDS
+        ================================================== */}
 
         <View
           pointerEvents={
@@ -677,17 +927,21 @@ export default function EditProfileScreen({ navigation }) {
               : "auto"
           }
           style={{
-            opacity: fieldsLocked
-              ? 0.4
-              : 1,
+            opacity:
+              fieldsLocked
+                ? 0.4
+                : 1,
           }}
         >
+
           {/* FIRST NAME */}
 
           <Text
             style={[
               styles.label,
-              { color: colors.text },
+              {
+                color: colors.text,
+              },
             ]}
           >
             First Name
@@ -695,18 +949,23 @@ export default function EditProfileScreen({ navigation }) {
 
           <TextInput
             value={firstName}
-            onChangeText={setFirstName}
+            onChangeText={
+              setFirstName
+            }
             placeholder="Enter first name"
             placeholderTextColor={
               colors.textMuted
             }
-            editable={!fieldsLocked}
+            editable={
+              !fieldsLocked
+            }
             style={[
               styles.input,
               {
                 backgroundColor:
                   colors.card,
-                color: colors.text,
+                color:
+                  colors.text,
                 borderColor:
                   colors.border,
               },
@@ -718,7 +977,9 @@ export default function EditProfileScreen({ navigation }) {
           <Text
             style={[
               styles.label,
-              { color: colors.text },
+              {
+                color: colors.text,
+              },
             ]}
           >
             Last Name
@@ -726,18 +987,23 @@ export default function EditProfileScreen({ navigation }) {
 
           <TextInput
             value={lastName}
-            onChangeText={setLastName}
+            onChangeText={
+              setLastName
+            }
             placeholder="Enter last name"
             placeholderTextColor={
               colors.textMuted
             }
-            editable={!fieldsLocked}
+            editable={
+              !fieldsLocked
+            }
             style={[
               styles.input,
               {
                 backgroundColor:
                   colors.card,
-                color: colors.text,
+                color:
+                  colors.text,
                 borderColor:
                   colors.border,
               },
@@ -749,7 +1015,9 @@ export default function EditProfileScreen({ navigation }) {
           <Text
             style={[
               styles.label,
-              { color: colors.text },
+              {
+                color: colors.text,
+              },
             ]}
           >
             Change Password
@@ -757,19 +1025,24 @@ export default function EditProfileScreen({ navigation }) {
 
           <TextInput
             value={password}
-            onChangeText={setPassword}
+            onChangeText={
+              setPassword
+            }
             placeholder="Enter new password"
             placeholderTextColor={
               colors.textMuted
             }
             secureTextEntry
-            editable={!fieldsLocked}
+            editable={
+              !fieldsLocked
+            }
             style={[
               styles.input,
               {
                 backgroundColor:
                   colors.card,
-                color: colors.text,
+                color:
+                  colors.text,
                 borderColor:
                   colors.border,
               },
@@ -781,14 +1054,18 @@ export default function EditProfileScreen({ navigation }) {
           <Text
             style={[
               styles.label,
-              { color: colors.text },
+              {
+                color: colors.text,
+              },
             ]}
           >
             Confirm Password
           </Text>
 
           <TextInput
-            value={confirmPassword}
+            value={
+              confirmPassword
+            }
             onChangeText={
               setConfirmPassword
             }
@@ -797,13 +1074,16 @@ export default function EditProfileScreen({ navigation }) {
               colors.textMuted
             }
             secureTextEntry
-            editable={!fieldsLocked}
+            editable={
+              !fieldsLocked
+            }
             style={[
               styles.input,
               {
                 backgroundColor:
                   colors.card,
-                color: colors.text,
+                color:
+                  colors.text,
                 borderColor:
                   colors.border,
               },
@@ -832,7 +1112,9 @@ export default function EditProfileScreen({ navigation }) {
             }
           >
             {saving ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator
+                color="#FFFFFF"
+              />
             ) : (
               <Text
                 style={
@@ -843,11 +1125,16 @@ export default function EditProfileScreen({ navigation }) {
               </Text>
             )}
           </TouchableOpacity>
+
         </View>
       </View>
     </SafeScreen>
   );
 }
+
+// ======================================================
+// STYLES
+// ======================================================
 
 const styles = StyleSheet.create({
   screen: {
@@ -857,7 +1144,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent:
+      "space-between",
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 20,
@@ -880,21 +1168,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
 
-  label: {
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: 8,
-    marginTop: 15,
-  },
-
-  input: {
-    height: 50,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    fontSize: 15,
-  },
-
   verificationBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -912,10 +1185,11 @@ const styles = StyleSheet.create({
 
   verificationText: {
     fontSize: 13,
+    lineHeight: 18,
   },
 
   verifyButton: {
-    height: 48,
+    height: 50,
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
@@ -925,7 +1199,7 @@ const styles = StyleSheet.create({
   },
 
   checkButton: {
-    height: 48,
+    height: 50,
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
@@ -943,7 +1217,23 @@ const styles = StyleSheet.create({
   lockedHint: {
     fontSize: 12,
     textAlign: "center",
-    marginTop: 6,
+    marginTop: 8,
+    lineHeight: 18,
+  },
+
+  label: {
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 8,
+    marginTop: 15,
+  },
+
+  input: {
+    height: 50,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    fontSize: 15,
   },
 
   saveButton: {
@@ -960,3 +1250,4 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
+

@@ -35,7 +35,6 @@ export default function LoginScreen({ navigation }) {
   // Email states
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -529,37 +528,6 @@ export default function LoginScreen({ navigation }) {
             ======================================= */}
 
             <View style={styles.rowBetween}>
-              <TouchableOpacity
-                style={styles.rememberMeRow}
-                onPress={() => setRememberMe(!rememberMe)}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={[
-                    styles.checkbox,
-                    rememberMe && styles.checkboxChecked,
-                    {
-                      borderColor: colors.primary,
-                    },
-                  ]}
-                >
-                  {rememberMe && (
-                    <Feather name="check" size={12} color={colors.onPrimary} />
-                  )}
-                </View>
-
-                <Text
-                  style={[
-                    styles.rememberMeText,
-                    {
-                      color: colors.text,
-                    },
-                  ]}
-                >
-                  Remember me
-                </Text>
-              </TouchableOpacity>
-
               <TouchableOpacity onPress={handleForgotPassword}>
                 <Text
                   style={[
