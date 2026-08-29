@@ -48,10 +48,10 @@ export default function EventsScreen({ navigation, route }) {
   // Live events, published only (matches Firestore rules for public reads)
   useEffect(() => {
     const q = query(
-  collection(db, "events"),
-  where("published", "==", true),
-  orderBy("start_date", "asc"),
-);
+      collection(db, "events"),
+      where("published", "==", true),
+      orderBy("start_date", "asc"),
+    );
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
@@ -294,7 +294,7 @@ export default function EventsScreen({ navigation, route }) {
           />
           <TextInput
             style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Search by title, venue, or speaker..."
+            placeholder="Find events..."
             placeholderTextColor={colors.textMuted}
             value={query_}
             onChangeText={setQuery}
