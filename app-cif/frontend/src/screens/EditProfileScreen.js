@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   View,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 
+import { useFocusEffect } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 
 import SafeScreen from "../components/SafeScreen";
@@ -17,16 +18,12 @@ import { useTheme } from "../context/ThemeContext";
 
 import { auth } from "../config/firebase";
 
-import { updateProfile, updatePassword } from "firebase/auth";
-
-// NOTE: this screen used to gate all fields behind an "email verified"
-// check with its own resend/verify UI. That's now removed — LoginScreen.js
-// already refuses sign-in entirely for unverified accounts (it signs the
-// user back out and prompts them to verify first), so anyone who can reach
-// this screen at all is already guaranteed to be verified. Keeping a second
-// verification gate here was dead logic that always evaluated to "verified"
-// and added an extra Firebase reload() call on every screen open for no
-// actual benefit.
+import {
+  reload,
+  sendEmailVerification,
+  updatePassword,
+  updateProfile,
+} from "firebase/auth";
 
 export default function EditProfileScreen({ navigation }) {
   const { colors } = useTheme();
@@ -37,10 +34,22 @@ export default function EditProfileScreen({ navigation }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const [loading, setLoading] = useState(true);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [sendingVerification, setSendingVerification] = useState(false);
+  const [checkingVerification, setCheckingVerification] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const loadProfile = useCallback(() => {
+  const fieldsLocked = !emailVerified;
+
+  // Guards against loadProfile() (on mount) and checkWhenReturning()
+  // (on focus) both firing a reload() at almost the same instant — the
+  // overlapping Firebase network calls were the likely cause of the
+  // screen appearing to hang/close immediately on open. Focus fires
+  // right after mount on first open, so this skips that one redundant
+  // duplicate call; subsequent returns to the screen still re-check.
+  const hasLoadedOnce = useRef(false);
+
+  const loadProfile = useCallback(async () => {
     const user = auth.currentUser;
 
     if (!user) {
@@ -56,18 +65,144 @@ export default function EditProfileScreen({ navigation }) {
       return;
     }
 
-    if (user.displayName) {
-      const names = user.displayName.trim().split(" ");
-      setFirstName(names[0] || "");
-      setLastName(names.slice(1).join(" ") || "");
-    }
+    try {
+      await reload(user);
 
-    setLoading(false);
+      const updatedUser = auth.currentUser;
+      if (!updatedUser) return;
+
+      if (updatedUser.displayName) {
+        const names = updatedUser.displayName.trim().split(" ");
+        setFirstName(names[0] || "");
+        setLastName(names.slice(1).join(" ") || "");
+      }
+
+      setEmailVerified(updatedUser.emailVerified === true);
+    } catch (error) {
+      Alert.alert("Error", error?.message || "Unable to load your profile.");
+    } finally {
+      hasLoadedOnce.current = true;
+    }
   }, [navigation]);
 
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Skip the redundant duplicate check right after initial mount —
+      // loadProfile() already just did this exact reload().
+      if (!hasLoadedOnce.current) return;
+
+      const checkWhenReturning = async () => {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        try {
+          await reload(user);
+          const updatedUser = auth.currentUser;
+          if (!updatedUser) return;
+          setEmailVerified(updatedUser.emailVerified === true);
+        } catch (error) {
+          console.log("Automatic verification check error:", error);
+        }
+      };
+
+      checkWhenReturning();
+    }, []),
+  );
+
+  const handleVerification = async () => {
+    const user = auth.currentUser;
+
+    if (!user) {
+      Alert.alert("Error", "No user is currently signed in.");
+      return;
+    }
+
+    try {
+      setSendingVerification(true);
+      await reload(user);
+
+      const updatedUser = auth.currentUser;
+      if (!updatedUser) {
+        Alert.alert("Error", "Unable to find your account.");
+        return;
+      }
+
+      if (updatedUser.emailVerified === true) {
+        setEmailVerified(true);
+        Alert.alert(
+          "Already Verified",
+          "Your email address is already verified. You can edit your profile.",
+        );
+        return;
+      }
+
+      await sendEmailVerification(updatedUser);
+      setEmailVerified(false);
+
+      Alert.alert(
+        "New Verification Email Sent",
+        `A new verification link has been sent to ${updatedUser.email}.\n\nOpen the newest email and click the verification link.\n\nThen return to this screen and press "Check Verification".`,
+      );
+    } catch (error) {
+      if (error?.code === "auth/too-many-requests") {
+        Alert.alert(
+          "Too Many Requests",
+          "Firebase has temporarily stopped sending verification emails because too many requests were made. Please wait a little while and try again.",
+        );
+        return;
+      }
+
+      Alert.alert(
+        "Verification Error",
+        error?.message || "Unable to send a new verification email.",
+      );
+    } finally {
+      setSendingVerification(false);
+    }
+  };
+
+  const checkVerification = async () => {
+    const user = auth.currentUser;
+
+    if (!user) {
+      Alert.alert("Error", "No user is currently signed in.");
+      return;
+    }
+
+    try {
+      setCheckingVerification(true);
+      await reload(user);
+
+      const updatedUser = auth.currentUser;
+      if (!updatedUser) return;
+
+      if (updatedUser.emailVerified === true) {
+        setEmailVerified(true);
+        Alert.alert(
+          "Email Verified",
+          "Your email has been successfully verified. You can now edit your profile.",
+        );
+        return;
+      }
+
+      setEmailVerified(false);
+      Alert.alert(
+        "Not Verified Yet",
+        "Firebase has not detected the verification yet. Make sure you clicked the newest verification link, then press Check Verification again.",
+      );
+    } catch (error) {
+      Alert.alert(
+        "Verification Error",
+        error?.message || "Unable to check your verification status.",
+      );
+    } finally {
+      setCheckingVerification(false);
+    }
+  };
 
   const saveProfile = async () => {
     const user = auth.currentUser;
@@ -77,44 +212,57 @@ export default function EditProfileScreen({ navigation }) {
       return;
     }
 
-    if (!firstName.trim()) {
-      Alert.alert("Missing First Name", "Please enter your first name.");
-      return;
-    }
-
-    if (!lastName.trim()) {
-      Alert.alert("Missing Last Name", "Please enter your last name.");
-      return;
-    }
-
-    if (password.length > 0 || confirmPassword.length > 0) {
-      if (password.length < 6) {
-        Alert.alert(
-          "Invalid Password",
-          "Password must contain at least 6 characters.",
-        );
-        return;
-      }
-
-      if (password !== confirmPassword) {
-        Alert.alert(
-          "Passwords Do Not Match",
-          "Please make sure both passwords match.",
-        );
-        return;
-      }
-    }
-
-    setSaving(true);
-
     try {
-      await updateProfile(user, {
+      await reload(user);
+      const updatedUser = auth.currentUser;
+      if (!updatedUser) return;
+
+      if (updatedUser.emailVerified !== true) {
+        setEmailVerified(false);
+        Alert.alert(
+          "Email Verification Required",
+          "Please verify your email before saving profile changes.",
+        );
+        return;
+      }
+
+      if (!firstName.trim()) {
+        Alert.alert("Missing First Name", "Please enter your first name.");
+        return;
+      }
+
+      if (!lastName.trim()) {
+        Alert.alert("Missing Last Name", "Please enter your last name.");
+        return;
+      }
+
+      if (password.length > 0 || confirmPassword.length > 0) {
+        if (password.length < 6) {
+          Alert.alert(
+            "Invalid Password",
+            "Password must contain at least 6 characters.",
+          );
+          return;
+        }
+
+        if (password !== confirmPassword) {
+          Alert.alert(
+            "Passwords Do Not Match",
+            "Please make sure both passwords match.",
+          );
+          return;
+        }
+      }
+
+      setSaving(true);
+
+      await updateProfile(updatedUser, {
         displayName: `${firstName.trim()} ${lastName.trim()}`,
       });
 
       if (password.trim()) {
         try {
-          await updatePassword(user, password);
+          await updatePassword(updatedUser, password);
         } catch (passwordError) {
           if (passwordError?.code === "auth/requires-recent-login") {
             Alert.alert(
@@ -171,16 +319,6 @@ export default function EditProfileScreen({ navigation }) {
     }
   };
 
-  if (loading) {
-    return (
-      <SafeScreen style={[styles.screen, { backgroundColor: colors.bg }]}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      </SafeScreen>
-    );
-  }
-
   return (
     <SafeScreen
       scroll
@@ -201,90 +339,185 @@ export default function EditProfileScreen({ navigation }) {
       </View>
 
       <View style={styles.container}>
-        <Text style={[styles.label, { color: colors.text }]}>First Name</Text>
-        <TextInput
-          value={firstName}
-          onChangeText={setFirstName}
-          placeholder="Enter first name"
-          placeholderTextColor={colors.textMuted}
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.card,
-              color: colors.text,
-              borderColor: colors.border,
-            },
-          ]}
-        />
-
-        <Text style={[styles.label, { color: colors.text }]}>Last Name</Text>
-        <TextInput
-          value={lastName}
-          onChangeText={setLastName}
-          placeholder="Enter last name"
-          placeholderTextColor={colors.textMuted}
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.card,
-              color: colors.text,
-              borderColor: colors.border,
-            },
-          ]}
-        />
-
-        <Text style={[styles.label, { color: colors.text }]}>
-          Change Password
-        </Text>
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Enter new password"
-          placeholderTextColor={colors.textMuted}
-          secureTextEntry
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.card,
-              color: colors.text,
-              borderColor: colors.border,
-            },
-          ]}
-        />
-
-        <Text style={[styles.label, { color: colors.text }]}>
-          Confirm Password
-        </Text>
-        <TextInput
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          placeholder="Confirm new password"
-          placeholderTextColor={colors.textMuted}
-          secureTextEntry
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.card,
-              color: colors.text,
-              borderColor: colors.border,
-            },
-          ]}
-        />
-
-        <TouchableOpacity
-          style={[
-            styles.saveButton,
-            { backgroundColor: colors.primary, opacity: saving ? 0.6 : 1 },
-          ]}
-          onPress={saveProfile}
-          disabled={saving}
+        <View
+          style={[styles.verificationBox, { backgroundColor: colors.card }]}
         >
-          {saving ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.buttonText}>Save Changes</Text>
-          )}
-        </TouchableOpacity>
+          <Feather
+            name={emailVerified ? "check-circle" : "alert-circle"}
+            size={24}
+            color={emailVerified ? colors.primary : colors.error}
+          />
+
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.verificationTitle, { color: colors.text }]}>
+              {emailVerified ? "Email Verified" : "Email Not Verified"}
+            </Text>
+
+            <Text
+              style={[styles.verificationText, { color: colors.textMuted }]}
+            >
+              {emailVerified
+                ? "Your email is verified. You can edit your profile."
+                : "Verify your email before editing your profile."}
+            </Text>
+          </View>
+        </View>
+
+        {!emailVerified && (
+          <TouchableOpacity
+            style={[
+              styles.verifyButton,
+              {
+                backgroundColor: colors.accent,
+                opacity: sendingVerification ? 0.6 : 1,
+              },
+            ]}
+            onPress={handleVerification}
+            disabled={sendingVerification}
+          >
+            {sendingVerification ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Feather name="mail" size={18} color="#FFFFFF" />
+                <Text style={styles.buttonText}>
+                  Send New Verification Email
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
+
+        {!emailVerified && (
+          <TouchableOpacity
+            style={[
+              styles.checkButton,
+              {
+                borderColor: colors.primary,
+                opacity: checkingVerification ? 0.6 : 1,
+              },
+            ]}
+            onPress={checkVerification}
+            disabled={checkingVerification}
+          >
+            {checkingVerification ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <>
+                <Feather name="refresh-cw" size={18} color={colors.primary} />
+                <Text
+                  style={[styles.checkButtonText, { color: colors.primary }]}
+                >
+                  Check Verification
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
+
+        {!emailVerified && (
+          <Text style={[styles.lockedHint, { color: colors.textMuted }]}>
+            You can request a new verification email, then check your
+            verification status again after clicking the newest link.
+          </Text>
+        )}
+
+        <View
+          pointerEvents={fieldsLocked ? "none" : "auto"}
+          style={{ opacity: fieldsLocked ? 0.4 : 1 }}
+        >
+          <Text style={[styles.label, { color: colors.text }]}>First Name</Text>
+          <TextInput
+            value={firstName}
+            onChangeText={setFirstName}
+            placeholder="Enter first name"
+            placeholderTextColor={colors.textMuted}
+            editable={!fieldsLocked}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.card,
+                color: colors.text,
+                borderColor: colors.border,
+              },
+            ]}
+          />
+
+          <Text style={[styles.label, { color: colors.text }]}>Last Name</Text>
+          <TextInput
+            value={lastName}
+            onChangeText={setLastName}
+            placeholder="Enter last name"
+            placeholderTextColor={colors.textMuted}
+            editable={!fieldsLocked}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.card,
+                color: colors.text,
+                borderColor: colors.border,
+              },
+            ]}
+          />
+
+          <Text style={[styles.label, { color: colors.text }]}>
+            Change Password
+          </Text>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Enter new password"
+            placeholderTextColor={colors.textMuted}
+            secureTextEntry
+            editable={!fieldsLocked}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.card,
+                color: colors.text,
+                borderColor: colors.border,
+              },
+            ]}
+          />
+
+          <Text style={[styles.label, { color: colors.text }]}>
+            Confirm Password
+          </Text>
+          <TextInput
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            placeholder="Confirm new password"
+            placeholderTextColor={colors.textMuted}
+            secureTextEntry
+            editable={!fieldsLocked}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.card,
+                color: colors.text,
+                borderColor: colors.border,
+              },
+            ]}
+          />
+
+          <TouchableOpacity
+            style={[
+              styles.saveButton,
+              {
+                backgroundColor: colors.primary,
+                opacity: saving || fieldsLocked ? 0.6 : 1,
+              },
+            ]}
+            onPress={saveProfile}
+            disabled={saving || fieldsLocked}
+          >
+            {saving ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.buttonText}>Save Changes</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeScreen>
   );
@@ -292,7 +525,6 @@ export default function EditProfileScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -310,6 +542,42 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 22, fontWeight: "bold" },
   container: { paddingHorizontal: 20 },
+  verificationBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 15,
+    borderRadius: 12,
+    marginTop: 5,
+  },
+  verificationTitle: { fontSize: 15, fontWeight: "bold", marginBottom: 3 },
+  verificationText: { fontSize: 13, lineHeight: 18 },
+  verifyButton: {
+    height: 50,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 15,
+  },
+  checkButton: {
+    height: 50,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+    borderWidth: 1,
+  },
+  checkButtonText: { fontSize: 15, fontWeight: "bold" },
+  lockedHint: {
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 8,
+    lineHeight: 18,
+  },
   label: { fontSize: 14, fontWeight: "700", marginBottom: 8, marginTop: 15 },
   input: {
     height: 50,
